@@ -1,0 +1,61 @@
+name: VibeNotepad
+options:
+  bundleIdPrefix: com.fredymederos
+  deploymentTarget:
+    macOS: "26.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+packages:
+  VibeCore:
+    path: Packages/VibeCore
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  VibeNotepad:
+    type: application
+    platform: macOS
+    sources:
+      - path: VibeNotepad
+    dependencies:
+      - package: VibeCore
+        product: VibeCore
+    settings:
+      base:
+        PRODUCT_NAME: "Vibe Notepad"
+        PRODUCT_MODULE_NAME: VibeNotepad
+        PRODUCT_BUNDLE_IDENTIFIER: com.fredymederos.vibenotepad
+        INFOPLIST_FILE: VibeNotepad/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        ENABLE_HARDENED_RUNTIME: NO
+        ENABLE_APP_SANDBOX: NO
+        COMBINE_HIDPI_IMAGES: YES
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+
+schemes:
+  VibeNotepad:
+    build:
+      targets:
+        VibeNotepad: all
+    run:
+      config: Debug
+    archive:
+      config: Release
