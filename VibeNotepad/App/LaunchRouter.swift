@@ -105,6 +105,14 @@ enum LaunchRouter {
                 editor?.foldAll(level: value("level").flatMap(Int.init))
                 NSLog("[debug] fold all took %.1f ms", Date().timeIntervalSince(start) * 1000)
             case "none": editor?.unfoldAll()
+            case "stress":
+                let start = Date()
+                let line = (value("line").flatMap(Int.init) ?? 2) - 1
+                for _ in 0..<(value("count").flatMap(Int.init) ?? 60) {
+                    editor?.toggleFold(atLine: line)
+                    editor?.textView.displayIfNeeded()
+                }
+                NSLog("[debug] fold stress took %.1f ms", Date().timeIntervalSince(start) * 1000)
             default: editor?.toggleFold(atLine: (value("line").flatMap(Int.init) ?? 1) - 1)
             }
         case "debug-undo":

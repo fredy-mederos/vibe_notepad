@@ -166,7 +166,6 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         foldState.unfoldAll()
         foldRegions = []
         layoutManager.hiddenRanges = []
-        layoutManager.allowsNonContiguousLayout = true
         textVersion += 1
         isLoading = true
         textStorage.beginEditing()
@@ -858,12 +857,6 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     private func applyFoldChange(from previous: [NSRange]) {
         let current = foldState.effective
         layoutManager.hiddenRanges = current
-        // Non-contiguous layout may restart a layout run at a line break hidden inside a fold,
-        // splitting the folded line. Contiguous layout (still lazy) avoids that while folds exist.
-        let contiguous = !current.isEmpty
-        if layoutManager.allowsNonContiguousLayout == contiguous {
-            layoutManager.allowsNonContiguousLayout = !contiguous
-        }
         let changed = Set(previous).symmetricDifference(current)
         invalidateFoldLayout(Array(changed))
         // Keep the caret out of hidden text.
