@@ -166,6 +166,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         foldState.unfoldAll()
         foldRegions = []
         layoutManager.hiddenRanges = []
+        layoutManager.allowsNonContiguousLayout = true
         textVersion += 1
         isLoading = true
         textStorage.beginEditing()
@@ -316,7 +317,28 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     /// Paints the visible lines (plus a margin) that still need styling.
     func styleVisible() {
         guard !textView.hasMarkedText() else { return }
-        styler.styleUnstyled(in: visibleLines(margin: 80))
+        let lines = visibleLines(margin: 80)
+        guard !foldState.isEmpty else {
+            styler.styleUnstyled(in: lines)
+            return
+        }
+        for run in engine.unstyledRuns(in: lines) {
+            styler.style(lines: expandedToFolds(run))
+        }
+    }
+
+    /// Styling invalidates layout from the first edited line; if that line is hidden inside a
+    /// fold, TextKit would start a new line fragment there and split the folded line. Extend
+    /// runs so they start and end on visible lines.
+    private func expandedToFolds(_ run: Range<Int>) -> Range<Int> {
+        var lower = run.lowerBound, upper = run.upperBound
+        if let hidden = foldState.hiddenRange(containing: engine.lineStart(lower)) {
+            lower = engine.lineIndex(containing: hidden.location)
+        }
+        if upper > lower, let hidden = foldState.hiddenRange(containing: engine.lineStart(upper - 1)) {
+            upper = engine.lineIndex(containing: NSMaxRange(hidden)) + 1
+        }
+        return lower..<min(max(upper, lower + 1), engine.lineCount)
     }
 
     func visibleLines(margin: Int = 0) -> Range<Int> {
@@ -836,6 +858,12 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     private func applyFoldChange(from previous: [NSRange]) {
         let current = foldState.effective
         layoutManager.hiddenRanges = current
+        // Non-contiguous layout may restart a layout run at a line break hidden inside a fold,
+        // splitting the folded line. Contiguous layout (still lazy) avoids that while folds exist.
+        let contiguous = !current.isEmpty
+        if layoutManager.allowsNonContiguousLayout == contiguous {
+            layoutManager.allowsNonContiguousLayout = !contiguous
+        }
         let changed = Set(previous).symmetricDifference(current)
         invalidateFoldLayout(Array(changed))
         // Keep the caret out of hidden text.

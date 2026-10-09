@@ -100,7 +100,10 @@ enum LaunchRouter {
         case "debug-fold":
             let editor = Workspace.shared.activeEditor
             switch value("op") ?? "toggle" {
-            case "all": editor?.foldAll(level: value("level").flatMap(Int.init))
+            case "all":
+                let start = Date()
+                editor?.foldAll(level: value("level").flatMap(Int.init))
+                NSLog("[debug] fold all took %.1f ms", Date().timeIntervalSince(start) * 1000)
             case "none": editor?.unfoldAll()
             default: editor?.toggleFold(atLine: (value("line").flatMap(Int.init) ?? 1) - 1)
             }
