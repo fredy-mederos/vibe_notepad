@@ -288,48 +288,55 @@ public enum FoldingAnalyzer {
 public struct FoldState: Sendable {
     /// Hidden ranges of every folded region (may nest).
     public private(set) var folded: [NSRange] = []
+    /// Outermost hidden ranges, sorted — what actually disappears from the layout.
+    public private(set) var effective: [NSRange] = []
 
     public init() {}
 
     public var isEmpty: Bool { folded.isEmpty }
-
-    /// Outermost hidden ranges, sorted — what actually disappears from the layout.
-    public var effective: [NSRange] {
-        let sorted = folded.sorted { $0.location == $1.location ? $0.length > $1.length : $0.location < $1.location }
-        var result: [NSRange] = []
-        for range in sorted {
-            if let last = result.last, NSMaxRange(range) <= NSMaxRange(last), range.location >= last.location { continue }
-            result.append(range)
-        }
-        return result
-    }
 
     public func isFolded(_ range: NSRange) -> Bool { folded.contains(range) }
 
     public mutating func fold(_ range: NSRange) {
         guard range.length > 0, !folded.contains(range) else { return }
         folded.append(range)
+        recompute()
+    }
+
+    /// Folds many ranges at once (Fold All).
+    public mutating func fold(contentsOf ranges: [NSRange]) {
+        let existing = Set(folded)
+        folded.append(contentsOf: ranges.filter { $0.length > 0 && !existing.contains($0) })
+        recompute()
     }
 
     public mutating func unfold(_ range: NSRange) {
         folded.removeAll { $0 == range }
+        recompute()
     }
 
-    /// Unfolds everything hiding any part of `range` (for find results, go-to-line...).
+    /// Unfolds every fold that hides part of `range` (find results, go to line…).
     @discardableResult
     public mutating func unfold(containing range: NSRange) -> Bool {
         let before = folded.count
+        let start = range.location, end = NSMaxRange(range)
         folded.removeAll { fold in
-            let end = NSMaxRange(fold)
-            return range.location > fold.location && range.location < end || (range.length > 0 && NSIntersectionRange(fold, range).length > 0 && NSMaxRange(range) > fold.location + 1)
+            let foldEnd = NSMaxRange(fold)
+            // Positions strictly inside the fold are hidden; its first character (the line feed) is not shown either.
+            return (start > fold.location && start < foldEnd) || (end > fold.location + 1 && start < foldEnd && end > start)
         }
-        return folded.count != before
+        guard folded.count != before else { return false }
+        recompute()
+        return true
     }
 
-    public mutating func unfoldAll() { folded.removeAll() }
+    public mutating func unfoldAll() {
+        folded.removeAll()
+        effective.removeAll()
+    }
 
     /// Shifts folds after an edit; folds touching the edited text are dropped.
-    /// - Returns: the folds that were removed.
+    /// - Returns: the dropped folds (in pre-edit coordinates).
     @discardableResult
     public mutating func applyEdit(editedRange: NSRange, changeInLength delta: Int) -> [NSRange] {
         guard !folded.isEmpty else { return [] }
@@ -337,18 +344,47 @@ public struct FoldState: Sendable {
         let oldEditEnd = NSMaxRange(editedRange) - delta
         var removed: [NSRange] = []
         folded = folded.compactMap { fold in
-            let end = NSMaxRange(fold)
-            if end <= editStart { return fold }            // entirely before the edit
-            if fold.location >= oldEditEnd { return NSRange(location: fold.location + delta, length: fold.length) } // after
+            if NSMaxRange(fold) <= editStart { return fold }
+            if fold.location >= oldEditEnd { return NSRange(location: fold.location + delta, length: fold.length) }
             removed.append(fold)
             return nil
         }
+        recompute()
         return removed
     }
 
-    /// The effective fold strictly containing `location` (not at its edges), if any.
+    /// The effective fold strictly containing `location` (not at its first position), if any.
     public func hiddenRange(containing location: Int) -> NSRange? {
-        effective.first { location > $0.location && location < NSMaxRange($0) }
+        guard let index = Self.lastIndex(in: effective, atOrBefore: location) else { return nil }
+        let range = effective[index]
+        return location > range.location && location < NSMaxRange(range) ? range : nil
+    }
+
+    /// Binary search: index of the last range whose location is <= `location`.
+    public static func lastIndex(in ranges: [NSRange], atOrBefore location: Int) -> Int? {
+        var lo = 0, hi = ranges.count - 1
+        var found: Int?
+        while lo <= hi {
+            let mid = (lo + hi) / 2
+            if ranges[mid].location <= location {
+                found = mid
+                lo = mid + 1
+            } else {
+                hi = mid - 1
+            }
+        }
+        return found
+    }
+
+    private mutating func recompute() {
+        let sorted = folded.sorted { $0.location == $1.location ? $0.length > $1.length : $0.location < $1.location }
+        var result: [NSRange] = []
+        result.reserveCapacity(sorted.count)
+        for range in sorted {
+            if let last = result.last, range.location < NSMaxRange(last) { continue } // nested or overlapping
+            result.append(range)
+        }
+        effective = result
     }
 }
 

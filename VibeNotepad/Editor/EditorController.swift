@@ -39,6 +39,13 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     private var findRefreshTask: Task<Void, Never>?
     private var bracketRanges: [NSRange] = []
 
+    // Folding
+    private(set) var foldState = FoldState()
+    private(set) var foldRegions: [FoldRegion] = []
+    private var foldAnalysisTask: Task<Void, Never>?
+    private var textVersion = 0
+    private var foldsToRelayout: [NSRange] = []
+
     /// Called after every edit (debouncing is up to the receiver).
     var onTextChange: (() -> Void)?
     /// Called when the visible region scrolls.
@@ -113,6 +120,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         super.init()
 
         lineNumbers.engine = styler.engine
+        lineNumbers.controller = self
         view.controller = self
         view.delegate = self
         storage.delegate = self
@@ -144,15 +152,21 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         isLoading = false
         engine.reset(text: nsText, language: document.language)
         restyleAfterReset()
+        gutter.showsFoldMarkers = supportsFolding
         gutter.updateThickness(force: true)
         textView.typingAttributes = styler.baseAttributes
         textView.setSelectedRange(NSRange(location: 0, length: 0))
+        scheduleFoldAnalysis(immediate: true)
     }
 
     /// Replaces the content (reload from disk, revert), keeping selection and scroll position.
     func replaceAllText(_ newText: String, markClean: Bool = true) {
         let selection = textView.selectedRange()
         let origin = scrollView.contentView.bounds.origin
+        foldState.unfoldAll()
+        foldRegions = []
+        layoutManager.hiddenRanges = []
+        textVersion += 1
         isLoading = true
         textStorage.beginEditing()
         textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: newText)
@@ -167,10 +181,16 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         scrollView.contentView.scroll(to: origin)
         scrollView.reflectScrolledClipView(scrollView.contentView)
         contentDidChange()
+        scheduleFoldAnalysis(immediate: true)
     }
 
     func setLanguage(_ language: LanguageID) {
         textView.language = language
+        if !foldState.isEmpty { unfoldAll() }
+        foldRegions = []
+        gutter.showsFoldMarkers = FoldingAnalyzer.supportsFolding(language)
+        gutter.updateThickness(force: true)
+        scheduleFoldAnalysis(immediate: true)
         engine.setLanguage(language, text: nsText)
         styler.resetAttributes()
         restyleAfterReset()
@@ -217,6 +237,9 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         layoutManager.lineHeight = height
         layoutManager.showsInvisibles = settings.showInvisibles
         layoutManager.invisiblesColor = theme.invisibles.nsColor
+        layoutManager.foldPillFill = theme.accent.withAlpha(theme.isDark ? 0.28 : 0.16).nsColor
+        layoutManager.foldPillText = theme.accent.mixed(with: theme.foreground, 0.35).nsColor
+        gutter.accentColor = theme.accent.nsColor
 
         textView.appearance = theme.appearance
         textView.backgroundColor = theme.background.nsColor
@@ -311,11 +334,24 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
         guard editedMask.contains(.editedCharacters), !isLoading else { return }
         engine.applyEdit(text: textStorage.mutableString, editedRange: editedRange, changeInLength: delta)
+        textVersion += 1
+        foldRegions.applyEdit(editedRange: editedRange, changeInLength: delta)
+        if !foldState.isEmpty {
+            let removed = foldState.applyEdit(editedRange: editedRange, changeInLength: delta)
+            layoutManager.hiddenRanges = foldState.effective
+            // Text that was hidden must be laid out again once the edit settles.
+            foldsToRelayout += removed.map { NSRange(location: $0.location, length: max(0, $0.length + delta)) }
+        }
     }
 
     // MARK: NSTextViewDelegate
 
     func textDidChange(_ notification: Notification) {
+        if !foldsToRelayout.isEmpty {
+            invalidateFoldLayout(foldsToRelayout)
+            foldsToRelayout = []
+        }
+        scheduleFoldAnalysis()
         styleVisible()
         contentDidChange()
         if !findMatches.isEmpty || Workspace.shared.findBarVisible { scheduleFindRefresh() }
@@ -538,6 +574,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         let index = max(0, min(line - 1, engine.lineCount - 1))
         let start = engine.lineStart(index)
         let end = max(start, engine.lineContentEnd(index))
+        unfoldIfNeeded(NSRange(location: start, length: end - start))
         let location = column.map { min(start + max(0, $0 - 1), end) } ?? start
         textView.setSelectedRange(NSRange(location: location, length: 0))
         scrollToCenter(NSRange(location: start, length: end - start))
@@ -547,6 +584,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
     func reveal(range: NSRange, select: Bool = true, indicator: Bool = true) {
         let range = clamp(range)
+        unfoldIfNeeded(range)
         if select { textView.setSelectedRange(range) }
         scrollToCenter(range)
         if indicator, range.length > 0 { textView.showFindIndicator(for: range) }
@@ -616,6 +654,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
     private func revealMatch(_ index: Int) {
         let range = findMatches[index]
+        unfoldIfNeeded(range)
         textView.setSelectedRange(range)
         scrollToCenter(range)
         textView.showFindIndicator(for: range)
@@ -680,6 +719,149 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
         bracketRanges = []
         updateBracketHighlight()
+    }
+
+    // MARK: Folding
+
+    var supportsFolding: Bool { FoldingAnalyzer.supportsFolding(document.language) }
+
+    /// Recomputes foldable regions (in the background for large files).
+    func scheduleFoldAnalysis(immediate: Bool = false) {
+        foldAnalysisTask?.cancel()
+        guard supportsFolding else {
+            if !foldRegions.isEmpty { foldRegions = [] }
+            return
+        }
+        if immediate, textStorage.length < 300_000 {
+            foldRegions = FoldingAnalyzer.regions(in: nsText, language: document.language)
+            gutter.needsDisplay = true
+            return
+        }
+        foldAnalysisTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(immediate ? 10 : 350))
+            guard let self, !Task.isCancelled else { return }
+            let snapshot = self.textStorage.string
+            let version = self.textVersion
+            let language = self.document.language
+            let regions = await Task.detached(priority: .utility) {
+                FoldingAnalyzer.regions(in: snapshot as NSString, language: language)
+            }.value
+            guard !Task.isCancelled, version == self.textVersion else { return }
+            self.foldRegions = regions
+            self.gutter.needsDisplay = true
+        }
+    }
+
+    private func refreshFoldRegionsNow() {
+        foldAnalysisTask?.cancel()
+        guard supportsFolding else { return }
+        foldRegions = FoldingAnalyzer.regions(in: nsText, language: document.language)
+    }
+
+    func foldRegion(startingOnLine line: Int) -> FoldRegion? {
+        guard line >= 0, line < engine.lineCount else { return nil }
+        return foldRegions.region(startingAtLineEnd: engine.lineContentEnd(line))
+    }
+
+    func isFolded(_ region: FoldRegion) -> Bool { foldState.isFolded(region.hiddenRange) }
+
+    func toggleFold(atLine line: Int) {
+        guard let region = foldRegion(startingOnLine: line) else { return }
+        let previous = foldState.effective
+        if foldState.isFolded(region.hiddenRange) {
+            foldState.unfold(region.hiddenRange)
+        } else {
+            foldState.fold(region.hiddenRange)
+        }
+        applyFoldChange(from: previous)
+    }
+
+    /// Folds the region starting on the caret's line, or the innermost one around the caret.
+    func foldAtCaret() {
+        refreshFoldRegionsNow()
+        let caret = textView.selectedRange().location
+        let line = engine.lineIndex(containing: caret)
+        var target = foldRegion(startingOnLine: line).flatMap { isFolded($0) ? nil : $0 }
+        if target == nil {
+            target = foldRegions
+                .filter { $0.hiddenStart < caret && caret <= $0.hiddenEnd && !isFolded($0) }
+                .max { $0.hiddenStart < $1.hiddenStart }
+        }
+        guard let target else { NSSound.beep(); return }
+        let previous = foldState.effective
+        foldState.fold(target.hiddenRange)
+        applyFoldChange(from: previous)
+    }
+
+    func unfoldAtCaret() {
+        let caret = textView.selectedRange().location
+        let lineEnd = engine.lineContentEnd(engine.lineIndex(containing: caret))
+        let targets = foldState.folded.filter { $0.location == lineEnd || ($0.location < caret && caret <= NSMaxRange($0)) }
+        guard !targets.isEmpty else { NSSound.beep(); return }
+        let previous = foldState.effective
+        for target in targets { foldState.unfold(target) }
+        applyFoldChange(from: previous)
+    }
+
+    /// Folds every region at `level` (1 = outermost) and deeper. Without a level, keeps the
+    /// outermost region open when there are deeper ones (a JSON file shows its top-level keys).
+    func foldAll(level: Int? = nil) {
+        refreshFoldRegionsNow()
+        guard !foldRegions.isEmpty else { NSSound.beep(); return }
+        let minDepth = level.map { max(0, $0 - 1) } ?? (foldRegions.contains { $0.depth >= 1 } ? 1 : 0)
+        let previous = foldState.effective
+        foldState.fold(contentsOf: foldRegions.filter { $0.depth >= minDepth }.map(\.hiddenRange))
+        applyFoldChange(from: previous)
+    }
+
+    func unfoldAll() {
+        guard !foldState.isEmpty else { return }
+        let previous = foldState.effective
+        foldState.unfoldAll()
+        applyFoldChange(from: previous)
+    }
+
+    func unfold(range: NSRange) {
+        let previous = foldState.effective
+        foldState.unfold(range)
+        applyFoldChange(from: previous)
+    }
+
+    func unfoldIfNeeded(_ range: NSRange) {
+        guard !foldState.isEmpty else { return }
+        let previous = foldState.effective
+        if foldState.unfold(containing: range) { applyFoldChange(from: previous) }
+    }
+
+    private func applyFoldChange(from previous: [NSRange]) {
+        let current = foldState.effective
+        layoutManager.hiddenRanges = current
+        let changed = Set(previous).symmetricDifference(current)
+        invalidateFoldLayout(Array(changed))
+        // Keep the caret out of hidden text.
+        let selection = textView.selectedRange()
+        if let hidden = foldState.hiddenRange(containing: selection.location) {
+            textView.setSelectedRange(NSRange(location: hidden.location, length: 0))
+        }
+        gutter.needsDisplay = true
+        textView.needsDisplay = true
+        styleVisible()
+    }
+
+    private func invalidateFoldLayout(_ ranges: [NSRange]) {
+        guard !ranges.isEmpty else { return }
+        let length = textStorage.length
+        var lower = length, upper = 0
+        for range in ranges {
+            lower = min(lower, range.location)
+            upper = max(upper, NSMaxRange(range) + 1)
+        }
+        lower = min(lower, length)
+        upper = min(max(upper, lower), length)
+        let affected = nsText.lineRange(for: NSRange(location: lower, length: upper - lower))
+        layoutManager.invalidateGlyphs(forCharacterRange: affected, changeInLength: 0, actualCharacterRange: nil)
+        layoutManager.invalidateLayout(forCharacterRange: affected, actualCharacterRange: nil)
+        textView.needsDisplay = true
     }
 
     // MARK: Bracket matching

@@ -43,6 +43,14 @@ final class EditorRootView: NSView {
 final class LineNumberGutterView: NSView {
     weak var textView: CodeTextView?
     weak var engine: SyntaxEngine?
+    weak var controller: EditorController?
+
+    /// Adds a column of fold chevrons for languages that support folding.
+    var showsFoldMarkers = false {
+        didSet { if oldValue != showsFoldMarkers { updateThickness(force: true) } }
+    }
+    var accentColor: NSColor = .controlAccentColor { didSet { needsDisplay = true } }
+    private let foldColumnWidth: CGFloat = 13
 
     var font: NSFont = .monospacedDigitSystemFont(ofSize: 11, weight: .regular) { didSet { updateThickness(force: true) } }
     var textColor: NSColor = .secondaryLabelColor { didSet { needsDisplay = true } }
@@ -71,7 +79,7 @@ final class LineNumberGutterView: NSView {
         guard force || digits != digitCount else { return }
         digitCount = digits
         let digitWidth = ("8" as NSString).size(withAttributes: [.font: font]).width
-        let newThickness = ceil(CGFloat(digits) * digitWidth + 26)
+        let newThickness = ceil(CGFloat(digits) * digitWidth + 26 + (showsFoldMarkers ? foldColumnWidth - 4 : 0))
         if abs(newThickness - thickness) > 0.5 {
             thickness = newThickness
             superview?.needsLayout = true
@@ -98,14 +106,21 @@ final class LineNumberGutterView: NSView {
 
         let normal: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: textColor]
         let active: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: activeTextColor]
-        let rightPadding: CGFloat = 12
+        let foldColumn = showsFoldMarkers ? foldColumnWidth : 0
+        let rightPadding: CGFloat = 12 + (showsFoldMarkers ? foldColumnWidth - 6 : 0)
         let origin = textView.textContainerOrigin
+        let editorLayout = layoutManager as? EditorLayoutManager
 
         var line = engine.lineIndex(containing: charRange.location)
         let lastCharacter = NSMaxRange(charRange)
         while line < engine.lineCount {
             let start = engine.lineStart(line)
             if start > lastCharacter { break }
+            // Lines inside a fold have no visual line of their own: jump past the fold.
+            if let hidden = editorLayout?.hiddenRange(at: start), start > hidden.location {
+                line = engine.lineIndex(containing: NSMaxRange(hidden)) + 1
+                continue
+            }
             var fragment: NSRect
             if start >= length {
                 fragment = layoutManager.extraLineFragmentRect
@@ -122,15 +137,48 @@ final class LineNumberGutterView: NSView {
                 let size = label.size(withAttributes: attributes)
                 label.draw(at: NSPoint(x: thickness - rightPadding - size.width, y: y + (fragment.height - size.height) / 2),
                            withAttributes: attributes)
+                if foldColumn > 0, let controller, let region = controller.foldRegion(startingOnLine: line) {
+                    drawChevron(folded: controller.isFolded(region),
+                                center: NSPoint(x: thickness - foldColumn / 2 - 3, y: y + fragment.height / 2))
+                }
             }
             line += 1
             if start >= length { break }
         }
     }
 
+    private func drawChevron(folded: Bool, center: NSPoint) {
+        let size: CGFloat = 4
+        let path = NSBezierPath()
+        if folded {
+            path.move(to: NSPoint(x: center.x - size / 2, y: center.y - size))
+            path.line(to: NSPoint(x: center.x + size / 2 + 0.5, y: center.y))
+            path.line(to: NSPoint(x: center.x - size / 2, y: center.y + size))
+        } else {
+            path.move(to: NSPoint(x: center.x - size, y: center.y - size / 2))
+            path.line(to: NSPoint(x: center.x, y: center.y + size / 2 + 0.5))
+            path.line(to: NSPoint(x: center.x + size, y: center.y - size / 2))
+        }
+        path.lineWidth = 1.6
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        (folded ? accentColor : textColor.withAlphaComponent(0.75)).setStroke()
+        path.stroke()
+    }
+
     // MARK: Selecting lines from the gutter
 
     override func mouseDown(with event: NSEvent) {
+        let local = convert(event.locationInWindow, from: nil)
+        if showsFoldMarkers, local.x >= thickness - foldColumnWidth - 8, let controller, let textView,
+           let index = characterIndex(at: event) {
+            let line = controller.engine.lineIndex(containing: index)
+            if controller.foldRegion(startingOnLine: line) != nil {
+                controller.toggleFold(atLine: line)
+                textView.window?.makeFirstResponder(textView)
+                return
+            }
+        }
         guard let textView, let range = lineRange(at: event) else { return }
         if event.modifierFlags.contains(.shift) {
             let union = NSUnionRange(textView.selectedRange(), range)
@@ -154,13 +202,17 @@ final class LineNumberGutterView: NSView {
         dragAnchor = nil
     }
 
-    private func lineRange(at event: NSEvent) -> NSRange? {
+    private func characterIndex(at event: NSEvent) -> Int? {
         guard let textView, let layoutManager = textView.layoutManager,
               let container = textView.textContainer, let storage = textView.textStorage else { return nil }
         let point = textView.convert(event.locationInWindow, from: nil)
         let containerPoint = NSPoint(x: 0, y: point.y - textView.textContainerOrigin.y)
         let glyph = layoutManager.glyphIndex(for: containerPoint, in: container)
-        let character = min(layoutManager.characterIndexForGlyph(at: glyph), storage.length)
+        return min(layoutManager.characterIndexForGlyph(at: glyph), storage.length)
+    }
+
+    private func lineRange(at event: NSEvent) -> NSRange? {
+        guard let character = characterIndex(at: event), let storage = textView?.textStorage else { return nil }
         return storage.mutableString.lineRange(for: NSRange(location: character, length: 0))
     }
 }

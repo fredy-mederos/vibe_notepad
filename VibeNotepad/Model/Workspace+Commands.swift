@@ -92,6 +92,15 @@ extension Workspace {
             add("Insert Date & Time", "Text", "calendar") {
                 editor.textView.insertText(Date.now.formatted(.iso8601), replacementRange: editor.textView.selectedRange())
             }
+            if editor.supportsFolding {
+                add("Fold", "Folding", "chevron.down.square", "⌥⌘[") { editor.foldAtCaret() }
+                add("Unfold", "Folding", "chevron.right.square", "⌥⌘]") { editor.unfoldAtCaret() }
+                add("Fold All", "Folding", "rectangle.compress.vertical", "⇧⌥⌘[") { editor.foldAll() }
+                add("Unfold All", "Folding", "rectangle.expand.vertical", "⇧⌥⌘]") { editor.unfoldAll() }
+                for level in 1...3 {
+                    add("Fold Level \(level)", "Folding", "list.bullet.indent") { editor.foldAll(level: level) }
+                }
+            }
             add("Format JSON", "JSON", "curlybraces.square") { self.runJSON(editor, minify: false) }
             add("Minify JSON", "JSON", "curlybraces") { self.runJSON(editor, minify: true) }
         }

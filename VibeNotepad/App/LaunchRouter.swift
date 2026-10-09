@@ -97,6 +97,13 @@ enum LaunchRouter {
                     if character == "\n" { editor.textView.insertNewline(nil) } else { editor.textView.insertText(String(character), replacementRange: editor.textView.selectedRange()) }
                 }
             }
+        case "debug-fold":
+            let editor = Workspace.shared.activeEditor
+            switch value("op") ?? "toggle" {
+            case "all": editor?.foldAll(level: value("level").flatMap(Int.init))
+            case "none": editor?.unfoldAll()
+            default: editor?.toggleFold(atLine: (value("line").flatMap(Int.init) ?? 1) - 1)
+            }
         case "debug-undo":
             Workspace.shared.activeEditor?.undoManager.undo()
         case "debug-save":

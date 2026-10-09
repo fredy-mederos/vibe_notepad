@@ -128,6 +128,22 @@ struct AppCommands: Commands {
             Button("Toggle Comment") { editor?.toggleComment() }
                 .keyboardShortcut("/")
                 .disabled(document == nil)
+            Menu("Code Folding") {
+                Button("Fold") { editor?.foldAtCaret() }
+                    .keyboardShortcut("[", modifiers: [.command, .option])
+                Button("Unfold") { editor?.unfoldAtCaret() }
+                    .keyboardShortcut("]", modifiers: [.command, .option])
+                Divider()
+                Button("Fold All") { editor?.foldAll() }
+                    .keyboardShortcut("[", modifiers: [.command, .option, .shift])
+                Button("Unfold All") { editor?.unfoldAll() }
+                    .keyboardShortcut("]", modifiers: [.command, .option, .shift])
+                Divider()
+                ForEach(1..<4) { level in
+                    Button("Fold Level \(level)") { editor?.foldAll(level: level) }
+                }
+            }
+            .disabled(editor?.supportsFolding != true)
             Menu("Convert Case") {
                 Button("UPPERCASE") { editor?.transformSelection("Uppercase") { $0.uppercased() } }
                     .keyboardShortcut("u", modifiers: [.command, .control])

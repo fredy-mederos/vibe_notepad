@@ -19,7 +19,6 @@
 		6A67BCF5B11DC1D268BE8D36 /* LaunchRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D8412D67D67F6FC419C0BC /* LaunchRouter.swift */; };
 		6ABA68263B79BC928F9E3C2E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D4FB5555DEF33D4C3B1D4AC /* SettingsView.swift */; };
 		6AEFCA636D43DF1F65139AF5 /* VibeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8ED3280183301BCD7D341A97 /* VibeCore */; };
-		6B7661BA25BEDAEF2DEFED62 /* MarkdownRendererStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CA54FEAD74162E62DD9E4E /* MarkdownRendererStub.swift */; };
 		6DC6E58CDE5309E23D912005 /* vibeNotePad.sh in Resources */ = {isa = PBXBuildFile; fileRef = 5168566FEE331F02294D937B /* vibeNotePad.sh */; };
 		793BA0512B239D772910F597 /* SyntaxStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6878D9A75AEA287A080B919 /* SyntaxStyler.swift */; };
 		7A071B47E49812C1376A803A /* FindBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89917660F5E7B5297607C59D /* FindBarView.swift */; };
@@ -78,7 +77,6 @@
 		D6878D9A75AEA287A080B919 /* SyntaxStyler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntaxStyler.swift; sourceTree = "<group>"; };
 		DA6E3B414CE029E860924447 /* Workspace+Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+Session.swift"; sourceTree = "<group>"; };
 		DB73AE1B425B91A4147AF23E /* CommandLineTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLineTool.swift; sourceTree = "<group>"; };
-		E7CA54FEAD74162E62DD9E4E /* MarkdownRendererStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRendererStub.swift; sourceTree = "<group>"; };
 		F2342E527BD033898A39BA58 /* VibeCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VibeCore; path = Packages/VibeCore; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -201,7 +199,6 @@
 			isa = PBXGroup;
 			children = (
 				520DFDCBCB4757E50BFD53C3 /* MarkdownPreviewController.swift */,
-				E7CA54FEAD74162E62DD9E4E /* MarkdownRendererStub.swift */,
 				7A3CDCF37D036DCD2BD1A401 /* PreviewTemplate.swift */,
 			);
 			path = Preview;
@@ -309,7 +306,6 @@
 				010608423089749DA7554CEA /* LineNumberGutterView.swift in Sources */,
 				C09F8BA9E8929DCA3CC8CD63 /* MainView.swift in Sources */,
 				CD86397BDA59EFEC22239250 /* MarkdownPreviewController.swift in Sources */,
-				6B7661BA25BEDAEF2DEFED62 /* MarkdownRendererStub.swift in Sources */,
 				2432E1A8B5505C7E9367E8D0 /* PaletteView.swift in Sources */,
 				B57D85C22437E865229CB7E5 /* PreviewTemplate.swift in Sources */,
 				D2BFC4A23F64CA02029EE148 /* RecentFilesStore.swift in Sources */,

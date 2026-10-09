@@ -23,6 +23,10 @@ no third-party dependencies.
   format or minify JSON (key order is kept), convert indentation, insert a UUID, and more.
 - **Find & Replace** with regex (`$1` groups, `\n`), match case, whole word, a live match counter, and
   highlighted matches.
+- **Code folding**: collapse `{ }` and `[ ]` sections in JSON and brace languages, indentation blocks in
+  YAML and Python, and heading sections in Markdown. Use the gutter chevrons, click the `⋯` pill to expand,
+  or use Fold / Unfold (⌥⌘[ / ⌥⌘]) and Fold All / Unfold All (⇧⌥⌘[ / ⇧⌥⌘]). Fold All on a JSON file leaves
+  its top-level keys visible.
 - **Go to Line (⌃G)** and **Go to Symbol (⌘R)**: Markdown headings, functions and types, YAML keys,
   `.env` keys, INI sections and Makefile targets.
 - **Editing comforts**: auto-indent, Markdown list continuation, soft tabs, bracket pairing and matching, toggle comment,
@@ -78,6 +82,8 @@ make test   # VibeCore unit tests (syntax engine, lexers, Markdown, codecs, tran
 | Duplicate / Delete Line | ⇧⌘D / ⌃⇧K |
 | Join Lines / Select Line | ⌘J / ⌘L |
 | Markdown: Editor / Split / Preview | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 (toggle: ⇧⌘V) |
+| Fold / Unfold | ⌥⌘[ / ⌥⌘] |
+| Fold All / Unfold All | ⇧⌥⌘[ / ⇧⌥⌘] |
 | Format JSON | ⌥⌘J |
 | Next / Previous Tab | ⌃Tab / ⌃⇧Tab, ⇧⌘] / ⇧⌘[ |
 | Go to Tab 1…9 | ⌘1…⌘9 |

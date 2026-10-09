@@ -26,6 +26,6 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 - [ ] Multiple cursors / "select next occurrence" (⌘D) like Sublime.
 - [ ] Split editor (two files side by side).
 - [ ] Minimap.
-- [ ] Code folding.
+- [x] Code folding (JSON and brace languages, YAML/Python indentation, Markdown headings).
 - [ ] Git gutter (added / modified / deleted line markers).
 - [ ] Open a folder as a project (file tree + Goto Anything over the project).

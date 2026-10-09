@@ -54,7 +54,19 @@ final class CodeTextView: NSTextView {
         return rect
     }
 
+    private var editorLayout: EditorLayoutManager? { layoutManager as? EditorLayoutManager }
+
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
+        var ranges = ranges
+        // A caret can't sit inside folded text: skip over the fold in the direction of travel.
+        if ranges.count == 1, let layout = editorLayout, !layout.hiddenRanges.isEmpty {
+            let range = ranges[0].rangeValue
+            if range.length == 0, let hidden = layout.hiddenRange(at: range.location), range.location > hidden.location {
+                let previous = selectedRange().location
+                let target = previous <= hidden.location ? NSMaxRange(hidden) : hidden.location
+                ranges = [NSValue(range: NSRange(location: target, length: 0))]
+            }
+        }
         let old = highlightsCurrentLine ? currentLineRect() : .zero
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelecting)
         guard highlightsCurrentLine else { return }
@@ -105,6 +117,11 @@ final class CodeTextView: NSTextView {
 
     override func deleteBackward(_ sender: Any?) {
         let selection = selectedRange()
+        // Backspacing into a fold unfolds it instead of deleting hidden text.
+        if selection.length == 0, selection.location > 0, let hidden = editorLayout?.hiddenRange(at: selection.location - 1) {
+            controller?.unfold(range: hidden)
+            return
+        }
         guard selection.length == 0, selection.location > 0, !hasMarkedText() else {
             super.deleteBackward(sender)
             return
@@ -134,6 +151,39 @@ final class CodeTextView: NSTextView {
             }
         }
         super.deleteBackward(sender)
+    }
+
+    override func deleteForward(_ sender: Any?) {
+        let selection = selectedRange()
+        if selection.length == 0, let hidden = editorLayout?.hiddenRange(at: selection.location), selection.location == hidden.location {
+            controller?.unfold(range: hidden)
+            return
+        }
+        super.deleteForward(sender)
+    }
+
+    // MARK: Folding
+
+    override func mouseDown(with event: NSEvent) {
+        if let layout = editorLayout, !layout.hiddenRanges.isEmpty, let hidden = foldPill(at: event, layout: layout) {
+            controller?.unfold(range: hidden)
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    /// The fold whose `⋯` pill is under the mouse.
+    private func foldPill(at event: NSEvent, layout: EditorLayoutManager) -> NSRange? {
+        let point = convert(event.locationInWindow, from: nil)
+        let containerPoint = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+        let index = characterIndexForInsertion(at: point)
+        for candidate in [index - 1, index, index + 1] where candidate >= 0 {
+            if let hidden = layout.hiddenRange(at: candidate), let pill = layout.foldPillRect(for: hidden),
+               pill.insetBy(dx: -3, dy: -3).contains(containerPoint) {
+                return hidden
+            }
+        }
+        return nil
     }
 
     private static let pairs: [Character: String] = ["(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"]
