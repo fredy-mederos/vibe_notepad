@@ -17,6 +17,7 @@
 		3B734E6B86651C66822D2853 /* DebugTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AB415C8B7422712C6FF53F6 /* DebugTools.swift */; };
 		4930B0019862FD9D2FBE71B8 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6D03111D57AB332B006F62 /* Project.swift */; };
 		4CF7DD7F3326DA3BB3343E35 /* Git.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F127011E493726BB64AA706 /* Git.swift */; };
+		4E0E827E71248AEBB28089E1 /* TabReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47EBFD11984621FDD0D91CF5 /* TabReveal.swift */; };
 		4EF3B6B8CF5579769B2D3FEA /* Workspace+Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6E3B414CE029E860924447 /* Workspace+Session.swift */; };
 		66A9C6BB6AC5699985A20760 /* DirectoryWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0572373A51A8ED3ECA75D44F /* DirectoryWatcher.swift */; };
 		6A67BCF5B11DC1D268BE8D36 /* LaunchRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D8412D67D67F6FC419C0BC /* LaunchRouter.swift */; };
@@ -61,6 +62,7 @@
 		32D32562140CC263EBB5E6A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3943FBE0941E67073A4CC290 /* FileIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileIO.swift; sourceTree = "<group>"; };
 		3AB415C8B7422712C6FF53F6 /* DebugTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTools.swift; sourceTree = "<group>"; };
+		47EBFD11984621FDD0D91CF5 /* TabReveal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabReveal.swift; sourceTree = "<group>"; };
 		49C246D10B1001B9FE4551B9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		4B892A2F3C410D8EF0F10AD6 /* VibeNotepadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VibeNotepadApp.swift; sourceTree = "<group>"; };
 		4F89EDC5800105A0F4F42F54 /* Workspace+Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+Commands.swift"; sourceTree = "<group>"; };
@@ -211,6 +213,7 @@
 				1274C80A39803AF46085264D /* SidebarView.swift */,
 				734633EB42BD68A0587B470B /* StatusBarView.swift */,
 				B8A2C7479EF093C880F202F6 /* TabBarView.swift */,
+				47EBFD11984621FDD0D91CF5 /* TabReveal.swift */,
 				2192BE867A9A981ED4D0A4D5 /* WelcomeView.swift */,
 			);
 			path = UI;
@@ -365,6 +368,7 @@
 				F60F3400533A8DC4C4D0DA81 /* StatusBarView.swift in Sources */,
 				793BA0512B239D772910F597 /* SyntaxStyler.swift in Sources */,
 				11F8E8EDA478FCCDD0D536B6 /* TabBarView.swift in Sources */,
+				4E0E827E71248AEBB28089E1 /* TabReveal.swift in Sources */,
 				808F958B88D9D9A787275D7C /* Theme+Platform.swift in Sources */,
 				A593863D7C92058D663249AD /* VibeNotepadApp.swift in Sources */,
 				C9993F7D9358DD9641769723 /* WelcomeView.swift in Sources */,

@@ -91,7 +91,7 @@ installed app.
 | New Tab (untitled file) | ⌘T or ⌘N |
 | Open Folder | ⇧⌘O |
 | Quick Open | ⌘P |
-| Show / Hide Sidebar (the status bar, minimap and toolbar actions follow it) | ⌘B |
+| Show / Hide Sidebar (tabs, toolbar buttons, status bar and minimap follow it) | ⌘B |
 | Command Palette | ⇧⌘P |
 | Find / Find & Replace | ⌘F / ⌥⌘F |
 | Find Next / Previous | ⌘G / ⇧⌘G |

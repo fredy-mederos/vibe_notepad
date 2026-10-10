@@ -56,6 +56,8 @@ final class Workspace {
     /// Bumped to ask the find field to take focus.
     var findFocusRequest = 0
     var toasts: [Toast] = []
+    /// With the sidebar collapsed, the tabs show only while the pointer is in the title bar.
+    var tabsRevealed = false
     var sidebarFilter = ""
 
     @ObservationIgnored private var closedFiles: [(url: URL, selection: Int)] = []
@@ -63,6 +65,8 @@ final class Workspace {
     @ObservationIgnored private var externalCheckTimer: Timer?
     @ObservationIgnored var isRestoringSession = false
     @ObservationIgnored weak var windowReference: NSWindow?
+    @ObservationIgnored var tabRevealMonitor: Any?
+    @ObservationIgnored var tabHideTask: Task<Void, Never>?
     /// Provided by the main window (SwiftUI's `openSettings`).
     @ObservationIgnored var openSettingsAction: (() -> Void)?
 
@@ -81,7 +85,7 @@ final class Workspace {
     var activeEditor: EditorController? { selectedDocument?.loadedEditor }
 
     /// The status bar shows only while the sidebar is open: collapsing the sidebar leaves just
-    /// the tabs and the text (the minimap and the toolbar's actions go too).
+    /// the text (tabs, toolbar buttons and the minimap go too).
     var showsStatusBar: Bool { selectedDocument != nil && settings.showsSidebar }
 
     // MARK: Lifecycle
@@ -137,6 +141,7 @@ final class Workspace {
             Task { @MainActor in
                 let workspace = Workspace.shared
                 for document in workspace.documents { document.loadedEditor?.updateMinimapVisibility() }
+                workspace.hideTabs(animated: false)
                 workspace.observeSidebar()
             }
         }

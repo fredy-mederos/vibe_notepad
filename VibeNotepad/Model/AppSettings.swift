@@ -96,8 +96,8 @@ final class AppSettings {
     var reloadChangedFiles: Bool { didSet { save(reloadChangedFiles, "reloadChangedFiles") } }
 
     // MARK: Window
-    /// Whether the sidebar is open. The status bar follows it, so collapsing the sidebar
-    /// leaves just the tabs and the text.
+    /// Whether the sidebar is open. The tabs, toolbar buttons, status bar and minimap follow
+    /// it, so collapsing the sidebar leaves just the title and the text.
     var showsSidebar: Bool { didSet { save(showsSidebar, "showsSidebar") } }
 
     /// Whether the app currently renders dark (system setting or forced appearance).

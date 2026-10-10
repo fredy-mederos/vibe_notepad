@@ -42,6 +42,7 @@ struct MainView: View {
             workspace.windowReference = window
             window.tabbingMode = .disallowed
             window.isRestorable = false
+            workspace.installTabReveal(on: window)
         })
         .onAppear {
             AppDelegate.shared?.openMainWindow = { openWindow(id: "main") }
@@ -93,7 +94,7 @@ struct DetailView: View {
     var body: some View {
         let theme = settings.theme
         VStack(spacing: 0) {
-            if !workspace.documents.isEmpty {
+            if !workspace.documents.isEmpty, settings.showsSidebar {
                 TabBarView()
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -119,29 +120,36 @@ struct DetailView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .top) {
+            // Sidebar collapsed: the tabs float over the text while the pointer is in the title bar.
+            if !settings.showsSidebar, workspace.tabsRevealed, !workspace.documents.isEmpty {
+                TabBarView()
+                    .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
+                    .transition(.opacity.combined(with: .offset(y: -8)))
+            }
+        }
         .background(theme.background.color)
         .animation(.snappy(duration: 0.3), value: workspace.documents.isEmpty)
         .animation(.snappy(duration: 0.3), value: settings.showsSidebar)
     }
 }
 
-/// Window toolbar. With the sidebar collapsed ("just the text") only New File stays; the
-/// actions on the right come back with the sidebar (their shortcuts always work).
+/// Window toolbar. With the sidebar collapsed ("just the text") it's empty, leaving the title,
+/// the path and the sidebar button; everything comes back with the sidebar (shortcuts always work).
 struct MainToolbar: ToolbarContent {
     @Environment(Workspace.self) private var workspace
     @Environment(AppSettings.self) private var settings
 
     var body: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Button {
-                workspace.newDocument()
-            } label: {
-                Label("New File", systemImage: "square.and.pencil")
-            }
-            .help("New File (⌘N)")
-        }
-
         if settings.showsSidebar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    workspace.newDocument()
+                } label: {
+                    Label("New File", systemImage: "square.and.pencil")
+                }
+                .help("New File (⌘N)")
+            }
             actions
         }
     }

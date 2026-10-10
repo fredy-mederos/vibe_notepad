@@ -24,10 +24,10 @@ Nothing queued right now; see "Not now" for parked ideas.
   and follow changes on disk), and Quick Open searches the whole project (`git ls-files` in a repository, otherwise
   a folder scan). One project at a time; it comes back on the next launch, recent folders are in Open Recent.
 
-- [x] **Just the text** (Fredy's idea): collapsing the sidebar (⌘B or the sidebar button) also hides the status bar,
-  the minimap and the toolbar's actions on the right (Markdown view switcher, Find, Quick Open, More), leaving only
-  the title, the sidebar and New File buttons, the tabs and the text. Shortcuts keep working. One control for all of
-  it, remembered across launches.
+- [x] **Just the text** (Fredy's idea): collapsing the sidebar (⌘B or the sidebar button) also hides the tabs, the
+  toolbar buttons (New File, Markdown view switcher, Find, Quick Open, More), the status bar and the minimap, leaving
+  only the title, the path and the sidebar button above the text. Shortcuts keep working (⌃Tab or ⌘1…9 to switch
+  tabs, ⌘P, ⌘F, ⌘N…). One control for all of it, remembered across launches.
 
 - [x] **Open from anywhere** (Fredy's idea) — shipped in v1:
   - Finder right-click → Open With → Vibe Notepad for every supported document (declared document types:

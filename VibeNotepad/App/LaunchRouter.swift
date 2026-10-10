@@ -289,6 +289,14 @@ enum LaunchRouter {
                 report += String(format: "%.1f: minimap %.2f ms (again %.2f ms), text %.2f ms\n", Double(step) / 10, firstTime, againTime, textTime)
             }
             try? report.write(toFile: value("path") ?? "/tmp/vibe-minimap.txt", atomically: true, encoding: .utf8)
+        case "debug-hover":
+            // Moves the pointer (as far as the tab reveal can tell) to `y` points from the window's top.
+            guard let window = Workspace.shared.windowReference else { break }
+            let fromTop = value("y").flatMap(Double.init) ?? 10
+            if let event = NSEvent.mouseEvent(with: .mouseMoved, location: NSPoint(x: 300, y: window.frame.height - fromTop), modifierFlags: [],
+                                              timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0) {
+                Workspace.shared.pointerMoved(event)
+            }
         case "debug-undo":
             Workspace.shared.activeEditor?.undoManager.undo()
         case "debug-save":
