@@ -59,6 +59,8 @@ final class Workspace {
     /// With the sidebar collapsed, the tabs show only while the pointer is in the title bar.
     var tabsRevealed = false
     var sidebarFilter = ""
+    /// A path the sidebar should scroll to (a file shown by opening its enclosing folder).
+    var sidebarRevealRequest: String?
 
     @ObservationIgnored private var closedFiles: [(url: URL, selection: Int)] = []
     @ObservationIgnored var sessionSaveTaskStorage: Task<Void, Never>?

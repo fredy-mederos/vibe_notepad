@@ -30,6 +30,9 @@ extension Workspace {
         add("New File", "File", "doc.badge.plus", "⌘N") { self.newDocument() }
         add("Open…", "File", "folder", "⌘O") { self.showOpenPanel() }
         add("Open Folder…", "File", "folder.badge.plus", "⇧⌘O") { self.showOpenFolderPanel() }
+        add("Open Enclosing Folder…", "File", "folder.badge.plus", enabled: hasFile) {
+            if let url = document?.fileURL { self.showOpenFolderPanel(revealing: url) }
+        }
         if project != nil { add("Close Folder", "File", "folder.badge.minus") { self.closeProject() } }
         add("Quick Open…", "File", "magnifyingglass", "⌘P") { self.showPalette(.files) }
         add("Save", "File", "square.and.arrow.down", "⌘S", enabled: hasDocument) { self.saveSelected() }

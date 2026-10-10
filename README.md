@@ -41,6 +41,9 @@ any time.
 - **Open a folder as a project**: the sidebar shows its file tree, which follows changes on disk, and
   Quick Open searches every file in it (`git ls-files` in a repository, so ignored files stay out).
   Use File → Open Folder… (⇧⌘O), `vibeNotePad .`, or drop a folder on the window or the Dock icon.
+  To see what's next to a file, right-click it in the sidebar or its tab → **Open Enclosing Folder…**:
+  the folder panel starts where the file is, so Open Folder takes its folder (or go up with the menu at the
+  top), and the tree opens expanded down to the file.
 - **Quick Open (⌘P)**: fuzzy search across open tabs, pinned and recent files, the project's files, and files
   near the current one. Type `name:42` to jump to a line.
 - **Command Palette (⇧⌘P)** with editing tools: sort lines, change case, Base64 and URL encode/decode,

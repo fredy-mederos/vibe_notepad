@@ -16,81 +16,92 @@ struct SidebarView: View {
         let pinned = filtered(recents.pinned, filter)
         let recent = filtered(recents.recent, filter)
 
-        List(selection: selection) {
-            if !pinned.isEmpty {
-                Section(isExpanded: expansion($pinnedExpanded, filtering: !filter.isEmpty)) {
-                    ForEach(pinned) { item in
-                        RecentFileRow(item: item, highlight: filter)
-                            .tag(item.path)
+        ScrollViewReader { proxy in
+            List(selection: selection) {
+                if !pinned.isEmpty {
+                    Section(isExpanded: expansion($pinnedExpanded, filtering: !filter.isEmpty)) {
+                        ForEach(pinned) { item in
+                            RecentFileRow(item: item, highlight: filter)
+                                .tag(item.path)
+                        }
+                        .onMove { source, destination in
+                            guard filter.isEmpty else { return }
+                            withAnimation(.snappy) { recents.movePinned(from: source, to: destination) }
+                        }
+                    } header: {
+                        Text("Pinned")
                     }
-                    .onMove { source, destination in
-                        guard filter.isEmpty else { return }
-                        withAnimation(.snappy) { recents.movePinned(from: source, to: destination) }
-                    }
-                } header: {
-                    Text("Pinned")
                 }
-            }
-            if let project = workspace.project {
-                Section(isExpanded: expansion($projectExpanded, filtering: !filter.isEmpty)) {
-                    if !filter.isEmpty {
-                        let matches = projectMatches(project, filter)
-                        if matches.isEmpty {
-                            EmptySidebarHint(isFiltering: true)
+                if let project = workspace.project {
+                    Section(isExpanded: expansion($projectExpanded, filtering: !filter.isEmpty)) {
+                        if !filter.isEmpty {
+                            let matches = projectMatches(project, filter)
+                            if matches.isEmpty {
+                                EmptySidebarHint(isFiltering: true)
+                                    .selectionDisabled()
+                            } else {
+                                ForEach(matches, id: \.file.relativePath) { match in
+                                    ProjectMatchRow(project: project, file: match.file, positions: match.positions)
+                                        .tag(match.file.url.path)
+                                }
+                            }
+                        } else if !project.exists {
+                            Label("This folder was moved or deleted", systemImage: "questionmark.folder")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
                                 .selectionDisabled()
                         } else {
-                            ForEach(matches, id: \.file.relativePath) { match in
-                                ProjectMatchRow(project: project, file: match.file, positions: match.positions)
-                                    .tag(match.file.url.path)
-                            }
+                            ProjectTreeRows(project: project, folder: project.root.path)
                         }
-                    } else if !project.exists {
-                        Label("This folder was moved or deleted", systemImage: "questionmark.folder")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                    } header: {
+                        ProjectSectionHeader(project: project)
+                    }
+                }
+                Section(isExpanded: expansion($recentExpanded, filtering: !filter.isEmpty)) {
+                    if recent.isEmpty {
+                        EmptySidebarHint(isFiltering: !filter.isEmpty)
                             .selectionDisabled()
                     } else {
-                        ProjectTreeRows(project: project, folder: project.root.path)
+                        ForEach(recent) { item in
+                            RecentFileRow(item: item, highlight: filter)
+                                .tag(item.path)
+                        }
                     }
                 } header: {
-                    ProjectSectionHeader(project: project)
-                }
-            }
-            Section(isExpanded: expansion($recentExpanded, filtering: !filter.isEmpty)) {
-                if recent.isEmpty {
-                    EmptySidebarHint(isFiltering: !filter.isEmpty)
-                        .selectionDisabled()
-                } else {
-                    ForEach(recent) { item in
-                        RecentFileRow(item: item, highlight: filter)
-                            .tag(item.path)
-                    }
-                }
-            } header: {
-                HStack {
-                    Text("Recent")
-                    Spacer()
-                    if !recents.recent.isEmpty {
-                        Menu {
-                            Button("Clear Recent Files", role: .destructive) {
-                                withAnimation(.snappy) { recents.clearRecent() }
+                    HStack {
+                        Text("Recent")
+                        Spacer()
+                        if !recents.recent.isEmpty {
+                            Menu {
+                                Button("Clear Recent Files", role: .destructive) {
+                                    withAnimation(.snappy) { recents.clearRecent() }
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
                             }
-                        } label: {
-                            Image(systemName: "ellipsis")
+                            .menuStyle(.button)
+                            .buttonStyle(.plain)
+                            .menuIndicator(.hidden)
+                            .fixedSize()
                         }
-                        .menuStyle(.button)
-                        .buttonStyle(.plain)
-                        .menuIndicator(.hidden)
-                        .fixedSize()
                     }
                 }
             }
-        }
-        .listStyle(.sidebar)
-        .animation(.snappy(duration: 0.32), value: recents.items)
-        .searchable(text: $workspace.sidebarFilter, placement: .sidebar, prompt: "Filter files")
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            SidebarFooter()
+            .listStyle(.sidebar)
+            .animation(.snappy(duration: 0.32), value: recents.items)
+            .searchable(text: $workspace.sidebarFilter, placement: .sidebar, prompt: "Filter files")
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                SidebarFooter()
+            }
+            .onChange(of: workspace.sidebarRevealRequest, initial: true) { _, path in
+                guard let path else { return }
+                // After the project's rows are in (they animate in, and the sidebar may be sliding open).
+                Task {
+                    try? await Task.sleep(for: .milliseconds(350))
+                    withAnimation(.snappy) { proxy.scrollTo(path, anchor: .center) }
+                    workspace.sidebarRevealRequest = nil
+                }
+            }
         }
     }
 
@@ -224,6 +235,7 @@ struct RecentFileRow: View {
                 withAnimation(.snappy) { workspace.recents.togglePin(item.path) }
             }
             Divider()
+            EnclosingFolderButton(item: item.url)
             Button("Reveal in Finder", systemImage: "folder") {
                 NSWorkspace.shared.activateFileViewerSelecting([item.url])
             }

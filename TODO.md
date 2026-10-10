@@ -4,9 +4,19 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 
 ## Next up
 
-Nothing queued right now; see "Not now" for parked ideas.
+- **Several folders at once** (Fredy's idea): today one project replaces the other. Keep a few in the sidebar
+  instead, VS Code style: one section per folder (each with Collapse All, Close Folder and Open Enclosing
+  Folder…), Quick Open and the sidebar filter searching all of them, and the session remembering them all.
+  To decide: whether Open Folder… and Open Enclosing Folder… add a folder or replace (add, with "Close Other
+  Folders"?), and what happens when one folder is inside another (show the file under the inner one).
 
 ## Done
+
+- [x] **Open Enclosing Folder…** (Fredy's idea): right-click a file in the sidebar (pinned, recent or in the tree),
+  a tab, or use File → Open Enclosing Folder…: the Open Folder panel starts in the file's folder, so Open Folder
+  opens that folder and the "Where" menu goes up to its parents. The folder becomes the project, its tree expanded
+  down to the file and scrolled to it. The project's own ⋯ menu has it too, to go up a level (folders expanded so
+  far stay expanded), and a folder in the tree can be opened as the project on its own.
 
 - [x] **Minimap** (Sublime-style): every character drawn as a small block in its syntax color, one row per line,
   with git changes along its edge and a slider for what's on screen; click or drag to scroll. Rows are rendered

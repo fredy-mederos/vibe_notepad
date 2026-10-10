@@ -56,6 +56,8 @@ struct AppCommands: Commands {
                 .keyboardShortcut("o")
             Button("Open Folder…") { workspace.showOpenFolderPanel() }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
+            Button("Open Enclosing Folder…") { if let url = document?.fileURL { workspace.showOpenFolderPanel(revealing: url) } }
+                .disabled(document?.fileURL == nil)
             Menu("Open Recent") {
                 ForEach(workspace.recents.all.prefix(20)) { item in
                     Button(item.name) { workspace.open(url: item.url) }

@@ -192,6 +192,9 @@ struct TabContextMenu: View {
         Button("Close Tabs to the Right") { workspace.closeToTheRight(of: document) }
             .disabled(workspace.documents.last?.id == document.id)
         Divider()
+        if let url = document.fileURL {
+            EnclosingFolderButton(item: url)
+        }
         Button("Reveal in Finder", systemImage: "folder") { workspace.revealInFinder(document) }
             .disabled(document.fileURL == nil)
         Button("Copy Path", systemImage: "doc.on.clipboard") { workspace.copyPath(document) }

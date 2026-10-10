@@ -70,6 +70,23 @@ enum DebugTools {
         }
     }
 
+    /// Does what choosing `folder` in "Open Enclosing Folder…" for `file` does, then writes the project,
+    /// its expanded folders, the open tabs and the sidebar's rows and scroll position to `path`.
+    static func openEnclosingFolder(_ folder: String, revealing file: String, report path: String) {
+        Workspace.shared.openProject(URL(fileURLWithPath: folder), revealing: URL(fileURLWithPath: file))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            let workspace = Workspace.shared
+            var lines = ["project \(workspace.project?.root.path ?? "-")",
+                         "expanded \(workspace.project?.expandedFolders.sorted() ?? [])",
+                         "tabs \(workspace.documents.count), selected \(workspace.selectedDocument?.displayName ?? "-")"]
+            if let root = workspace.windowReference?.contentView?.superview, let table = firstSubview(of: NSTableView.self, in: root) {
+                let visible = table.rows(in: table.visibleRect)
+                lines.append("rows \(table.numberOfRows), selected row \(table.selectedRow), visible \(visible.location)..<\(visible.location + visible.length), offset \(Int(table.visibleRect.minY))")
+            }
+            try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
     private static func firstSubview<T: NSView>(of type: T.Type, in view: NSView) -> T? {
         if let match = view as? T { return match }
         for subview in view.subviews {

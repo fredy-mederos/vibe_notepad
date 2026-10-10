@@ -299,6 +299,12 @@ enum LaunchRouter {
             }
         case "debug-sidebar-select":
             DebugTools.selectSidebarRow(value("row").flatMap(Int.init), report: value("path") ?? "/tmp/vibe-sidebar-rows.txt")
+        case "debug-enclosing":
+            if let folder = value("folder") {
+                DebugTools.openEnclosingFolder(folder, revealing: value("path") ?? "", report: value("report") ?? "/tmp/vibe-enclosing.txt")
+            } else if let path = value("path") {
+                Workspace.shared.showOpenFolderPanel(revealing: URL(fileURLWithPath: path))
+            }
         case "debug-sidebar":
             DebugTools.measureSidebarToggle(to: value("path") ?? "/tmp/vibe-sidebar.txt")
         case "debug-undo":

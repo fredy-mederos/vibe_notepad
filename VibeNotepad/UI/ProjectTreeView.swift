@@ -30,6 +30,7 @@ struct ProjectTreeRows: View {
 /// A folder in the project tree. Clicking it expands or collapses it (the sidebar's selection
 /// handles the click: the list selects the row before a tap gesture here would see it).
 struct ProjectFolderRow: View {
+    @Environment(Workspace.self) private var workspace
     let project: Project
     let node: ProjectNode
 
@@ -47,6 +48,8 @@ struct ProjectFolderRow: View {
         }
         .help(node.url.abbreviatedPath)
         .contextMenu {
+            Button("Open as Project", systemImage: "folder.badge.plus") { workspace.openProject(node.url) }
+            Divider()
             ProjectItemMenu(project: project, url: node.url)
         }
     }
@@ -84,6 +87,7 @@ struct ProjectFileRow: View {
                 }
             }
             Divider()
+            EnclosingFolderButton(item: node.url)
             ProjectItemMenu(project: project, url: node.url)
         }
     }
@@ -117,6 +121,7 @@ struct ProjectMatchRow: View {
         .contextMenu {
             Button("Open", systemImage: "doc.text") { workspace.open(url: file.url) }
             Divider()
+            EnclosingFolderButton(item: file.url)
             ProjectItemMenu(project: project, url: file.url)
         }
     }
@@ -149,6 +154,7 @@ struct ProjectSectionHeader: View {
                 Button("Collapse All Folders", systemImage: "chevron.up.chevron.down") { collapseAll() }
                     .disabled(project.expandedFolders.isEmpty)
                 Divider()
+                EnclosingFolderButton(item: project.root)
                 Button("Close Folder", systemImage: "xmark.circle") { workspace.closeProject() }
             } label: {
                 Image(systemName: "ellipsis")
@@ -169,6 +175,17 @@ struct ProjectSectionHeader: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         workspace.toast("Copied path", symbol: "doc.on.clipboard.fill")
+    }
+}
+
+/// "Open Enclosing Folder…": the Open Folder panel, starting in the folder that holds `item`, to open
+/// it (or a folder above it) as the project and see what's next to `item`.
+struct EnclosingFolderButton: View {
+    @Environment(Workspace.self) private var workspace
+    let item: URL
+
+    var body: some View {
+        Button("Open Enclosing Folder…", systemImage: "folder.badge.plus") { workspace.showOpenFolderPanel(revealing: item) }
     }
 }
 
