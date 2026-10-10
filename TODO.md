@@ -12,7 +12,7 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
   - Open questions: should it be the default when opening a file, or a toggle (e.g. ⌃⌘F / a toolbar button)?
     Which corner for recents? Do tabs also hide? Does the status bar come back on hover at the bottom edge?
 
-- [ ] **Open from anywhere** (Fredy's idea) — being built in v1, verify once installed:
+- [x] **Open from anywhere** (Fredy's idea) — shipped in v1:
   - Finder right-click → Open With → Vibe Notepad for every supported document (declared document types:
     text, Markdown, code, config, any file as "Alternate" so it never steals default apps).
   - `vibeNotePad` command-line tool: `vibeNotePad file.md`, `vibeNotePad src/app.swift:42:7` (line/column),
