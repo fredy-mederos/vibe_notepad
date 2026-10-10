@@ -32,6 +32,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     private var styleSignature = ""
     private var appliedThemeID: String?
     private var wraps: Bool?
+    private var sidebarSettleTask: Task<Void, Never>?
     private var theme: Theme = Themes.vibeNight
 
     // Find state
@@ -330,6 +331,36 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         textView.needsDisplay = true
         gutter.needsDisplay = true
         if !findMatches.isEmpty { repaintFindHighlights() }
+    }
+
+    /// Called as the sidebar starts to collapse or expand. Laying the editor out again on every frame
+    /// of that animation (re-wrapping the text, moving the minimap) makes it stutter, so until it's over
+    /// the wrap width stays put and the minimap only fades; the editor settles once, at the end.
+    func sidebarWillToggle(showing: Bool) {
+        let showsMinimap = AppSettings.shared.showMinimap && showing
+        if wraps == true { textContainer.widthTracksTextView = false }
+        if showsMinimap, !rootView.showsMinimap {
+            // Its column appears now; leaving it to the end would squeeze the text in one jump.
+            minimap.alphaValue = 0
+            rootView.showsMinimap = true
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            minimap.animator().alphaValue = showsMinimap ? 1 : 0
+        }
+        sidebarSettleTask?.cancel()
+        sidebarSettleTask = Task { [weak self] in
+            try? await Task.sleep(for: SidebarAnimation.settleDelay)
+            guard let self, !Task.isCancelled else { return }
+            self.rootView.showsMinimap = showsMinimap
+            self.minimap.alphaValue = 1
+            guard self.wraps == true, !self.textContainer.widthTracksTextView else { return }
+            self.textContainer.widthTracksTextView = true
+            let width = self.scrollView.contentSize.width
+            self.textView.setFrameSize(NSSize(width: width, height: self.textView.frame.height))
+            self.textContainer.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+            self.styleVisible()
+        }
     }
 
     func setWrap(_ wrap: Bool) {
@@ -875,12 +906,6 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
         bracketRanges = []
         updateBracketHighlight()
-    }
-
-    /// The minimap is part of the chrome: collapsing the sidebar ("just the text") hides it too.
-    func updateMinimapVisibility() {
-        let settings = AppSettings.shared
-        rootView.showsMinimap = settings.showMinimap && settings.showsSidebar
     }
 
     // MARK: Git changes

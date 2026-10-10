@@ -3,6 +3,8 @@ import VibeCore
 
 /// Caret position, counts, and quick menus for indentation, line endings, encoding and language.
 struct StatusBarView: View {
+    static let height: CGFloat = 26
+
     @Environment(Workspace.self) private var workspace
     @Environment(AppSettings.self) private var settings
     @Bindable var document: EditorDocument
@@ -121,7 +123,7 @@ struct StatusBarView: View {
         .font(.system(size: 11).monospacedDigit())
         .foregroundStyle(theme.mutedForeground.color)
         .padding(.horizontal, 10)
-        .frame(height: 26)
+        .frame(height: Self.height)
         .background(theme.chromeBackground.color)
         .overlay(alignment: .top) {
             Rectangle().fill(theme.foreground.color.opacity(0.08)).frame(height: 1)

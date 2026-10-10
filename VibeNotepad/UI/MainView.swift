@@ -9,6 +9,8 @@ struct MainView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
     @State private var isDropTargeted = false
+    /// Follows `showsSidebar` once the sidebar has stopped moving (see `MainToolbar`).
+    @State private var toolbarHidden = !AppSettings.shared.showsSidebar
 
     var body: some View {
         NavigationSplitView(columnVisibility: sidebarVisibility) {
@@ -19,7 +21,13 @@ struct MainView: View {
         }
         .navigationTitle(workspace.selectedDocument?.displayName ?? "Vibe Notepad")
         .navigationSubtitle(subtitle)
-        .toolbar { MainToolbar() }
+        .toolbar { MainToolbar(hidden: toolbarHidden) }
+        .onChange(of: settings.showsSidebar) { _, shows in
+            Task {
+                try? await Task.sleep(for: SidebarAnimation.settleDelay)
+                if settings.showsSidebar == shows { toolbarHidden = !shows }
+            }
+        }
         .overlay { PaletteOverlay() }
         .overlay(alignment: .bottom) {
             ToastStack()
@@ -49,7 +57,7 @@ struct MainView: View {
             workspace.openSettingsAction = { openSettings() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleSidebarRequest)) { _ in
-            withAnimation(.snappy) { settings.showsSidebar.toggle() }
+            withAnimation(SidebarAnimation.animation) { settings.showsSidebar.toggle() }
         }
     }
 
@@ -70,6 +78,14 @@ struct MainView: View {
 
 extension Notification.Name {
     static let toggleSidebarRequest = Notification.Name("VibeNotepad.toggleSidebar")
+}
+
+/// Collapsing or expanding the sidebar. The tab and status bars slide with it.
+enum SidebarAnimation {
+    static let animation = Animation.snappy(duration: 0.3)
+    /// When the slide is over. Changes too slow to make on every frame of it (the toolbar's items,
+    /// the editor's wrap width and minimap) are made then.
+    static let settleDelay: Duration = .milliseconds(400)
 }
 
 /// Adds the title-bar proxy icon (drag the file, ⌘-click for its path) when there is a file.
@@ -93,10 +109,13 @@ struct DetailView: View {
 
     var body: some View {
         let theme = settings.theme
+        let showsBars = settings.showsSidebar
+        // The tab and status bars are overlays that slide over spacers making room for them, and
+        // they stay alive while the sidebar is collapsed: when the sidebar animates, laying the bars
+        // out on every frame (or rebuilding every tab) makes it stutter, while sliding them is cheap.
         VStack(spacing: 0) {
-            if !workspace.documents.isEmpty, settings.showsSidebar {
-                TabBarView()
-                    .transition(.move(edge: .top).combined(with: .opacity))
+            if !workspace.documents.isEmpty {
+                Color.clear.frame(height: showsBars ? TabBarView.height : 0)
             }
             ZStack(alignment: .topTrailing) {
                 if let document = workspace.selectedDocument {
@@ -115,8 +134,21 @@ struct DetailView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if let document = workspace.selectedDocument, settings.showsSidebar {
+            if workspace.selectedDocument != nil {
+                Color.clear.frame(height: showsBars ? StatusBarView.height : 0)
+            }
+        }
+        .overlay(alignment: .top) {
+            if !workspace.documents.isEmpty {
+                TabBarView()
+                    .slidAway(!showsBars, by: -TabBarView.height)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let document = workspace.selectedDocument {
                 StatusBarView(document: document)
+                    .slidAway(!showsBars, by: StatusBarView.height)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -130,18 +162,33 @@ struct DetailView: View {
         }
         .background(theme.background.color)
         .animation(.snappy(duration: 0.3), value: workspace.documents.isEmpty)
-        .animation(.snappy(duration: 0.3), value: settings.showsSidebar)
+        .animation(SidebarAnimation.animation, value: settings.showsSidebar)
+    }
+}
+
+extension View {
+    /// Slides a bar out of its slot (`offset` points down, so negative goes up) and fades it,
+    /// without changing its layout.
+    func slidAway(_ away: Bool, by offset: CGFloat) -> some View {
+        self.offset(y: away ? offset : 0)
+            .opacity(away ? 0 : 1)
+            .frame(maxWidth: .infinity, maxHeight: abs(offset), alignment: offset < 0 ? .bottom : .top)
+            .clipped()
+            .allowsHitTesting(!away)
+            .accessibilityHidden(away)
     }
 }
 
 /// Window toolbar. With the sidebar collapsed ("just the text") it's empty, leaving the title,
 /// the path and the sidebar button; everything comes back with the sidebar (shortcuts always work).
+/// Changing the toolbar takes tens of milliseconds, so it changes once the sidebar has stopped
+/// moving (`hidden` lags `showsSidebar`) instead of stalling the animation.
 struct MainToolbar: ToolbarContent {
     @Environment(Workspace.self) private var workspace
-    @Environment(AppSettings.self) private var settings
+    let hidden: Bool
 
     var body: some ToolbarContent {
-        if settings.showsSidebar {
+        if !hidden {
             ToolbarItem(placement: .navigation) {
                 Button {
                     workspace.newDocument()

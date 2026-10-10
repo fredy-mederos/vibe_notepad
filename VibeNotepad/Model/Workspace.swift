@@ -133,14 +133,15 @@ final class Workspace {
         }
     }
 
-    /// Collapsing the sidebar also hides the editors' minimaps.
+    /// Collapsing the sidebar also hides the editors' minimaps (see `EditorController.sidebarWillToggle`).
     private func observeSidebar() {
         withObservationTracking {
             _ = settings.showsSidebar
         } onChange: {
             Task { @MainActor in
                 let workspace = Workspace.shared
-                for document in workspace.documents { document.loadedEditor?.updateMinimapVisibility() }
+                let showing = workspace.settings.showsSidebar
+                for document in workspace.documents { document.loadedEditor?.sidebarWillToggle(showing: showing) }
                 workspace.hideTabs(animated: false)
                 workspace.observeSidebar()
             }

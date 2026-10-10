@@ -297,6 +297,8 @@ enum LaunchRouter {
                                               timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0) {
                 Workspace.shared.pointerMoved(event)
             }
+        case "debug-sidebar":
+            DebugTools.measureSidebarToggle(to: value("path") ?? "/tmp/vibe-sidebar.txt")
         case "debug-undo":
             Workspace.shared.activeEditor?.undoManager.undo()
         case "debug-save":

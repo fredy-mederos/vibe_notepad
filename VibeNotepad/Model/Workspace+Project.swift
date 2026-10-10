@@ -18,7 +18,7 @@ extension Workspace {
             NSDocumentController.shared.noteNewRecentDocumentURL(root)
         }
         if revealSidebar, !settings.showsSidebar {
-            withAnimation(.snappy) { settings.showsSidebar = true }
+            withAnimation(SidebarAnimation.animation) { settings.showsSidebar = true }
         }
         scheduleSessionSave()
     }

@@ -20,6 +20,8 @@ nonisolated struct TabDragItem: Codable, Sendable, Transferable {
 /// Open documents as tabs: a sliding selection pill, dirty dots that morph into close
 /// buttons on hover, drag to reorder.
 struct TabBarView: View {
+    static let height: CGFloat = 38
+
     @Environment(Workspace.self) private var workspace
     @Environment(AppSettings.self) private var settings
     @Namespace private var namespace
@@ -58,7 +60,7 @@ struct TabBarView: View {
                 withAnimation(.snappy) { proxy.scrollTo(id, anchor: .center) }
             }
         }
-        .frame(height: 38)
+        .frame(height: Self.height)
         .background(theme.chromeBackground.color)
         .overlay(alignment: .bottom) {
             Rectangle().fill(theme.foreground.color.opacity(0.08)).frame(height: 1)

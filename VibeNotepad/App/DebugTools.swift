@@ -1,8 +1,58 @@
 #if DEBUG
 import AppKit
+import QuartzCore
 
 /// Development helpers reachable through `vibenotepad://debug-…` links (Debug builds only).
 enum DebugTools {
+    /// Toggles the sidebar like ⌘B and, for `seconds`, samples the editor's geometry and times every
+    /// main run loop pass. Writes a report to `path`: long passes are dropped frames.
+    static func measureSidebarToggle(to path: String, seconds: Double = 1.2) {
+        guard let editor = Workspace.shared.activeEditor else { return }
+        // Let the link's own event handling (it orders the window) finish first.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { measureSidebarToggle(editor: editor, to: path, seconds: seconds) }
+    }
+
+    private static func measureSidebarToggle(editor: EditorController, to path: String, seconds: Double) {
+        let window = editor.textView.window
+        let start = CACurrentMediaTime()
+        var samples: [String] = []
+        var passes: [(at: Double, ms: Double)] = []
+        var passStart = start
+        let observer = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.afterWaiting.rawValue | CFRunLoopActivity.beforeWaiting.rawValue,
+                                                          true, 0) { _, activity in
+            let now = CACurrentMediaTime()
+            if activity == .afterWaiting {
+                passStart = now
+            } else {
+                passes.append(((passStart - start) * 1000, (now - passStart) * 1000))
+            }
+        }
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+        var lastLine = ""
+        let timer = Timer(timeInterval: 1.0 / 240, repeats: true) { _ in
+            let line = String(format: "root %.1f×%.1f text %.1f minimap %d", editor.rootView.frame.width, editor.rootView.frame.height,
+                              editor.scrollView.frame.width, editor.rootView.isMinimapVisible ? 1 : 0)
+            guard line != lastLine else { return }
+            lastLine = line
+            samples.append(String(format: "%7.1f ms  ", (CACurrentMediaTime() - start) * 1000) + line)
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        let before = AppSettings.shared.showsSidebar
+        NotificationCenter.default.post(name: .toggleSidebarRequest, object: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            timer.invalidate()
+            CFRunLoopRemoveObserver(CFRunLoopGetMain(), observer, .commonModes)
+            let long = passes.filter { $0.ms > 12 }
+            var report = "sidebar \(before ? "collapse" : "expand"), app active \(NSApp.isActive), window visible \(window?.occlusionState.contains(.visible) == true)\n"
+            report += "file \(Workspace.shared.selectedDocument?.displayName ?? "-"), \(editor.engine.lineCount) lines, wrap \(editor.textContainer.widthTracksTextView)\n"
+            report += String(format: "run loop passes %d, busy %.1f ms, longest %.1f ms, over 12 ms: %d\n", passes.count,
+                             passes.reduce(0) { $0 + $1.ms }, passes.map(\.ms).max() ?? 0, long.count)
+            report += long.map { String(format: "  long pass at %.1f ms: %.1f ms", $0.at, $0.ms) }.joined(separator: "\n") + "\n"
+            report += "geometry changes:\n" + samples.joined(separator: "\n") + "\n"
+            try? report.write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
     /// Renders the main window into a PNG without activating the app.
     static func snapshot(to path: String, windowTitle: String? = nil) {
         let titled = windowTitle.flatMap { title in NSApp.windows.first { $0.title.localizedCaseInsensitiveContains(title) } }
