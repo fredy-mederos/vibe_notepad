@@ -14,6 +14,10 @@ struct DocumentView: View {
                 ExternalChangeBanner(document: document, change: change)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
+            if document.showsMinifiedJSONNotice {
+                MinifiedJSONBanner(document: document)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
             GeometryReader { geometry in
                 let mode = document.isMarkdown ? document.markdownMode : .editor
                 HStack(spacing: 0) {
@@ -35,6 +39,7 @@ struct DocumentView: View {
             }
         }
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.externalChange)
+        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.showsMinifiedJSONNotice)
         .modifier(DocumentProxy(url: document.fileURL))
     }
 }
@@ -158,5 +163,37 @@ struct ExternalChangeBanner: View {
         .padding(.vertical, 8)
         .background(Color.orange.opacity(0.12))
         .overlay(alignment: .bottom) { Rectangle().fill(Color.orange.opacity(0.25)).frame(height: 1) }
+    }
+}
+
+/// Offers to format JSON whose lines are too long to highlight (minified files).
+struct MinifiedJSONBanner: View {
+    @Environment(Workspace.self) private var workspace
+    let document: EditorDocument
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "curlybraces.square")
+                .foregroundStyle(Color.accentColor)
+            Text("This JSON is minified, so it isn’t highlighted.")
+                .font(.system(size: 12, weight: .medium))
+            Spacer()
+            KeyHint(keys: "⌥⌘J")
+            Button("Format JSON") {
+                guard let editor = document.loadedEditor else { return }
+                workspace.runJSON(editor, minify: false, wholeDocument: true)
+                editor.focus()
+            }
+            Button("Dismiss") {
+                document.minifiedJSONNoticeDismissed = true
+                document.showsMinifiedJSONNotice = false
+            }
+        }
+        .controlSize(.small)
+        .buttonStyle(.glass)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.accentColor.opacity(0.10))
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.accentColor.opacity(0.22)).frame(height: 1) }
     }
 }

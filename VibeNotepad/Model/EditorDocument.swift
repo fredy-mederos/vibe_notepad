@@ -26,6 +26,7 @@ final class EditorDocument: Identifiable {
         didSet {
             guard oldValue != language else { return }
             loadedEditor?.setLanguage(language)
+            updateMinifiedJSONNotice()
             if language == .markdown, oldValue != .markdown { markdownMode = AppSettings.shared.markdownMode }
             Workspace.shared.scheduleSessionSave()
         }
@@ -55,6 +56,9 @@ final class EditorDocument: Identifiable {
     var externalChange: ExternalChange?
     /// The "deleted on disk" banner was dismissed: don't show it again until the file reappears.
     @ObservationIgnored var deletionDismissed = false
+    /// JSON with lines too long to highlight (a minified file): offer to format it.
+    var showsMinifiedJSONNotice = false
+    @ObservationIgnored var minifiedJSONNoticeDismissed = false
     /// When the file was last reloaded because another app changed it.
     @ObservationIgnored var lastAutoReload: Date?
     /// Bumped on every save so views can animate a confirmation.
@@ -144,6 +148,17 @@ final class EditorDocument: Identifiable {
             editor.scrollToCenter(editor.textView.selectedRange())
         }
         editor.styleVisible()
+        updateMinifiedJSONNotice()
+    }
+
+    /// Shows the "format this JSON" banner while the text has lines too long to highlight.
+    func updateMinifiedJSONNotice() {
+        guard let engine = editorStorage?.engine else { return }
+        // JSON Lines files hold one value per line, so they can't be formatted as a whole.
+        let isJSONLines = ["jsonl", "ndjson"].contains(fileURL?.pathExtension.lowercased() ?? "")
+        let shows = !minifiedJSONNoticeDismissed && language == .json && !isJSONLines
+            && engine.isHighlightingEnabled && engine.hasOverlongLines
+        if showsMinifiedJSONNotice != shows { showsMinifiedJSONNotice = shows }
     }
 
     var preview: MarkdownPreviewController {
@@ -171,11 +186,14 @@ final class EditorDocument: Identifiable {
     func contentDidChange() {
         guard let editor = editorStorage else { return }
         characterCount = editor.textStorage.length
+        // Hide the banner as soon as the text is formatted; showing it again can wait for a pause.
+        if showsMinifiedJSONNotice { updateMinifiedJSONNotice() }
         statsTask?.cancel()
         statsTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled, let self else { return }
             self.scheduleStats(text: self.text)
+            self.updateMinifiedJSONNotice()
         }
         loadedPreview?.textDidChange()
         Workspace.shared.scheduleSessionSave()

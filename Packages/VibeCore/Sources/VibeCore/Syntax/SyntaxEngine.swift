@@ -90,6 +90,16 @@ public final class SyntaxEngine {
         return first..<(last + 1)
     }
 
+    /// Whether some line is longer than `maxLineLength` and so is left unhighlighted.
+    public var hasOverlongLines: Bool {
+        var start = 0
+        for next in lineStarts.dropFirst() {
+            if next - 1 - start > maxLineLength { return true }
+            start = next
+        }
+        return textLength - start > maxLineLength
+    }
+
     // MARK: Synchronization
 
     /// Re-reads the whole text (initial load, language change, external replacement).

@@ -703,8 +703,8 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     }
 
     /// Reformats the selection (or the whole document) as JSON.
-    func reformatJSON(minify: Bool) throws {
-        let selection = textView.selectedRange()
+    func reformatJSON(minify: Bool, wholeDocument: Bool = false) throws {
+        let selection = wholeDocument ? NSRange(location: 0, length: 0) : textView.selectedRange()
         let target = selection.length > 0 ? selection : NSRange(location: 0, length: textStorage.length)
         let source = nsText.substring(with: target)
         let indent = document.indentation.usesTabs ? "\t" : String(repeating: " ", count: document.indentation.width)

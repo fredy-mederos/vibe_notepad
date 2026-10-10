@@ -163,9 +163,9 @@ extension Workspace {
         return recents.item(for: path)?.pinned == true
     }
 
-    func runJSON(_ editor: EditorController, minify: Bool) {
+    func runJSON(_ editor: EditorController, minify: Bool, wholeDocument: Bool = false) {
         do {
-            try editor.reformatJSON(minify: minify)
+            try editor.reformatJSON(minify: minify, wholeDocument: wholeDocument)
         } catch {
             toast(error.localizedDescription, symbol: "exclamationmark.triangle.fill", tint: .orange)
         }

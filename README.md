@@ -23,7 +23,8 @@ no third-party dependencies.
 - **Quick Open (⌘P)**: fuzzy search across open tabs, pinned and recent files, the project's files, and files
   near the current one. Type `name:42` to jump to a line.
 - **Command Palette (⇧⌘P)** with editing tools: sort lines, change case, Base64 and URL encode/decode,
-  format or minify JSON (key order is kept), convert indentation, insert a UUID, and more.
+  format or minify JSON (key order is kept), convert indentation, insert a UUID, and more. Minified JSON
+  (lines too long to highlight) shows a banner offering to format it.
 - **Find & Replace** with regex (`$1` groups, `\n`), match case, whole word, a live match counter, and
   highlighted matches.
 - **Code folding**: collapse `{ }` and `[ ]` sections in JSON and brace languages, indentation blocks in

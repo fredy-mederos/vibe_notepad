@@ -409,6 +409,21 @@ func has(_ spans: [[(String, TokenKind)]], _ text: String, _ kind: TokenKind, li
         }
     }
 
+    @Test func detectsOverlongLines() {
+        let engine = SyntaxEngine(language: .json)
+        engine.maxLineLength = 10
+        engine.reset(text: NSString(string: "{\n  \"a\": 1\n}"))
+        #expect(!engine.hasOverlongLines)
+        engine.reset(text: NSString(string: "{\"a\":1,\"b\":2}"))
+        #expect(engine.hasOverlongLines)
+        engine.reset(text: NSString(string: "{\"a\":1,\"b\":2}\n"))
+        #expect(engine.hasOverlongLines)
+        engine.reset(text: NSString(string: "[\n0123456789\n]"))
+        #expect(!engine.hasOverlongLines)
+        engine.reset(text: NSString(string: "[\n0123456789a\n]"))
+        #expect(engine.hasOverlongLines)
+    }
+
     @Test func styledBookkeeping() {
         let text = NSMutableString(string: "a\nb\nc\nd")
         let engine = SyntaxEngine(language: .swift)
