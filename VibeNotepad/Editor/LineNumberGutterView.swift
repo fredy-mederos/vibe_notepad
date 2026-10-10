@@ -56,6 +56,10 @@ final class LineNumberGutterView: NSView {
     var textColor: NSColor = .secondaryLabelColor { didSet { needsDisplay = true } }
     var activeTextColor: NSColor = .labelColor { didSet { needsDisplay = true } }
     var backgroundColor: NSColor = .textBackgroundColor { didSet { needsDisplay = true } }
+    var addedColor: NSColor = .systemGreen
+    var modifiedColor: NSColor = .systemBlue
+    var deletedColor: NSColor = .systemRed
+    private let changeBarWidth: CGFloat = 3
 
     private(set) var thickness: CGFloat = 44
     private var digitCount = 0
@@ -111,6 +115,7 @@ final class LineNumberGutterView: NSView {
         let rightPadding: CGFloat = 12 + (showsFoldMarkers ? foldColumnWidth - 6 : 0)
         let origin = textView.textContainerOrigin
         let editorLayout = layoutManager as? EditorLayoutManager
+        let changes = controller?.gitChanges ?? []
 
         var line = engine.lineIndex(containing: charRange.location)
         let lastCharacter = NSMaxRange(charRange)
@@ -144,10 +149,43 @@ final class LineNumberGutterView: NSView {
                     drawChevron(folded: controller.isFolded(region),
                                 center: NSPoint(x: thickness - foldColumn / 2 - 3, y: y + fragment.height / 2))
                 }
+                if !changes.isEmpty {
+                    let height = start < length ? wrappedHeight(of: line, start: start, fragment: fragment, layoutManager: layoutManager, engine: engine) : fragment.height
+                    drawChange(line: line, y: y, height: height, changes: changes, isLastLine: line == engine.lineCount - 1)
+                }
             }
             line += 1
             if start >= length { break }
         }
+    }
+
+    /// The height of every visual line `line` wraps onto.
+    private func wrappedHeight(of line: Int, start: Int, fragment: NSRect, layoutManager: NSLayoutManager, engine: SyntaxEngine) -> CGFloat {
+        let end = engine.lineContentEnd(line)
+        guard end > start + 1 else { return fragment.height }
+        let glyph = layoutManager.glyphIndexForCharacter(at: end - 1)
+        let last = layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil, withoutAdditionalLayout: true)
+        return last.maxY > fragment.maxY ? last.maxY - fragment.minY : fragment.height
+    }
+
+    /// Git markers: a bar for added (green) or modified (blue) lines, a wedge where lines were deleted (red).
+    private func drawChange(line: Int, y: CGFloat, height: CGFloat, changes: [LineChange], isLastLine: Bool) {
+        if let change = changes.change(coveringLine: line) {
+            (change.kind == .added ? addedColor : modifiedColor).setFill()
+            NSRect(x: thickness - changeBarWidth, y: y, width: changeBarWidth, height: height).fill()
+        }
+        if changes.hasDeletion(beforeLine: line) { drawDeletion(at: y) }
+        if isLastLine, changes.hasDeletion(beforeLine: line + 1) { drawDeletion(at: y + height) }
+    }
+
+    private func drawDeletion(at y: CGFloat) {
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: thickness - 6, y: y - 3.5))
+        path.line(to: NSPoint(x: thickness, y: y))
+        path.line(to: NSPoint(x: thickness - 6, y: y + 3.5))
+        path.close()
+        deletedColor.setFill()
+        path.fill()
     }
 
     private func drawChevron(folded: Bool, center: NSPoint) {

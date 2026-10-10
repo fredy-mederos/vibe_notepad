@@ -114,6 +114,7 @@ final class Workspace {
             _ = settings.showLineNumbers
             _ = settings.highlightCurrentLine
             _ = settings.showInvisibles
+            _ = settings.showGitChanges
             _ = settings.autoCloseBrackets
             _ = settings.spellCheckProse
             _ = settings.previewFont
@@ -147,6 +148,7 @@ final class Workspace {
         }
         if findBarVisible { performFind(reveal: false) }
         checkExternalChanges()
+        selectedDocument?.loadedEditor?.refreshGitBase(ifOlderThan: 5)
         scheduleSessionSave()
     }
 
@@ -503,6 +505,8 @@ final class Workspace {
         document.pendingDirty = false
         document.isDirty = false
         document.saveCount += 1
+        // A new path (Save As) can be in a repository; an untracked file can have become tracked.
+        document.loadedEditor?.refreshGitBase()
         recents.noteOpened(url)
         toast("Saved \(document.displayName)", symbol: "checkmark.circle.fill", tint: .green)
         scheduleSessionSave()
@@ -594,6 +598,13 @@ final class Workspace {
     }
 
     // MARK: File actions
+
+    /// Git's state may have changed (a commit, checkout or `git add`): re-read the shown file's
+    /// staged version now, and the other tabs' when they're next shown.
+    func gitStateDidChange() {
+        for document in documents where document.id != selectedID { document.loadedEditor?.markGitBaseStale() }
+        selectedDocument?.loadedEditor?.refreshGitBase()
+    }
 
     func revealInFinder(_ document: EditorDocument? = nil) {
         guard let url = (document ?? selectedDocument)?.fileURL else { return }

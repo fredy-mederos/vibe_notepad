@@ -48,6 +48,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidBecomeActive(_ notification: Notification) {
         Workspace.shared.checkExternalChanges()
         Workspace.shared.recents.refreshMissing()
+        // Commits and checkouts usually happen in another app.
+        Workspace.shared.gitStateDidChange()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

@@ -34,6 +34,8 @@ final class Project {
     /// Folder listings for the tree, read when a folder is first expanded.
     private(set) var listings: [String: [ProjectNode]] = [:]
 
+    /// Called when something changes inside the project's `.git` folder (commits, staging, checkouts).
+    @ObservationIgnored var onGitChange: (() -> Void)?
     @ObservationIgnored private var watcher: DirectoryWatcher?
     @ObservationIgnored private var indexTask: Task<Void, Never>?
     @ObservationIgnored private var reindexTask: Task<Void, Never>?
@@ -134,9 +136,11 @@ final class Project {
 
     private func filesDidChange(_ changes: [DirectoryWatcher.Change]) {
         var affectsIndex = false
+        var affectsGit = false
         for change in changes {
             guard let path = localPath(change.path) else { continue }
             let parts = (relativePath(of: path) ?? "").split(separator: "/").map(String.init)
+            if parts.first == ".git" { affectsGit = true }
             if parts.contains(where: Self.hiddenNames.contains) { continue }
             if change.includesSubfolders {
                 let prefix = path + "/"
@@ -147,6 +151,7 @@ final class Project {
             if !parts.contains(where: FolderScanner.skippedFolders.contains) { affectsIndex = true }
         }
         if affectsIndex, !isBroad { scheduleReindex() }
+        if affectsGit { onGitChange?() }
     }
 
     /// Maps an FSEvents path into the project's own spelling of its paths.

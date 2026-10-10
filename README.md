@@ -30,6 +30,10 @@ no third-party dependencies.
   YAML and Python, and heading sections in Markdown. Use the gutter chevrons, click the `⋯` pill to expand,
   or use Fold / Unfold (⌥⌘[ / ⌥⌘]) and Fold All / Unfold All (⇧⌥⌘[ / ⇧⌥⌘]). Fold All on a JSON file leaves
   its top-level keys visible.
+- **Git changes next to the line numbers**: added lines get a green bar, modified ones a blue bar, and a red
+  wedge marks where lines were deleted, compared with the version staged in git and updated as you type.
+  Commits, `git add` and checkouts are picked up when you come back to the app. Can be turned off in
+  Settings → Editor.
 - **Go to Line (⌃G)** and **Go to Symbol (⌘R)**: Markdown headings, functions and types, YAML keys,
   `.env` keys, INI sections and Makefile targets.
 - **Editing comforts**: auto-indent, Markdown list continuation, soft tabs, bracket pairing and matching, toggle comment,
@@ -67,7 +71,7 @@ For development, open `VibeNotepad.xcodeproj` in Xcode, or use:
 
 ```bash
 make run    # debug build + launch
-make test   # VibeCore unit tests (syntax engine, lexers, Markdown, codecs, transforms)
+make test   # VibeCore unit tests (syntax engine, lexers, Markdown, codecs, transforms, diff)
 ```
 
 Every build is stamped with a build number (the number of commits), the commit and the build time,
@@ -111,7 +115,7 @@ Packages/VibeCore          Platform-neutral core (builds for macOS and iOS)
   Markdown/                GitHub-flavored Markdown → HTML renderer
   Theme/                   Color schemes
   Text/                    File codec (encodings, BOMs, line endings), editing transforms,
-                           find engine, fuzzy matcher, symbol extraction
+                           find engine, fuzzy matcher, symbol extraction, line diff (git gutter)
 VibeNotepad                macOS app
   App/                     App entry, menus, AppDelegate (Finder/CLI/deep links), CLI installer
   Model/                   Workspace (tabs, recents, session/hot exit), project folder (tree, file index,

@@ -11,9 +11,9 @@ extension Workspace {
             return
         }
         if project?.root.path != root.path {
-            withAnimation(.snappy(duration: 0.3)) {
-                project = Project(root: root, expandedFolders: expandedFolders)
-            }
+            let project = Project(root: root, expandedFolders: expandedFolders)
+            project.onGitChange = { Workspace.shared.gitStateDidChange() }
+            withAnimation(.snappy(duration: 0.3)) { self.project = project }
             recentProjects = [root.path] + recentProjects.filter { $0 != root.path }.prefix(9)
             NSDocumentController.shared.noteNewRecentDocumentURL(root)
         }

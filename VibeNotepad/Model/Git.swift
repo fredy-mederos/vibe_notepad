@@ -32,6 +32,13 @@ nonisolated enum Git {
         return data.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }.filter { seen.insert($0).inserted }
     }
 
+    /// The file's content as staged in git's index (what `git diff` compares the working copy
+    /// with). Nil outside a repository and for untracked files.
+    static func indexVersion(of file: URL) -> Data? {
+        // `:./name` is the index entry for a path relative to the working directory.
+        run(["show", ":./" + file.lastPathComponent], in: file.deletingLastPathComponent())
+    }
+
     private static func run(_ executable: URL, _ arguments: [String], in directory: URL?, timeout: TimeInterval) -> Data? {
         let process = Process()
         process.executableURL = executable

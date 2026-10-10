@@ -134,6 +134,7 @@ private struct EditorSettings: View {
                 Toggle("Show line numbers", isOn: $settings.showLineNumbers)
                 Toggle("Highlight current line", isOn: $settings.highlightCurrentLine)
                 Toggle("Show invisible characters", isOn: $settings.showInvisibles)
+                Toggle("Show git changes next to line numbers", isOn: $settings.showGitChanges)
             }
             Section("Typing") {
                 Toggle("Auto-close brackets and quotes", isOn: $settings.autoCloseBrackets)

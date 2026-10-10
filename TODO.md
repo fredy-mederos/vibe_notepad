@@ -4,14 +4,15 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 
 ## Next up
 
-- [ ] **Git gutter**: added / modified / deleted line markers next to the line numbers.
-  - The buffer is compared with the file's committed version (`git show :path`) as you type, in the background.
-  - The line diff lives in VibeCore with unit tests. Files outside a repository, untracked files and huge files
-    get no markers.
 - [ ] **Minimap** (Sublime-style): a zoomed-out view of the file along the right edge with the visible region
   highlighted; click or drag it to scroll. Can be turned off, and stays cheap on large files.
 
 ## Done
+
+- [x] **Git gutter**: green bars for added lines, blue for modified ones and a red wedge where lines were deleted,
+  next to the line numbers. The buffer is compared with the version staged in git (`git show :path`) in the
+  background as you type; the line diff (Myers) lives in VibeCore with unit tests. Refreshed on save, reload,
+  coming back to the app and (for the open project) changes inside `.git`. Settings → Editor can turn it off.
 
 - [x] **Open a folder as a project**: File → Open Folder… (⇧⌘O), `vibeNotePad .`, Finder's Open With, or dropping
   a folder on the window or Dock icon. The sidebar shows the folder as a file tree (folders load as you expand them

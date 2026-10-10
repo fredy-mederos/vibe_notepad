@@ -51,6 +51,17 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     private var foldRegionsVersion = -1
     private var foldsToRelayout: [NSRange] = []
 
+    // Git changes
+    /// Lines that differ from the file's version staged in git, marked next to the line numbers.
+    private(set) var gitChanges: [LineChange] = []
+    /// Line hashes of the staged version; nil when the file isn't tracked (or markers are off).
+    private var gitBase: [UInt64]?
+    /// When `gitBase` was last read from git (nil: never, or known to be out of date).
+    private var gitBaseDate: Date?
+    private var gitBaseTask: Task<Void, Never>?
+    private var gitDiffTask: Task<Void, Never>?
+    private var showsGitChanges: Bool?
+
     /// Called after every edit (debouncing is up to the receiver).
     var onTextChange: (() -> Void)?
     /// Called when the visible region scrolls.
@@ -141,6 +152,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
         applySettings(AppSettings.shared, theme: AppSettings.shared.theme)
         load(text: text)
+        refreshGitBase()
     }
 
     // MARK: Content
@@ -190,6 +202,8 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         scrollView.reflectScrolledClipView(scrollView.contentView)
         contentDidChange()
         scheduleFoldAnalysis(immediate: true)
+        // Reloads often follow git operations (checkout, pull), which can change the staged version too.
+        refreshGitBase()
         // Matches found in the old text point at the wrong places now.
         if !findMatches.isEmpty || Workspace.shared.findBarVisible {
             findMatches = []
@@ -281,6 +295,11 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         let gutterFont = NSFont.monospacedDigitSystemFont(ofSize: max(9, font.pointSize - 1.5), weight: .regular)
         if gutter.font != gutterFont { gutter.font = gutterFont }
         rootView.showsGutter = settings.showLineNumbers
+        if showsGitChanges != nil, showsGitChanges != settings.showGitChanges {
+            showsGitChanges = settings.showGitChanges
+            refreshGitBase()
+        }
+        showsGitChanges = settings.showGitChanges
 
         setWrap(document.wrapLines ?? settings.wrapLines)
         updateSpellChecking()
@@ -446,6 +465,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
             foldsToRelayout = []
         }
         scheduleFoldAnalysis()
+        if gitBase != nil { scheduleGitDiff() }
         styleVisible()
         contentDidChange()
         if !findMatches.isEmpty || Workspace.shared.findBarVisible { scheduleFindRefresh() }
@@ -835,6 +855,70 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
         bracketRanges = []
         updateBracketHighlight()
+    }
+
+    // MARK: Git changes
+
+    /// Reads the file's staged version from git again, then refreshes the change markers. Called
+    /// when the file is opened, saved or reloaded, and when git's state may have changed.
+    func refreshGitBase() {
+        gitBaseTask?.cancel()
+        guard AppSettings.shared.showGitChanges, let url = document.fileURL, !document.isBinary,
+              textStorage.length < 4_000_000 else {
+            gitBase = nil
+            gitBaseDate = nil
+            gitDiffTask?.cancel()
+            setGitChanges([])
+            return
+        }
+        let encoding = document.encoding
+        gitBaseDate = .now
+        gitBaseTask = Task { [weak self] in
+            let base = await Task.detached(priority: .utility) { () -> [UInt64]? in
+                guard let data = Git.indexVersion(of: url), data.count < 8_000_000,
+                      let decoded = try? TextFileCodec.decode(data, forced: encoding) else { return nil }
+                return LineDiff.lineHashes(decoded.text)
+            }.value
+            guard let self, !Task.isCancelled else { return }
+            self.gitBase = base
+            self.scheduleGitDiff(immediate: true)
+        }
+    }
+
+    /// Refreshes the staged version unless it was read in the last `seconds`.
+    func refreshGitBase(ifOlderThan seconds: TimeInterval) {
+        if let date = gitBaseDate, Date.now.timeIntervalSince(date) < seconds { return }
+        refreshGitBase()
+    }
+
+    /// Forgets when the staged version was read, so the next `refreshGitBase(ifOlderThan:)` reads it.
+    func markGitBaseStale() {
+        gitBaseDate = nil
+    }
+
+    private func scheduleGitDiff(immediate: Bool = false) {
+        gitDiffTask?.cancel()
+        guard let base = gitBase else {
+            setGitChanges([])
+            return
+        }
+        gitDiffTask = Task { [weak self] in
+            if !immediate { try? await Task.sleep(for: .milliseconds(300)) }
+            guard let self, !Task.isCancelled else { return }
+            let snapshot = self.textStorage.string
+            let version = self.textVersion
+            let changes = await Task.detached(priority: .utility) {
+                LineDiff.changes(from: base, to: LineDiff.lineHashes(snapshot))
+            }.value
+            guard !Task.isCancelled, version == self.textVersion else { return }
+            self.setGitChanges(changes)
+        }
+    }
+
+    private func setGitChanges(_ changes: [LineChange]) {
+        guard changes != gitChanges else { return }
+        gitChanges = changes
+        gutter.needsDisplay = true
     }
 
     // MARK: Folding
