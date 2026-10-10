@@ -29,6 +29,8 @@ extension Workspace {
         // File
         add("New File", "File", "doc.badge.plus", "⌘N") { self.newDocument() }
         add("Open…", "File", "folder", "⌘O") { self.showOpenPanel() }
+        add("Open Folder…", "File", "folder.badge.plus", "⇧⌘O") { self.showOpenFolderPanel() }
+        if project != nil { add("Close Folder", "File", "folder.badge.minus") { self.closeProject() } }
         add("Quick Open…", "File", "magnifyingglass", "⌘P") { self.showPalette(.files) }
         add("Save", "File", "square.and.arrow.down", "⌘S", enabled: hasDocument) { self.saveSelected() }
         add("Save As…", "File", "square.and.arrow.down.on.square", "⇧⌘S", enabled: hasDocument) {
@@ -143,6 +145,7 @@ extension Workspace {
         }
         add(settings.showLineNumbers ? "Hide Line Numbers" : "Show Line Numbers", "View", "list.number") { self.settings.showLineNumbers.toggle() }
         add(settings.showInvisibles ? "Hide Invisible Characters" : "Show Invisible Characters", "View", "paragraphsign") { self.settings.showInvisibles.toggle() }
+        add(settings.showMinimap ? "Hide Minimap" : "Show Minimap", "View", "sidebar.right") { self.settings.showMinimap.toggle() }
         add(settings.highlightCurrentLine ? "Don’t Highlight Current Line" : "Highlight Current Line", "View", "highlighter") { self.settings.highlightCurrentLine.toggle() }
         add("Zoom In", "View", "plus.magnifyingglass", "⌘+") { self.settings.zoom(by: 1) }
         add("Zoom Out", "View", "minus.magnifyingglass", "⌘−") { self.settings.zoom(by: -1) }

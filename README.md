@@ -34,6 +34,8 @@ no third-party dependencies.
   wedge marks where lines were deleted, compared with the version staged in git and updated as you type.
   Commits, `git add` and checkouts are picked up when you come back to the app. Can be turned off in
   Settings → Editor.
+- **Minimap**: a zoomed-out view of the file along the right edge, Sublime-style, with git changes marked;
+  click or drag it to scroll. It steps aside when the editor is narrow; View → Minimap turns it off.
 - **Go to Line (⌃G)** and **Go to Symbol (⌘R)**: Markdown headings, functions and types, YAML keys,
   `.env` keys, INI sections and Makefile targets.
 - **Editing comforts**: auto-indent, Markdown list continuation, soft tabs, bracket pairing and matching, toggle comment,
@@ -120,7 +122,7 @@ VibeNotepad                macOS app
   App/                     App entry, menus, AppDelegate (Finder/CLI/deep links), CLI installer
   Model/                   Workspace (tabs, recents, session/hot exit), project folder (tree, file index,
                            FSEvents watcher), documents, settings, file I/O
-  Editor/                  TextKit 1 editor: NSTextView subclass, gutter, syntax styling, line height
+  Editor/                  TextKit 1 editor: NSTextView subclass, gutter, minimap, syntax styling, line height
   Preview/                 WKWebView Markdown preview (page scripts disabled, app talks via an isolated world)
   UI/                      SwiftUI: sidebar, tabs, status bar, find bar, palette, welcome, settings
 ```
@@ -129,4 +131,4 @@ The syntax engine stores the lexer state at the start of every line. After an ed
 changed line and stops as soon as states converge, so typing costs one line of work whatever the file size.
 The styler only paints lines that changed or became visible.
 
-See [TODO.md](TODO.md) for ideas and the roadmap (project folders, git gutter, minimap…).
+See [TODO.md](TODO.md) for ideas and the roadmap.

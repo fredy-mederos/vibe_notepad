@@ -4,10 +4,14 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 
 ## Next up
 
-- [ ] **Minimap** (Sublime-style): a zoomed-out view of the file along the right edge with the visible region
-  highlighted; click or drag it to scroll. Can be turned off, and stays cheap on large files.
+Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
+
+- [x] **Minimap** (Sublime-style): every character drawn as a small block in its syntax color, one row per line,
+  with git changes along its edge and a slider for what's on screen; click or drag to scroll. Rows are rendered
+  in 64-line tiles that are reused while scrolling and redrawn only where the text changes, so large files cost
+  the same as small ones. Hides itself when the editor is narrow; View → Minimap or Settings → Editor turn it off.
 
 - [x] **Git gutter**: green bars for added lines, blue for modified ones and a red wedge where lines were deleted,
   next to the line numbers. The buffer is compared with the version staged in git (`git show :path`) in the

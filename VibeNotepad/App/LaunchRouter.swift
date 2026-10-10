@@ -251,7 +251,44 @@ enum LaunchRouter {
             editor.scrollView.reflectScrolledClipView(clip)
             editor.textView.displayIfNeeded()
             editor.gutter.displayIfNeeded()
+            editor.minimap.displayIfNeeded()
             NSLog("[debug] scroll to %.2f took %.1f ms (y %.0f of %.0f)", fraction, Date().timeIntervalSince(start) * 1000, clip.bounds.minY, editor.textView.frame.height)
+        case "debug-minimap":
+            // Times minimap and editor redraws at scroll positions through the file; writes them to `path`.
+            guard let editor = Workspace.shared.activeEditor else { break }
+            let clip = editor.scrollView.contentView
+            if let y = value("click").flatMap(Double.init), let window = editor.minimap.window {
+                // Clicks the minimap `y` points from its top and reports where the editor scrolled.
+                let point = editor.minimap.convert(NSPoint(x: 40, y: y), to: nil)
+                for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                                                      context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                        if type == .leftMouseDown { editor.minimap.mouseDown(with: event) } else { editor.minimap.mouseUp(with: event) }
+                    }
+                }
+                let lines = editor.visibleLines()
+                let report = "clicked \(y): lines \(lines.lowerBound + 1)-\(lines.upperBound) of \(editor.engine.lineCount)\n"
+                try? report.write(toFile: value("path") ?? "/tmp/vibe-minimap.txt", atomically: true, encoding: .utf8)
+                break
+            }
+            var report = "lines \(editor.engine.lineCount), minimap visible \(editor.rootView.isMinimapVisible)\n"
+            for step in 0...10 {
+                let target = max(0, (editor.textView.frame.height - clip.bounds.height) * Double(step) / 10)
+                clip.scroll(to: NSPoint(x: 0, y: target))
+                editor.scrollView.reflectScrolledClipView(clip)
+                editor.textView.displayIfNeeded()
+                var start = Date()
+                editor.minimap.display()
+                let firstTime = Date().timeIntervalSince(start) * 1000
+                start = Date()
+                editor.minimap.display()
+                let againTime = Date().timeIntervalSince(start) * 1000
+                start = Date()
+                editor.textView.display()
+                let textTime = Date().timeIntervalSince(start) * 1000
+                report += String(format: "%.1f: minimap %.2f ms (again %.2f ms), text %.2f ms\n", Double(step) / 10, firstTime, againTime, textTime)
+            }
+            try? report.write(toFile: value("path") ?? "/tmp/vibe-minimap.txt", atomically: true, encoding: .utf8)
         case "debug-undo":
             Workspace.shared.activeEditor?.undoManager.undo()
         case "debug-save":

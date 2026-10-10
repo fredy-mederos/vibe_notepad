@@ -115,6 +115,7 @@ final class Workspace {
             _ = settings.highlightCurrentLine
             _ = settings.showInvisibles
             _ = settings.showGitChanges
+            _ = settings.showMinimap
             _ = settings.autoCloseBrackets
             _ = settings.spellCheckProse
             _ = settings.previewFont

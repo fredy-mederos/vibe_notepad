@@ -8,6 +8,7 @@ import VibeCore
 final class EditorRootView: NSView {
     let scrollView: NSScrollView
     let gutter: LineNumberGutterView
+    let minimap: MinimapView
 
     var showsGutter = true {
         didSet {
@@ -17,12 +18,21 @@ final class EditorRootView: NSView {
         }
     }
 
-    init(scrollView: NSScrollView, gutter: LineNumberGutterView) {
+    var showsMinimap = false {
+        didSet { if oldValue != showsMinimap { needsLayout = true } }
+    }
+
+    /// Whether the minimap is on screen (it steps aside when the editor gets narrow).
+    var isMinimapVisible: Bool { !minimap.isHidden }
+
+    init(scrollView: NSScrollView, gutter: LineNumberGutterView, minimap: MinimapView) {
         self.scrollView = scrollView
         self.gutter = gutter
+        self.minimap = minimap
         super.init(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
         addSubview(scrollView)
         addSubview(gutter)
+        addSubview(minimap)
     }
 
     @available(*, unavailable)
@@ -33,8 +43,11 @@ final class EditorRootView: NSView {
     override func layout() {
         super.layout()
         let width = showsGutter ? gutter.thickness : 0
+        let minimapWidth = showsMinimap && bounds.width - width >= 560 ? MinimapView.width : 0
+        minimap.isHidden = minimapWidth == 0
         gutter.frame = NSRect(x: 0, y: 0, width: width, height: bounds.height)
-        scrollView.frame = NSRect(x: width, y: 0, width: max(0, bounds.width - width), height: bounds.height)
+        minimap.frame = NSRect(x: bounds.width - minimapWidth, y: 0, width: minimapWidth, height: bounds.height)
+        scrollView.frame = NSRect(x: width, y: 0, width: max(0, bounds.width - width - minimapWidth), height: bounds.height)
     }
 }
 

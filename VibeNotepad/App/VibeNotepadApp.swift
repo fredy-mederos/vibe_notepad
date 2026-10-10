@@ -212,6 +212,7 @@ struct AppCommands: Commands {
             .disabled(document == nil)
             Toggle("Line Numbers", isOn: Binding(get: { settings.showLineNumbers }, set: { settings.showLineNumbers = $0 }))
             Toggle("Invisible Characters", isOn: Binding(get: { settings.showInvisibles }, set: { settings.showInvisibles = $0 }))
+            Toggle("Minimap", isOn: Binding(get: { settings.showMinimap }, set: { settings.showMinimap = $0 }))
             Divider()
             Button("Zoom In") { settings.zoom(by: 1) }
                 .keyboardShortcut("=")

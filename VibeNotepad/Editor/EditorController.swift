@@ -14,6 +14,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     let layoutManager: EditorLayoutManager
     let textContainer: NSTextContainer
     let gutter: LineNumberGutterView
+    let minimap: MinimapView
     let styler: SyntaxStyler
     let undoManager = UndoManager()
 
@@ -123,7 +124,8 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
         let lineNumbers = LineNumberGutterView()
         lineNumbers.textView = view
-        rootView = EditorRootView(scrollView: scroll, gutter: lineNumbers)
+        let overview = MinimapView()
+        rootView = EditorRootView(scrollView: scroll, gutter: lineNumbers, minimap: overview)
         rootView.wantsLayer = true
 
         scrollView = scroll
@@ -132,11 +134,13 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         layoutManager = layout
         textContainer = container
         gutter = lineNumbers
+        minimap = overview
         styler = SyntaxStyler(language: document.language, textStorage: storage)
         super.init()
 
         lineNumbers.engine = styler.engine
         lineNumbers.controller = self
+        overview.controller = self
         view.controller = self
         view.delegate = self
         storage.delegate = self
@@ -221,6 +225,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         gutter.updateThickness(force: true)
         scheduleFoldAnalysis(immediate: true)
         engine.setLanguage(language, text: nsText)
+        minimap.invalidateAll()
         styler.resetAttributes()
         restyleAfterReset()
         updateSpellChecking()
@@ -295,6 +300,15 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         let gutterFont = NSFont.monospacedDigitSystemFont(ofSize: max(9, font.pointSize - 1.5), weight: .regular)
         if gutter.font != gutterFont { gutter.font = gutterFont }
         rootView.showsGutter = settings.showLineNumbers
+        rootView.showsMinimap = settings.showMinimap
+        minimap.backgroundColor = theme.background.nsColor
+        minimap.sliderColor = theme.foreground.nsColor
+        minimap.tabWidth = document.indentation.width
+        // Opaque colors, softened toward the background, so each color is a single fill.
+        minimap.palette = TokenKind.allCases.map { kind in
+            let color = kind == .plain ? theme.foreground : theme.style(for: kind)?.color ?? theme.foreground
+            return color.mixed(with: theme.background, 0.3).nsColor
+        }
         if showsGitChanges != nil, showsGitChanges != settings.showGitChanges {
             showsGitChanges = settings.showGitChanges
             refreshGitBase()
@@ -433,9 +447,12 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         // triggers) can see line offsets from the old text.
         guard !isLoading else {
             engine.reset(text: textStorage.mutableString, language: document.language)
+            minimap.invalidateAll()
             return
         }
-        engine.applyEdit(text: textStorage.mutableString, editedRange: editedRange, changeInLength: delta)
+        let lineCount = engine.lineCount
+        let changedLines = engine.applyEdit(text: textStorage.mutableString, editedRange: editedRange, changeInLength: delta)
+        minimap.invalidate(lines: changedLines, lineCountChanged: engine.lineCount != lineCount)
         textVersion += 1
         foldRegions.applyEdit(editedRange: editedRange, changeInLength: delta)
         if !foldState.isEmpty {
@@ -474,6 +491,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     private func contentDidChange() {
         gutter.updateThickness()
         gutter.needsDisplay = true
+        if rootView.isMinimapVisible { minimap.needsDisplay = true }
         updateStatus()
         document.contentDidChange()
         onTextChange?()
@@ -529,6 +547,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     @objc private func clipViewDidScroll(_ notification: Notification) {
         styleVisible()
         gutter.needsDisplay = true
+        if rootView.isMinimapVisible { minimap.needsDisplay = true }
         document.loadedPreview?.syncScroll()
         onScroll?()
     }
@@ -538,6 +557,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         // and start another layout pass from inside this one.
         scheduleStyleVisible()
         gutter.needsDisplay = true
+        if rootView.isMinimapVisible { minimap.needsDisplay = true }
     }
 
     /// The first visible line and how far (0…1) it is scrolled past.
@@ -919,6 +939,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         guard changes != gitChanges else { return }
         gitChanges = changes
         gutter.needsDisplay = true
+        if rootView.isMinimapVisible { minimap.needsDisplay = true }
     }
 
     // MARK: Folding

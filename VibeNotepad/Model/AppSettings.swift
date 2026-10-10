@@ -79,6 +79,8 @@ final class AppSettings {
     var showInvisibles: Bool { didSet { save(showInvisibles, "showInvisibles") } }
     /// Marks lines that differ from the version staged in git, next to the line numbers.
     var showGitChanges: Bool { didSet { save(showGitChanges, "showGitChanges") } }
+    /// A zoomed-out view of the file along the editor's right edge.
+    var showMinimap: Bool { didSet { save(showMinimap, "showMinimap") } }
     var autoCloseBrackets: Bool { didSet { save(autoCloseBrackets, "autoCloseBrackets") } }
     var spellCheckProse: Bool { didSet { save(spellCheckProse, "spellCheckProse") } }
 
@@ -119,6 +121,7 @@ final class AppSettings {
         highlightCurrentLine = value("highlightCurrentLine", true)
         showInvisibles = value("showInvisibles", false)
         showGitChanges = value("showGitChanges", true)
+        showMinimap = value("showMinimap", true)
         autoCloseBrackets = value("autoCloseBrackets", true)
         spellCheckProse = value("spellCheckProse", false)
         markdownMode = MarkdownMode(rawValue: value("markdownMode", "split")) ?? .split

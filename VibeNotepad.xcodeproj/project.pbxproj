@@ -32,6 +32,7 @@
 		A593863D7C92058D663249AD /* VibeNotepadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B892A2F3C410D8EF0F10AD6 /* VibeNotepadApp.swift */; };
 		B35A6FEC0926017C4C6D1417 /* EditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952088C1F91D0CB14F229D68 /* EditorController.swift */; };
 		B57D85C22437E865229CB7E5 /* PreviewTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3CDCF37D036DCD2BD1A401 /* PreviewTemplate.swift */; };
+		B7A0CDB356A3AD3669F5FE5E /* MinimapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1679F72AA63922F7F827FB15 /* MinimapView.swift */; };
 		C09F8BA9E8929DCA3CC8CD63 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EE55A801BF37E4207548787 /* MainView.swift */; };
 		C6DF656964545D3698D89A77 /* ProjectTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C516B88CFACF4BDC1ACFDDB1 /* ProjectTreeView.swift */; };
 		C83CE6585946A6904C7DE1B3 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1274C80A39803AF46085264D /* SidebarView.swift */; };
@@ -54,6 +55,7 @@
 		1098FC1582FA5739C7A6D39D /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		120D3CD4FBE388BB09FC92F8 /* VibeNotepad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VibeNotepad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1274C80A39803AF46085264D /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		1679F72AA63922F7F827FB15 /* MinimapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinimapView.swift; sourceTree = "<group>"; };
 		2192BE867A9A981ED4D0A4D5 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		22EC3CC11EDF6BE35EE79187 /* EditorLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorLayoutManager.swift; sourceTree = "<group>"; };
 		32D32562140CC263EBB5E6A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -177,6 +179,7 @@
 				952088C1F91D0CB14F229D68 /* EditorController.swift */,
 				22EC3CC11EDF6BE35EE79187 /* EditorLayoutManager.swift */,
 				7B859B2C831FC90D6FCA4FDE /* LineNumberGutterView.swift */,
+				1679F72AA63922F7F827FB15 /* MinimapView.swift */,
 				D6878D9A75AEA287A080B919 /* SyntaxStyler.swift */,
 			);
 			path = Editor;
@@ -351,6 +354,7 @@
 				010608423089749DA7554CEA /* LineNumberGutterView.swift in Sources */,
 				C09F8BA9E8929DCA3CC8CD63 /* MainView.swift in Sources */,
 				CD86397BDA59EFEC22239250 /* MarkdownPreviewController.swift in Sources */,
+				B7A0CDB356A3AD3669F5FE5E /* MinimapView.swift in Sources */,
 				2432E1A8B5505C7E9367E8D0 /* PaletteView.swift in Sources */,
 				B57D85C22437E865229CB7E5 /* PreviewTemplate.swift in Sources */,
 				4930B0019862FD9D2FBE71B8 /* Project.swift in Sources */,

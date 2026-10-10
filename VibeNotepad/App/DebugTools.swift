@@ -13,6 +13,8 @@ enum DebugTools {
             return
         }
         let renderStart = Date()
+        // A window that was never on screen (Stage Manager's strip) may not be laid out yet.
+        window.layoutIfNeeded()
         view.cacheDisplay(in: view.bounds, to: rep)
         NSLog("[debug] render took %.1f ms", Date().timeIntervalSince(renderStart) * 1000)
         do {
