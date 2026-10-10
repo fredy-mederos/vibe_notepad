@@ -1,8 +1,25 @@
 # Vibe Notepad ✨
 
+[![Latest release](https://img.shields.io/github/v/release/fredy-mederos/vibe_notepad)](https://github.com/fredy-mederos/vibe_notepad/releases/latest)
+
 A fast, native macOS text editor for the files you open every day: Markdown, `.env` files,
 YAML/JSON configs, shell scripts and code. It uses SwiftUI and AppKit with Liquid Glass, and has
 no third-party dependencies.
+
+<p align="center">
+  <img src="screenshots/vibe-notepad.png" alt="Vibe Notepad with a project's files in the sidebar and a Markdown file next to its live preview" width="900" />
+</p>
+
+## Download
+
+**[Download VibeNotepad.dmg](https://github.com/fredy-mederos/vibe_notepad/releases/latest/download/VibeNotepad.dmg)**
+(the latest release, for macOS 26 or later on Apple silicon and Intel), open it and drag Vibe Notepad
+into Applications. Settings → General installs the `vibeNotePad` command. Every version is on the
+[releases page](https://github.com/fredy-mederos/vibe_notepad/releases).
+
+Vibe Notepad tells you when there's a new version: it asks GitHub when it opens and once a day, and
+shows an alert once per new version. Vibe Notepad → Check for Updates… and Settings → General check
+any time.
 
 ## Highlights
 
@@ -48,6 +65,9 @@ no third-party dependencies.
 - **Hot exit** like Sublime: quit any time, and tabs and unsaved changes come back on the next launch.
 - **Never loses track of files**: changes made by other apps reload automatically, and you're asked first when you have
   local edits. Saving writes in place, which keeps permissions, symlinks and Docker bind mounts intact.
+- **Updates**: one request to GitHub's API for the latest release when the app opens (at most hourly) and once a day.
+  A new version gets an alert, once, with Download and Release Notes; Settings → General keeps showing it until you
+  update. Nothing is downloaded until you choose Download.
 
 ## Open files from anywhere
 
@@ -59,7 +79,7 @@ no third-party dependencies.
 | New buffer | `open "vibeNotePad://new?text=Hello&language=markdown"` |
 | Drag & drop | Drop files or a folder onto the window or the Dock icon |
 
-## Install
+## Build and install from source
 
 Requirements: macOS 26 or later, Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
@@ -83,7 +103,21 @@ shown in **Settings → General → About**.
 
 Debug builds are called **Vibe Notepad Dev** and have their own bundle ID, preferences, data folder
 and link scheme (`vibenotepad-dev://`), so they never take over links or "Open With" from the
-installed app.
+installed app. They check for updates only when asked; `vibenotepad-dev://debug-updates` checks as
+the installed app does at launch, and `?repository=owner/name` tries another repository's releases
+(one with a newer version shows the update alert).
+
+## Releasing
+
+`make dmg` (`scripts/release.sh`) builds a Release for Apple silicon and Intel, signs it with a
+Developer ID (with the hardened runtime), packs it into `build/VibeNotepad.dmg`, has Apple notarize
+it and staples the ticket. It needs `APP_SIGN_IDENTITY` ("Developer ID Application: Your Name
+(TEAMID)") and `NOTARY_KEYCHAIN_PROFILE` (a profile stored with `xcrun notarytool store-credentials`).
+
+The `release-vibe-notepad` skill (`skills/`, linked for Claude Code and Codex) runs a whole release:
+it picks and confirms the version (`scripts/version.sh`, which updates `project.yml` and regenerates
+the project), builds the disk image, tags `vX.Y.Z` and publishes the GitHub release with notes from
+`scripts/release-notes.sh`. Installed copies find it within a day.
 
 ## Keyboard shortcuts
 
@@ -121,7 +155,8 @@ Packages/VibeCore          Platform-neutral core (builds for macOS and iOS)
   Text/                    File codec (encodings, BOMs, line endings), editing transforms,
                            find engine, fuzzy matcher, symbol extraction, line diff (git gutter)
 VibeNotepad                macOS app
-  App/                     App entry, menus, AppDelegate (Finder/CLI/deep links), CLI installer
+  App/                     App entry, menus, AppDelegate (Finder/CLI/deep links), CLI installer, version info,
+                           update checks
   Model/                   Workspace (tabs, recents, session/hot exit), project folder (tree, file index,
                            FSEvents watcher), documents, settings, file I/O
   Editor/                  TextKit 1 editor: NSTextView subclass, gutter, minimap, syntax styling, line height

@@ -3,7 +3,7 @@ APP_NAME  := Vibe Notepad
 DERIVED   := build/DerivedData
 XCB       := xcodebuild -project VibeNotepad.xcodeproj -scheme VibeNotepad -derivedDataPath $(DERIVED) -destination 'platform=macOS'
 
-.PHONY: project build release run test install cli icon clean
+.PHONY: project build release run test install cli icon dmg clean
 
 project:   ## Regenerate VibeNotepad.xcodeproj from project.yml
 	xcodegen generate
@@ -28,6 +28,9 @@ cli:   ## Install only the vibeNotePad command
 
 icon:   ## Re-render the app icon
 	swift scripts/generate_icon.swift VibeNotepad/Resources/Assets.xcassets/AppIcon.appiconset
+
+dmg:   ## Signed, notarized build/VibeNotepad.dmg for a GitHub release (needs APP_SIGN_IDENTITY and NOTARY_KEYCHAIN_PROFILE)
+	scripts/release.sh
 
 clean:
 	rm -rf build

@@ -36,11 +36,17 @@ struct AppCommands: Commands {
 
     private var editor: EditorController? { workspace.activeEditor }
     private var document: EditorDocument? { workspace.selectedDocument }
+    private var updater: AppUpdater { .shared }
 
     var body: some Commands {
         // The menus exist even when the window doesn't (it was closed before the last quit), so files
         // and links that arrive at launch can still bring the window up.
         let _ = AppDelegate.shared?.openMainWindow = { [openWindow] in openWindow(id: "main") }
+        CommandGroup(after: .appInfo) {
+            Button(updater.isChecking ? "Checking for Updates…" : "Check for Updates…") { updater.checkFromMenu() }
+                .disabled(updater.isChecking)
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("New Tab") { workspace.newDocument() }
                 .keyboardShortcut("t")

@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             LaunchRouter.open(request)
         }
         Workspace.shared.recents.refreshMissing()
+        AppUpdater.shared.start()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -50,6 +51,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Workspace.shared.recents.refreshMissing()
         // Commits and checkouts usually happen in another app.
         Workspace.shared.gitStateDidChange()
+        // A new version found while the app was in the background is announced when it comes to the front.
+        AppUpdater.shared.announceIfNew()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

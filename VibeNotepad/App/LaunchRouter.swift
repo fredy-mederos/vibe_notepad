@@ -311,6 +311,8 @@ enum LaunchRouter {
             }
         case "debug-close-all":
             for document in Workspace.shared.documents { document.isDirty = false; Workspace.shared.close(document) }
+        case "debug-updates":
+            AppUpdater.shared.debugCheck(repository: value("repository"))
         #endif
         case "new":
             let language = value("language").flatMap { LanguageRegistryBridge.language(named: $0) } ?? .plainText

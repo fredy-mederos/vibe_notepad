@@ -46,17 +46,8 @@ private struct GeneralSettings: View {
                 CommandLineToolRow()
             }
 
-            Section("About") {
-                LabeledContent("Version", value: "\(BuildInfo.version) (build \(BuildInfo.build))")
-                LabeledContent("Configuration", value: BuildInfo.configuration)
-                if let date = BuildInfo.date {
-                    LabeledContent("Built", value: date.formatted(date: .long, time: .shortened))
-                }
-                if let commit = BuildInfo.commit {
-                    LabeledContent("Commit", value: BuildInfo.hasLocalChanges ? "\(commit) + local changes" : commit)
-                }
-            }
-            .textSelection(.enabled)
+            AboutSection()
+            UpdatesSection()
         }
         .formStyle(.grouped)
         .frame(minHeight: 630)
