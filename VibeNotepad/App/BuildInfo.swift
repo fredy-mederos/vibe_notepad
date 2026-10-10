@@ -6,6 +6,15 @@ enum BuildInfo {
     static var version: String { info("CFBundleShortVersionString") ?? "–" }
     static var build: String { info("CFBundleVersion") ?? "–" }
 
+    /// The build configuration ("Debug" for Vibe Notepad Dev, "Release" for the installed app).
+    static var configuration: String {
+        #if DEBUG
+        "Debug"
+        #else
+        "Release"
+        #endif
+    }
+
     /// Short commit hash, or nil when built outside a git checkout.
     static var commit: String? {
         info("VibeGitCommit").map { $0.hasSuffix("+") ? String($0.dropLast()) : $0 }

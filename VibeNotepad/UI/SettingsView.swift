@@ -48,6 +48,7 @@ private struct GeneralSettings: View {
 
             Section("About") {
                 LabeledContent("Version", value: "\(BuildInfo.version) (build \(BuildInfo.build))")
+                LabeledContent("Configuration", value: BuildInfo.configuration)
                 if let date = BuildInfo.date {
                     LabeledContent("Built", value: date.formatted(date: .long, time: .shortened))
                 }
@@ -58,7 +59,7 @@ private struct GeneralSettings: View {
             .textSelection(.enabled)
         }
         .formStyle(.grouped)
-        .frame(minHeight: 590)
+        .frame(minHeight: 630)
     }
 }
 
