@@ -1,7 +1,7 @@
 # Contributing
 
 Vibe Notepad is a personal project, shared as is. You're welcome to clone it, fork it and build your own
-version.
+version under the [MIT license](LICENSE).
 
 ## Issues are welcome
 

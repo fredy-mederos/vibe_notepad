@@ -138,3 +138,7 @@ See [TODO.md](TODO.md) for ideas and the roadmap.
 
 Vibe Notepad is a personal project, shared as is: clone it, fork it, make it your own. Issues (bug reports and
 ideas) are welcome; pull requests aren't accepted. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
