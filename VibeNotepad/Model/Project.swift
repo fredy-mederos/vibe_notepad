@@ -26,6 +26,10 @@ nonisolated struct ProjectFile: Sendable {
 final class Project {
     let root: URL
     var name: String { root.lastPathComponent }
+    /// Folded down to its own row in the sidebar.
+    var isCollapsed = false
+    /// The checked-out git branch (or commit, when detached); nil outside a repository.
+    private(set) var branch: String?
 
     /// Files for Quick Open: `git ls-files` in a repository, otherwise a folder scan.
     private(set) var files: [ProjectFile] = []
@@ -57,6 +61,7 @@ final class Project {
             self.expandedFolders.insert(folder)
         }
         watcher = DirectoryWatcher(url: root) { [weak self] changes in self?.filesDidChange(changes) }
+        branch = Git.branch(at: root)
         reindex()
     }
 
@@ -66,6 +71,17 @@ final class Project {
     func children(of folder: String) -> [ProjectNode] { listings[folder] ?? [] }
 
     func isExpanded(_ folder: String) -> Bool { expandedFolders.contains(folder) }
+
+    /// Whether `path`'s row is on screen in the tree: the project and every folder above it are expanded.
+    func isShowing(_ path: String) -> Bool {
+        guard !isCollapsed, contains(path) else { return false }
+        var folder = (path as NSString).deletingLastPathComponent
+        while folder != root.path {
+            guard isExpanded(folder) else { return false }
+            folder = (folder as NSString).deletingLastPathComponent
+        }
+        return true
+    }
 
     /// Whether `path` is a folder shown in the tree.
     func isFolder(_ path: String) -> Bool {
@@ -156,7 +172,11 @@ final class Project {
             if !parts.contains(where: FolderScanner.skippedFolders.contains) { affectsIndex = true }
         }
         if affectsIndex, !isBroad { scheduleReindex() }
-        if affectsGit { onGitChange?() }
+        if affectsGit {
+            let current = Git.branch(at: root)
+            if branch != current { branch = current }
+            onGitChange?()
+        }
     }
 
     /// Maps an FSEvents path into the project's own spelling of its paths.

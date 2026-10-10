@@ -44,32 +44,52 @@ nonisolated extension SessionDocument {
     }
 }
 
+/// A folder open as a project, with what's expanded in its tree.
+nonisolated struct SessionProject: Codable, Sendable {
+    var path: String
+    var expandedFolders: [String]
+    var collapsed: Bool?
+}
+
 nonisolated struct SessionState: Codable, Sendable {
     var documents: [SessionDocument]
     var selectedIndex: Int?
-    /// The folder open as a project, and its expanded folders in the sidebar.
-    var projectPath: String?
-    var expandedFolders: [String]?
+    /// The folders open as projects, in sidebar order.
+    var projects: [SessionProject]
     /// Entries that couldn't be read at all (their buffers must not be cleaned up).
     var unreadableDocuments = 0
 
     enum CodingKeys: String, CodingKey {
-        case documents, selectedIndex, projectPath, expandedFolders
+        case documents, selectedIndex, projects
+        // Sessions from before several folders could be open.
+        case projectPath, expandedFolders
     }
 
-    init(documents: [SessionDocument], selectedIndex: Int?, projectPath: String? = nil, expandedFolders: [String]? = nil) {
+    init(documents: [SessionDocument], selectedIndex: Int?, projects: [SessionProject] = []) {
         self.documents = documents
         self.selectedIndex = selectedIndex
-        self.projectPath = projectPath
-        self.expandedFolders = expandedFolders
+        self.projects = projects
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(documents, forKey: .documents)
+        try c.encodeIfPresent(selectedIndex, forKey: .selectedIndex)
+        try c.encode(projects, forKey: .projects)
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let entries = try c.decode([Lossy<SessionDocument>].self, forKey: .documents)
         let selected = (try? c.decodeIfPresent(Int.self, forKey: .selectedIndex)) ?? nil
-        projectPath = (try? c.decodeIfPresent(String.self, forKey: .projectPath)) ?? nil
-        expandedFolders = (try? c.decodeIfPresent([String].self, forKey: .expandedFolders)) ?? nil
+        if let projects = (try? c.decodeIfPresent([Lossy<SessionProject>].self, forKey: .projects)) ?? nil {
+            self.projects = projects.compactMap(\.value)
+        } else if let path = (try? c.decodeIfPresent(String.self, forKey: .projectPath)) ?? nil {
+            let expanded = (try? c.decodeIfPresent([String].self, forKey: .expandedFolders)) ?? nil
+            projects = [SessionProject(path: path, expandedFolders: expanded ?? [])]
+        } else {
+            projects = []
+        }
         documents = []
         for (index, entry) in entries.enumerated() {
             guard let document = entry.value else {
@@ -146,8 +166,9 @@ extension Workspace {
                 binary: document.isBinary ? true : nil
             ))
         }
-        let state = SessionState(documents: entries, selectedIndex: selectedIndex, projectPath: project?.root.path,
-                                 expandedFolders: project.map { $0.expandedFolders.sorted() })
+        let state = SessionState(documents: entries, selectedIndex: selectedIndex, projects: projects.map {
+            SessionProject(path: $0.root.path, expandedFolders: $0.expandedFolders.sorted(), collapsed: $0.isCollapsed ? true : nil)
+        })
         do {
             let data = try JSONEncoder().encode(state)
             try data.write(to: sessionURL, options: .atomic)
@@ -255,8 +276,9 @@ extension Workspace {
         } else {
             selectedID = documents.last?.id
         }
-        if let path = state.projectPath, URL(fileURLWithPath: path).isFolder {
-            openProject(URL(fileURLWithPath: path), expandedFolders: state.expandedFolders ?? [], revealSidebar: false)
+        for project in state.projects where URL(fileURLWithPath: project.path).isFolder {
+            openProject(URL(fileURLWithPath: project.path), expandedFolders: project.expandedFolders,
+                        collapsed: project.collapsed == true, revealSidebar: false)
         }
     }
 }

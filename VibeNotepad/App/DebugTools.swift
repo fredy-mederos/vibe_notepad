@@ -64,7 +64,7 @@ enum DebugTools {
         if let row, row < table.numberOfRows { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             let lines = ["selected row \(row.map(String.init) ?? "-") of \(table.numberOfRows), alert sheet \(window.attachedSheet != nil)",
-                         "expanded \(Workspace.shared.project?.expandedFolders.map { ($0 as NSString).lastPathComponent }.sorted() ?? [])",
+                         "expanded \(Workspace.shared.projects.flatMap(\.expandedFolders).map { ($0 as NSString).lastPathComponent }.sorted())",
                          "document \(Workspace.shared.selectedDocument?.displayName ?? "-")"]
             try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
         }
@@ -76,8 +76,8 @@ enum DebugTools {
         Workspace.shared.openProject(URL(fileURLWithPath: folder), revealing: URL(fileURLWithPath: file))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             let workspace = Workspace.shared
-            var lines = ["project \(workspace.project?.root.path ?? "-")",
-                         "expanded \(workspace.project?.expandedFolders.sorted() ?? [])",
+            var lines = ["projects \(workspace.projects.map { $0.root.path + ($0.isCollapsed ? " (collapsed)" : "") })",
+                         "expanded \(workspace.projects.flatMap(\.expandedFolders).sorted())",
                          "tabs \(workspace.documents.count), selected \(workspace.selectedDocument?.displayName ?? "-")"]
             if let root = workspace.windowReference?.contentView?.superview, let table = firstSubview(of: NSTableView.self, in: root) {
                 let visible = table.rows(in: table.visibleRect)

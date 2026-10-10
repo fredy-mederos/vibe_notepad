@@ -88,8 +88,18 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .saveItem) {
             Button("Close Tab") { workspace.closeSelected() }
                 .keyboardShortcut("w")
-            Button("Close Folder") { workspace.closeProject() }
-                .disabled(workspace.project == nil)
+            if workspace.projects.count > 1 {
+                Menu("Close Folder") {
+                    ForEach(workspace.projects, id: \.sidebarItem) { project in
+                        Button(project.name) { workspace.closeProject(project) }
+                    }
+                    Divider()
+                    Button("Close All Folders") { workspace.closeAllProjects() }
+                }
+            } else {
+                Button("Close Folder") { workspace.closeAllProjects() }
+                    .disabled(workspace.projects.isEmpty)
+            }
             Divider()
             Button("Save") { workspace.saveSelected() }
                 .keyboardShortcut("s")

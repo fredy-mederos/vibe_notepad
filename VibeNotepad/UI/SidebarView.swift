@@ -2,10 +2,9 @@ import AppKit
 import SwiftUI
 import VibeCore
 
-/// Pinned files, the project's file tree, then recent files, always one click away.
+/// Pinned files, the open projects' file trees, then recent files, always one click away.
 struct SidebarView: View {
     @Environment(Workspace.self) private var workspace
-    @AppStorage("sidebarProjectExpanded") private var projectExpanded = true
     @AppStorage("sidebarPinnedExpanded") private var pinnedExpanded = true
     @AppStorage("sidebarRecentExpanded") private var recentExpanded = true
 
@@ -22,7 +21,7 @@ struct SidebarView: View {
                     Section(isExpanded: expansion($pinnedExpanded, filtering: !filter.isEmpty)) {
                         ForEach(pinned) { item in
                             RecentFileRow(item: item, highlight: filter)
-                                .tag(item.path)
+                                .tag(SidebarItem.file(item.path))
                         }
                         .onMove { source, destination in
                             guard filter.isEmpty else { return }
@@ -32,29 +31,27 @@ struct SidebarView: View {
                         Text("Pinned")
                     }
                 }
-                if let project = workspace.project {
-                    Section(isExpanded: expansion($projectExpanded, filtering: !filter.isEmpty)) {
+                if !workspace.projects.isEmpty {
+                    // Not collapsible: each project folds to its own row, so the open folders always show.
+                    Section {
                         if !filter.isEmpty {
-                            let matches = projectMatches(project, filter)
+                            let matches = projectMatches(filter)
                             if matches.isEmpty {
                                 EmptySidebarHint(isFiltering: true)
                                     .selectionDisabled()
                             } else {
-                                ForEach(matches, id: \.file.relativePath) { match in
-                                    ProjectMatchRow(project: project, file: match.file, positions: match.positions)
-                                        .tag(match.file.url.path)
+                                ForEach(matches, id: \.id) { match in
+                                    ProjectMatchRow(project: match.project, file: match.file, positions: match.positions)
+                                        .tag(match.id)
                                 }
                             }
-                        } else if !project.exists {
-                            Label("This folder was moved or deleted", systemImage: "questionmark.folder")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .selectionDisabled()
                         } else {
-                            ProjectTreeRows(project: project, folder: project.root.path)
+                            ForEach(workspace.projects, id: \.sidebarItem) { project in
+                                ProjectTree(project: project)
+                            }
                         }
                     } header: {
-                        ProjectSectionHeader(project: project)
+                        FoldersSectionHeader()
                     }
                 }
                 Section(isExpanded: expansion($recentExpanded, filtering: !filter.isEmpty)) {
@@ -64,7 +61,7 @@ struct SidebarView: View {
                     } else {
                         ForEach(recent) { item in
                             RecentFileRow(item: item, highlight: filter)
-                                .tag(item.path)
+                                .tag(SidebarItem.file(item.path))
                         }
                     }
                 } header: {
@@ -105,23 +102,41 @@ struct SidebarView: View {
         }
     }
 
-    /// Selecting a row opens (or focuses) that file; selecting a project folder expands or collapses it.
-    private var selection: Binding<String?> {
+    /// Selecting a row opens (or focuses) that file; selecting a folder (or a project's own row)
+    /// expands or collapses it. The open file is highlighted in its project's tree when it shows
+    /// there, otherwise among the pinned and recent files.
+    private var selection: Binding<SidebarItem?> {
         Binding(
-            get: { workspace.selectedDocument?.path },
-            set: { path in
-                guard let path else { return }
-                if let project = workspace.project, project.isFolder(path) {
-                    withAnimation(.snappy(duration: 0.2)) {
-                        workspace.setFolder(path, expanded: !project.isExpanded(path))
+            get: {
+                guard let path = workspace.selectedDocument?.path else { return nil }
+                let filtering = !workspace.sidebarFilter.trimmingCharacters(in: .whitespaces).isEmpty
+                if let project = workspace.projects.first(where: { filtering ? $0.contains(path) : $0.isShowing(path) }) {
+                    return .node(root: project.root.path, path: path)
+                }
+                return .file(path)
+            },
+            set: { item in
+                switch item {
+                case nil:
+                    return
+                case .root(let root):
+                    if let project = workspace.project(root: root) { workspace.setCollapsed(project, !project.isCollapsed) }
+                case .node(let root, let path):
+                    guard let project = workspace.project(root: root) else { return }
+                    if project.isFolder(path) {
+                        withAnimation(.snappy(duration: 0.2)) {
+                            workspace.setFolder(path, expanded: !project.isExpanded(path), in: project)
+                        }
+                    } else {
+                        workspace.open(url: URL(fileURLWithPath: path))
                     }
-                    return
+                case .file(let path):
+                    if workspace.recents.isMissing(path) {
+                        workspace.toast("“\((path as NSString).lastPathComponent)” no longer exists", symbol: "exclamationmark.triangle.fill", tint: .orange)
+                        return
+                    }
+                    workspace.open(url: URL(fileURLWithPath: path))
                 }
-                if workspace.recents.isMissing(path) {
-                    workspace.toast("“\((path as NSString).lastPathComponent)” no longer exists", symbol: "exclamationmark.triangle.fill", tint: .orange)
-                    return
-                }
-                workspace.open(url: URL(fileURLWithPath: path))
             }
         )
     }
@@ -131,17 +146,19 @@ struct SidebarView: View {
         filtering ? .constant(true) : expanded
     }
 
-    /// Project files matching the filter, best first.
-    private func projectMatches(_ project: Project, _ filter: String) -> [(file: ProjectFile, positions: [Int])] {
-        var scored: [(file: ProjectFile, score: Int, positions: [Int])] = []
-        for file in project.files {
-            if let match = FuzzyMatcher.match(filter, in: file.name) {
-                scored.append((file, match.score + 40, match.positions))
-            } else if let match = FuzzyMatcher.match(filter, in: file.relativePath) {
-                scored.append((file, match.score, []))
+    /// Files in the open projects matching the filter, best first.
+    private func projectMatches(_ filter: String) -> [ProjectMatch] {
+        var scored: [(match: ProjectMatch, score: Int)] = []
+        for project in workspace.projects {
+            for file in project.files {
+                if let match = FuzzyMatcher.match(filter, in: file.name) {
+                    scored.append((ProjectMatch(project: project, file: file, positions: match.positions), match.score + 40))
+                } else if let match = FuzzyMatcher.match(filter, in: file.relativePath) {
+                    scored.append((ProjectMatch(project: project, file: file, positions: []), match.score))
+                }
             }
         }
-        return scored.sorted { $0.score > $1.score }.prefix(50).map { ($0.file, $0.positions) }
+        return scored.sorted { $0.score > $1.score }.prefix(50).map(\.match)
     }
 
     private func filtered(_ items: [RecentFile], _ filter: String) -> [RecentFile] {
@@ -155,6 +172,14 @@ struct SidebarView: View {
             .sorted { $0.1 > $1.1 }
             .map(\.0)
     }
+}
+
+/// A project file matching the sidebar filter.
+private struct ProjectMatch {
+    let project: Project
+    let file: ProjectFile
+    let positions: [Int]
+    var id: SidebarItem { .node(root: project.root.path, path: file.url.path) }
 }
 
 /// One file in the sidebar.

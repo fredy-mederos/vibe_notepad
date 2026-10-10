@@ -33,7 +33,10 @@ extension Workspace {
         add("Open Enclosing Folder…", "File", "folder.badge.plus", enabled: hasFile) {
             if let url = document?.fileURL { self.showOpenFolderPanel(revealing: url) }
         }
-        if project != nil { add("Close Folder", "File", "folder.badge.minus") { self.closeProject() } }
+        for project in projects {
+            add(projects.count > 1 ? "Close Folder “\(project.name)”" : "Close Folder", "File", "folder.badge.minus") { self.closeProject(project) }
+        }
+        if projects.count > 1 { add("Close All Folders", "File", "folder.badge.minus") { self.closeAllProjects() } }
         add("Quick Open…", "File", "magnifyingglass", "⌘P") { self.showPalette(.files) }
         add("Save", "File", "square.and.arrow.down", "⌘S", enabled: hasDocument) { self.saveSelected() }
         add("Save As…", "File", "square.and.arrow.down.on.square", "⇧⌘S", enabled: hasDocument) {

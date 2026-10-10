@@ -224,6 +224,8 @@ struct PaletteView: View {
         var document: EditorDocument?
         var badge: String?
         var date: Date?
+        /// The open project holding the file.
+        var project: Project?
         /// Path inside the project ("Sources/App/main.swift").
         var relativePath: String?
         var name: String
@@ -231,23 +233,30 @@ struct PaletteView: View {
 
     private var fileItems: [PaletteItem] {
         let (needle, line, column) = parseFileQuery(query)
-        let project = workspace.project
         var seen = Set<String>()
         var candidates: [FileCandidate] = []
+        func located(_ path: String?) -> (Project?, String?) {
+            guard let path, let project = workspace.project(containing: path) else { return (nil, nil) }
+            return (project, project.relativePath(of: path))
+        }
         for document in workspace.documents {
             let key = document.path ?? document.id.uuidString
             guard seen.insert(key).inserted else { continue }
+            let (project, relative) = located(document.path)
             candidates.append(FileCandidate(url: document.fileURL, document: document, badge: document.id == workspace.selectedID ? "current" : "open",
-                                            relativePath: document.path.flatMap { project?.relativePath(of: $0) }, name: document.displayName))
+                                            project: project, relativePath: relative, name: document.displayName))
         }
         for item in workspace.recents.all where !workspace.recents.isMissing(item.path) {
             guard seen.insert(item.path).inserted else { continue }
+            let (project, relative) = located(item.path)
             candidates.append(FileCandidate(url: item.url, badge: item.pinned ? "pinned" : nil, date: item.lastOpened,
-                                            relativePath: project?.relativePath(of: item.path), name: item.name))
+                                            project: project, relativePath: relative, name: item.name))
         }
-        for file in project?.files ?? [] {
-            guard seen.insert(file.url.path).inserted else { continue }
-            candidates.append(FileCandidate(url: file.url, relativePath: file.relativePath, name: file.name))
+        for project in workspace.projects {
+            for file in project.files {
+                guard seen.insert(file.url.path).inserted else { continue }
+                candidates.append(FileCandidate(url: file.url, project: project, relativePath: file.relativePath, name: file.name))
+            }
         }
         for url in folderFiles {
             guard seen.insert(url.path).inserted else { continue }
@@ -283,7 +292,7 @@ struct PaletteView: View {
 
     private func fileItem(_ candidate: FileCandidate, matches: [Int], line: Int?, column: Int?) -> PaletteItem {
         let subtitle: String
-        if let relative = candidate.relativePath, let project = workspace.project {
+        if let relative = candidate.relativePath, let project = candidate.project {
             let folder = (relative as NSString).deletingLastPathComponent
             subtitle = folder.isEmpty ? project.name : "\(project.name)/\(folder)"
         } else {
@@ -468,7 +477,7 @@ struct PaletteView: View {
 
     private func prepare() {
         guard let document = workspace.selectedDocument else {
-            if mode == .files, workspace.project == nil {
+            if mode == .files, workspace.projects.isEmpty {
                 loadFolderFiles(around: workspace.recents.recent.first?.url.deletingLastPathComponent())
             }
             return
@@ -486,7 +495,7 @@ struct PaletteView: View {
             }
         case .files:
             // The project's own files are already indexed.
-            if let directory = document.fileURL?.deletingLastPathComponent(), workspace.project?.contains(document.fileURL?.path ?? "") != true {
+            if let directory = document.fileURL?.deletingLastPathComponent(), workspace.project(containing: document.fileURL?.path ?? "") == nil {
                 loadFolderFiles(around: directory)
             }
         case .theme:

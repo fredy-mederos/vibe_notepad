@@ -35,8 +35,8 @@ final class Workspace {
     }
     let recents = RecentFilesStore()
     let settings = AppSettings.shared
-    /// The folder opened as a project (file tree in the sidebar, Quick Open over all its files).
-    var project: Project?
+    /// Folders opened as projects (file trees in the sidebar, Quick Open over all their files).
+    var projects: [Project] = []
     /// Folders recently opened as projects, most recent first.
     var recentProjects: [String] = UserDefaults.standard.stringArray(forKey: "recentProjects") ?? [] {
         didSet { UserDefaults.standard.set(recentProjects, forKey: "recentProjects") }
@@ -59,8 +59,8 @@ final class Workspace {
     /// With the sidebar collapsed, the tabs show only while the pointer is in the title bar.
     var tabsRevealed = false
     var sidebarFilter = ""
-    /// A path the sidebar should scroll to (a file shown by opening its enclosing folder).
-    var sidebarRevealRequest: String?
+    /// A row the sidebar should scroll to (a file shown by opening its enclosing folder).
+    var sidebarRevealRequest: SidebarItem?
 
     @ObservationIgnored private var closedFiles: [(url: URL, selection: Int)] = []
     @ObservationIgnored var sessionSaveTaskStorage: Task<Void, Never>?
@@ -227,18 +227,16 @@ final class Workspace {
         scheduleSessionSave()
     }
 
-    /// Opens files as tabs; a folder becomes the project (the last one, if several were given).
+    /// Opens files as tabs and folders as projects.
     func open(urls: [URL]) {
         var last: EditorDocument?
-        var folder: URL?
         for url in urls {
             if url.isFolder {
-                folder = url
+                openProject(url)
                 continue
             }
             if let document = open(url: url, select: false) { last = document }
         }
-        if let folder { openProject(folder) }
         if let last { select(last) }
         NSApp.activate()
     }

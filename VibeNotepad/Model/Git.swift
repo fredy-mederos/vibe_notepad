@@ -32,6 +32,26 @@ nonisolated enum Git {
         return data.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }.filter { seen.insert($0).inserted }
     }
 
+    /// The branch checked out in the repository at `root` (the first characters of the commit when
+    /// detached), read from its HEAD file; nil when `root` isn't a repository's top folder.
+    static func branch(at root: URL) -> String? {
+        let dotGit = root.appendingPathComponent(".git")
+        var gitDirectory = dotGit
+        // Worktrees and submodules have a `.git` file pointing to the real folder.
+        if !dotGit.isFolder {
+            guard let link = try? String(contentsOf: dotGit, encoding: .utf8), link.hasPrefix("gitdir:") else { return nil }
+            let path = link.dropFirst("gitdir:".count).trimmingCharacters(in: .whitespacesAndNewlines)
+            gitDirectory = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
+        }
+        guard let head = try? String(contentsOf: gitDirectory.appendingPathComponent("HEAD"), encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), !head.isEmpty else { return nil }
+        if head.hasPrefix("ref:") {
+            let ref = head.dropFirst("ref:".count).trimmingCharacters(in: .whitespaces)
+            return ref.hasPrefix("refs/heads/") ? String(ref.dropFirst("refs/heads/".count)) : ref
+        }
+        return String(head.prefix(7))
+    }
+
     /// The file's content as staged in git's index (what `git diff` compares the working copy
     /// with). Nil outside a repository and for untracked files.
     static func indexVersion(of file: URL) -> Data? {
