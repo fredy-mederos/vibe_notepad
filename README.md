@@ -133,3 +133,8 @@ changed line and stops as soon as states converge, so typing costs one line of w
 The styler only paints lines that changed or became visible.
 
 See [TODO.md](TODO.md) for ideas and the roadmap.
+
+## Contributing
+
+Vibe Notepad is a personal project, shared as is: clone it, fork it, make it your own. Issues (bug reports and
+ideas) are welcome; pull requests aren't accepted. See [CONTRIBUTING.md](CONTRIBUTING.md).
