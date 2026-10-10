@@ -163,16 +163,20 @@ private struct RecentCard: View {
     }
 }
 
-/// Slowly drifting mesh gradient tinted with the theme's accent colors.
+/// Slowly drifting mesh gradient tinted with the theme's accent colors. It drifts for a while
+/// when the window comes forward and then rests: a full-window gradient (and the glass that
+/// samples it) redrawn forever would cost a steady slice of CPU.
 struct AuroraBackground: View {
     let theme: Theme
+    @Environment(\.appearsActive) private var appearsActive
+    @State private var drifting = false
 
     var body: some View {
         let base = theme.background
         let tint1 = (theme.style(for: .keyword)?.color ?? theme.accent).withAlpha(theme.isDark ? 0.22 : 0.16).flattened(over: base)
         let tint2 = (theme.style(for: .function)?.color ?? theme.accent).withAlpha(theme.isDark ? 0.18 : 0.13).flattened(over: base)
         let tint3 = (theme.style(for: .string)?.color ?? theme.accent).withAlpha(theme.isDark ? 0.14 : 0.1).flattened(over: base)
-        TimelineView(.animation(minimumInterval: 1.0 / 24)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 12, paused: !drifting)) { context in
             let t = context.date.timeIntervalSinceReferenceDate / 7
             MeshGradient(
                 width: 3, height: 3,
@@ -189,5 +193,11 @@ struct AuroraBackground: View {
             )
         }
         .ignoresSafeArea()
+        .task(id: appearsActive) {
+            drifting = appearsActive
+            guard appearsActive else { return }
+            try? await Task.sleep(for: .seconds(30))
+            if !Task.isCancelled { drifting = false }
+        }
     }
 }
