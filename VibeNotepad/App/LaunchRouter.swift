@@ -136,6 +136,21 @@ enum LaunchRouter {
                 NSLog("[debug] check → length %d, selection %@, at end %d", editor.textStorage.length,
                       NSStringFromRange(editor.textView.selectedRange()), editor.isScrolledToEnd ? 1 : 0)
             }
+        case "debug-shortcut":
+            // Sends a ⌘-key equivalent through the main menu, like pressing it.
+            let key = value("key") ?? "t"
+            var flags: NSEvent.ModifierFlags = [.command]
+            if value("shift") != nil { flags.insert(.shift) }
+            if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                                            windowNumber: Workspace.shared.windowReference?.windowNumber ?? 0, context: nil,
+                                            characters: key, charactersIgnoringModifiers: key, isARepeat: false, keyCode: 0) {
+                let handled = NSApp.mainMenu?.performKeyEquivalent(with: event) ?? false
+                Task {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    NSLog("[debug] shortcut ⌘%@ handled=%d tabs=%@", key, handled ? 1 : 0,
+                          Workspace.shared.documents.map(\.displayName).joined(separator: ", "))
+                }
+            }
         case "debug-fold":
             guard let editor = Workspace.shared.activeEditor else { break }
             let start = Date()

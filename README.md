@@ -78,6 +78,7 @@ installed app.
 
 | Action | Shortcut |
 | --- | --- |
+| New Tab (untitled file) | ⌘T or ⌘N |
 | Quick Open | ⌘P |
 | Command Palette | ⇧⌘P |
 | Find / Find & Replace | ⌘F / ⌥⌘F |

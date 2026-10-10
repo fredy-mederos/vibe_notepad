@@ -38,6 +38,8 @@ struct AppCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
+            Button("New Tab") { workspace.newDocument() }
+                .keyboardShortcut("t")
             Button("New File") { workspace.newDocument() }
                 .keyboardShortcut("n")
             Button("Open…") { workspace.showOpenPanel() }
