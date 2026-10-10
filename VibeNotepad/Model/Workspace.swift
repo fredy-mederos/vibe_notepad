@@ -81,7 +81,7 @@ final class Workspace {
     var activeEditor: EditorController? { selectedDocument?.loadedEditor }
 
     /// The status bar shows only while the sidebar is open: collapsing the sidebar leaves just
-    /// the tabs and the text.
+    /// the tabs and the text (the minimap and the toolbar's actions go too).
     var showsStatusBar: Bool { selectedDocument != nil && settings.showsSidebar }
 
     // MARK: Lifecycle
@@ -89,6 +89,7 @@ final class Workspace {
     func start() {
         settings.startObservingAppearance()
         observeSettings()
+        observeSidebar()
         if settings.restoreSession { restoreSession() }
         externalCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
             Task { @MainActor in
@@ -124,6 +125,19 @@ final class Workspace {
             Task { @MainActor in
                 Workspace.shared.applySettingsToEditors()
                 Workspace.shared.observeSettings()
+            }
+        }
+    }
+
+    /// Collapsing the sidebar also hides the editors' minimaps.
+    private func observeSidebar() {
+        withObservationTracking {
+            _ = settings.showsSidebar
+        } onChange: {
+            Task { @MainActor in
+                let workspace = Workspace.shared
+                for document in workspace.documents { document.loadedEditor?.updateMinimapVisibility() }
+                workspace.observeSidebar()
             }
         }
     }

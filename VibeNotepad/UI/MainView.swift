@@ -125,9 +125,11 @@ struct DetailView: View {
     }
 }
 
-/// Window toolbar.
+/// Window toolbar. With the sidebar collapsed ("just the text") only New File stays; the
+/// actions on the right come back with the sidebar (their shortcuts always work).
 struct MainToolbar: ToolbarContent {
     @Environment(Workspace.self) private var workspace
+    @Environment(AppSettings.self) private var settings
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -139,6 +141,13 @@ struct MainToolbar: ToolbarContent {
             .help("New File (⌘N)")
         }
 
+        if settings.showsSidebar {
+            actions
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var actions: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             if let document = workspace.selectedDocument, document.isMarkdown {
                 Picker("View", selection: Binding(get: { document.markdownMode }, set: { workspace.setMarkdownMode($0) })) {

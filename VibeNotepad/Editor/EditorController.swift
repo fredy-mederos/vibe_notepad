@@ -300,7 +300,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         let gutterFont = NSFont.monospacedDigitSystemFont(ofSize: max(9, font.pointSize - 1.5), weight: .regular)
         if gutter.font != gutterFont { gutter.font = gutterFont }
         rootView.showsGutter = settings.showLineNumbers
-        rootView.showsMinimap = settings.showMinimap
+        rootView.showsMinimap = settings.showMinimap && settings.showsSidebar
         minimap.backgroundColor = theme.background.nsColor
         minimap.sliderColor = theme.foreground.nsColor
         minimap.tabWidth = document.indentation.width
@@ -875,6 +875,12 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
         bracketRanges = []
         updateBracketHighlight()
+    }
+
+    /// The minimap is part of the chrome: collapsing the sidebar ("just the text") hides it too.
+    func updateMinimapVisibility() {
+        let settings = AppSettings.shared
+        rootView.showsMinimap = settings.showMinimap && settings.showsSidebar
     }
 
     // MARK: Git changes

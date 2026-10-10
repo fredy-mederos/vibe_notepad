@@ -35,7 +35,8 @@ no third-party dependencies.
   Commits, `git add` and checkouts are picked up when you come back to the app. Can be turned off in
   Settings → Editor.
 - **Minimap**: a zoomed-out view of the file along the right edge, Sublime-style, with git changes marked;
-  click or drag it to scroll. It steps aside when the editor is narrow; View → Minimap turns it off.
+  click or drag it to scroll. It steps aside when the editor is narrow or the sidebar is collapsed;
+  View → Minimap turns it off.
 - **Go to Line (⌃G)** and **Go to Symbol (⌘R)**: Markdown headings, functions and types, YAML keys,
   `.env` keys, INI sections and Makefile targets.
 - **Editing comforts**: auto-indent, Markdown list continuation, soft tabs, bracket pairing and matching, toggle comment,
@@ -90,7 +91,7 @@ installed app.
 | New Tab (untitled file) | ⌘T or ⌘N |
 | Open Folder | ⇧⌘O |
 | Quick Open | ⌘P |
-| Show / Hide Sidebar (the status bar follows it) | ⌘B |
+| Show / Hide Sidebar (the status bar, minimap and toolbar actions follow it) | ⌘B |
 | Command Palette | ⇧⌘P |
 | Find / Find & Replace | ⌘F / ⌥⌘F |
 | Find Next / Previous | ⌘G / ⇧⌘G |

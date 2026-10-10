@@ -11,7 +11,8 @@ Nothing queued right now; see "Not now" for parked ideas.
 - [x] **Minimap** (Sublime-style): every character drawn as a small block in its syntax color, one row per line,
   with git changes along its edge and a slider for what's on screen; click or drag to scroll. Rows are rendered
   in 64-line tiles that are reused while scrolling and redrawn only where the text changes, so large files cost
-  the same as small ones. Hides itself when the editor is narrow; View → Minimap or Settings → Editor turn it off.
+  the same as small ones. Hides itself when the editor is narrow or the sidebar is collapsed; View → Minimap or
+  Settings → Editor turn it off.
 
 - [x] **Git gutter**: green bars for added lines, blue for modified ones and a red wedge where lines were deleted,
   next to the line numbers. The buffer is compared with the version staged in git (`git show :path`) in the
@@ -24,7 +25,9 @@ Nothing queued right now; see "Not now" for parked ideas.
   a folder scan). One project at a time; it comes back on the next launch, recent folders are in Open Recent.
 
 - [x] **Just the text** (Fredy's idea): collapsing the sidebar (⌘B or the sidebar button) also hides the status bar,
-  leaving only the title bar, tabs and the text. One control for both, and it's remembered across launches.
+  the minimap and the toolbar's actions on the right (Markdown view switcher, Find, Quick Open, More), leaving only
+  the title, the sidebar and New File buttons, the tabs and the text. Shortcuts keep working. One control for all of
+  it, remembered across launches.
 
 - [x] **Open from anywhere** (Fredy's idea) — shipped in v1:
   - Finder right-click → Open With → Vibe Notepad for every supported document (declared document types:
