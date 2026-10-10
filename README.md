@@ -80,6 +80,7 @@ installed app.
 | --- | --- |
 | New Tab (untitled file) | ⌘T or ⌘N |
 | Quick Open | ⌘P |
+| Show / Hide Sidebar (the status bar follows it) | ⌘B |
 | Command Palette | ⇧⌘P |
 | Find / Find & Replace | ⌘F / ⌥⌘F |
 | Find Next / Previous | ⌘G / ⇧⌘G |
@@ -119,4 +120,4 @@ The syntax engine stores the lexer state at the start of every line. After an ed
 changed line and stops as soon as states converge, so typing costs one line of work whatever the file size.
 The styler only paints lines that changed or became visible.
 
-See [TODO.md](TODO.md) for ideas and the roadmap (immersive mode, iPad app, multi-cursor…).
+See [TODO.md](TODO.md) for ideas and the roadmap (project folders, git gutter, minimap…).

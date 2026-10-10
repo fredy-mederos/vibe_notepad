@@ -4,13 +4,23 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 
 ## Next up
 
-- [ ] **Immersive "just the text" mode** (Fredy's idea)
-  - When a file is open, show a clean, distraction-free view: only the text, no sidebar, tabs, toolbar or status bar.
-  - The chrome reveals itself on intent: moving the mouse or scrolling brings back controls, e.g. the recent files
-    appearing in a corner with a smooth animation, then fading away again after a few seconds of typing/idle.
-  - Keep the UI minimal by default — no heavy writing tools; simplicity is the point.
-  - Open questions: should it be the default when opening a file, or a toggle (e.g. ⌃⌘F / a toolbar button)?
-    Which corner for recents? Do tabs also hide? Does the status bar come back on hover at the bottom edge?
+- [ ] **Open a folder as a project**
+  - File → Open Folder…, `vibeNotePad .` (or any folder path), and dropping a folder on the window or Dock icon.
+  - The sidebar shows the folder as a file tree (folders load as you expand them), above the recent files.
+  - Quick Open (⌘P) searches the whole project: `git ls-files` in a repository, otherwise a folder scan that
+    skips `.git`, `node_modules`, `build` and the like.
+  - One project at a time (it's a single-window app); it comes back on the next launch.
+- [ ] **Git gutter**: added / modified / deleted line markers next to the line numbers.
+  - The buffer is compared with the file's committed version (`git show :path`) as you type, in the background.
+  - The line diff lives in VibeCore with unit tests. Files outside a repository, untracked files and huge files
+    get no markers.
+- [ ] **Minimap** (Sublime-style): a zoomed-out view of the file along the right edge with the visible region
+  highlighted; click or drag it to scroll. Can be turned off, and stays cheap on large files.
+
+## Done
+
+- [x] **Just the text** (Fredy's idea): collapsing the sidebar (⌘B or the sidebar button) also hides the status bar,
+  leaving only the title bar, tabs and the text. One control for both, and it's remembered across launches.
 
 - [x] **Open from anywhere** (Fredy's idea) — shipped in v1:
   - Finder right-click → Open With → Vibe Notepad for every supported document (declared document types:
@@ -20,12 +30,10 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
   - Deep link for agents/scripts: `open "vibeNotePad://open?path=/abs/path/file.md&line=42&column=7"`, `vibeNotePad://new`.
   - Launch arguments: `Vibe Notepad.app/Contents/MacOS/Vibe Notepad /path/to/file`.
 
-## Later
-
-- [ ] iPadOS / iOS app sharing `VibeCore` (syntax engine, Markdown renderer, themes are already platform-neutral).
-- [ ] Multiple cursors / "select next occurrence" (⌘D) like Sublime.
-- [ ] Split editor (two files side by side).
-- [ ] Minimap.
 - [x] Code folding (JSON and brace languages, YAML/Python indentation, Markdown headings).
-- [ ] Git gutter (added / modified / deleted line markers).
-- [ ] Open a folder as a project (file tree + Goto Anything over the project).
+
+## Not now
+
+- iPadOS / iOS app sharing `VibeCore` (syntax engine, Markdown renderer, themes are already platform-neutral).
+- Split editor (two files side by side).
+- Multiple cursors / "select next occurrence" (⌘D) like Sublime.

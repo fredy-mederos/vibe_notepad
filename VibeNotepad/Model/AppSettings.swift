@@ -91,6 +91,11 @@ final class AppSettings {
     var hotExit: Bool { didSet { save(hotExit, "hotExit") } }
     var reloadChangedFiles: Bool { didSet { save(reloadChangedFiles, "reloadChangedFiles") } }
 
+    // MARK: Window
+    /// Whether the sidebar is open. The status bar follows it, so collapsing the sidebar
+    /// leaves just the tabs and the text.
+    var showsSidebar: Bool { didSet { save(showsSidebar, "showsSidebar") } }
+
     /// Whether the app currently renders dark (system setting or forced appearance).
     private(set) var effectiveIsDark: Bool = false
     private var appearanceObservation: NSKeyValueObservation?
@@ -120,6 +125,7 @@ final class AppSettings {
         restoreSession = value("restoreSession", true)
         hotExit = value("hotExit", true)
         reloadChangedFiles = value("reloadChangedFiles", true)
+        showsSidebar = value("showsSidebar", true)
     }
 
     private func save(_ value: Any, _ key: String) {

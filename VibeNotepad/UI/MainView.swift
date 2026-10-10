@@ -8,11 +8,10 @@ struct MainView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var isDropTargeted = false
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView(columnVisibility: sidebarVisibility) {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 210, ideal: 250, max: 380)
         } detail: {
@@ -24,7 +23,7 @@ struct MainView: View {
         .overlay { PaletteOverlay() }
         .overlay(alignment: .bottom) {
             ToastStack()
-                .padding(.bottom, 44)
+                .padding(.bottom, workspace.showsStatusBar ? 44 : 18)
         }
         .overlay {
             if isDropTargeted {
@@ -49,10 +48,16 @@ struct MainView: View {
             workspace.openSettingsAction = { openSettings() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleSidebarRequest)) { _ in
-            withAnimation(.snappy) {
-                columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
-            }
+            withAnimation(.snappy) { settings.showsSidebar.toggle() }
         }
+    }
+
+    /// The sidebar's visibility, kept in settings so it survives relaunches (the status bar follows it).
+    private var sidebarVisibility: Binding<NavigationSplitViewVisibility> {
+        Binding(
+            get: { settings.showsSidebar ? .all : .detailOnly },
+            set: { settings.showsSidebar = $0 != .detailOnly }
+        )
     }
 
     private var subtitle: String {
@@ -109,13 +114,14 @@ struct DetailView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if let document = workspace.selectedDocument {
+            if let document = workspace.selectedDocument, settings.showsSidebar {
                 StatusBarView(document: document)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .background(theme.background.color)
         .animation(.snappy(duration: 0.3), value: workspace.documents.isEmpty)
+        .animation(.snappy(duration: 0.3), value: settings.showsSidebar)
     }
 }
 

@@ -74,6 +74,10 @@ final class Workspace {
 
     var activeEditor: EditorController? { selectedDocument?.loadedEditor }
 
+    /// The status bar shows only while the sidebar is open: collapsing the sidebar leaves just
+    /// the tabs and the text.
+    var showsStatusBar: Bool { selectedDocument != nil && settings.showsSidebar }
+
     // MARK: Lifecycle
 
     func start() {
