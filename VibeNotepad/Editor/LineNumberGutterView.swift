@@ -117,8 +117,10 @@ final class LineNumberGutterView: NSView {
             let start = engine.lineStart(line)
             if start > lastCharacter { break }
             // Lines inside a fold have no visual line of their own: jump past the fold.
-            if let hidden = editorLayout?.hiddenRange(at: start), start > hidden.location {
-                line = engine.lineIndex(containing: NSMaxRange(hidden)) + 1
+            if let span = editorLayout?.hiddenSpan(at: start) {
+                let next = engine.lineIndex(containing: NSMaxRange(span.hidden))
+                if span.hidesToEnd || next <= line { break }
+                line = next
                 continue
             }
             var fragment: NSRect

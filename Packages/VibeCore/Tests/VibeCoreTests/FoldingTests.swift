@@ -106,6 +106,24 @@ import Testing
         #expect(state.isEmpty)
     }
 
+    @Test func foldStateKeepsFoldsSortedAndUnique() {
+        var state = FoldState()
+        let outer = NSRange(location: 5, length: 40)
+        let inner = NSRange(location: 5, length: 10)
+        let later = NSRange(location: 60, length: 4)
+        state.fold(contentsOf: [later, inner, outer, inner])
+        #expect(state.folded == [outer, inner, later])
+        #expect(state.effective == [outer, later])
+        #expect(state.isFolded(inner) && !state.isFolded(NSRange(location: 5, length: 11)))
+
+        state.unfold(outer)
+        #expect(state.effective == [inner, later])
+        state.fold(NSRange(location: 20, length: 3))
+        #expect(state.folded.map(\.location) == [5, 20, 60])
+        state.fold(NSRange(location: 20, length: 3)) // already folded
+        #expect(state.folded.count == 3)
+    }
+
     @Test func unsupportedLanguagesHaveNoRegions() {
         #expect(!FoldingAnalyzer.supportsFolding(.plainText))
         #expect(FoldingAnalyzer.regions(in: "a {\n}\n", language: .plainText).isEmpty)

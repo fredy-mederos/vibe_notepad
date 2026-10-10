@@ -286,7 +286,7 @@ public enum FoldingAnalyzer {
 
 /// Folded ranges of a document, kept in sync with edits.
 public struct FoldState: Sendable {
-    /// Hidden ranges of every folded region (may nest).
+    /// Hidden ranges of every folded region (may nest), sorted by location (outermost first).
     public private(set) var folded: [NSRange] = []
     /// Outermost hidden ranges, sorted — what actually disappears from the layout.
     public private(set) var effective: [NSRange] = []
@@ -295,23 +295,29 @@ public struct FoldState: Sendable {
 
     public var isEmpty: Bool { folded.isEmpty }
 
-    public func isFolded(_ range: NSRange) -> Bool { folded.contains(range) }
+    public func isFolded(_ range: NSRange) -> Bool { index(of: range) != nil }
 
     public mutating func fold(_ range: NSRange) {
-        guard range.length > 0, !folded.contains(range) else { return }
-        folded.append(range)
+        guard range.length > 0, index(of: range) == nil else { return }
+        folded.insert(range, at: insertionIndex(for: range))
         recompute()
     }
 
     /// Folds many ranges at once (Fold All).
     public mutating func fold(contentsOf ranges: [NSRange]) {
-        let existing = Set(folded)
-        folded.append(contentsOf: ranges.filter { $0.length > 0 && !existing.contains($0) })
+        folded.append(contentsOf: ranges.filter { $0.length > 0 })
+        folded.sort(by: Self.precedes)
+        // Drop duplicates (equal ranges are adjacent once sorted).
+        var unique: [NSRange] = []
+        unique.reserveCapacity(folded.count)
+        for range in folded where unique.last != range { unique.append(range) }
+        folded = unique
         recompute()
     }
 
     public mutating func unfold(_ range: NSRange) {
-        folded.removeAll { $0 == range }
+        guard let index = index(of: range) else { return }
+        folded.remove(at: index)
         recompute()
     }
 
@@ -343,6 +349,7 @@ public struct FoldState: Sendable {
         let editStart = editedRange.location
         let oldEditEnd = NSMaxRange(editedRange) - delta
         var removed: [NSRange] = []
+        // Folds before the edit stay put and the ones after it all move by `delta`, so the order holds.
         folded = folded.compactMap { fold in
             if NSMaxRange(fold) <= editStart { return fold }
             if fold.location >= oldEditEnd { return NSRange(location: fold.location + delta, length: fold.length) }
@@ -376,11 +383,28 @@ public struct FoldState: Sendable {
         return found
     }
 
+    /// Sort order of `folded`: by location, longer (outer) ranges first.
+    private static func precedes(_ a: NSRange, _ b: NSRange) -> Bool {
+        a.location == b.location ? a.length > b.length : a.location < b.location
+    }
+
+    private func insertionIndex(for range: NSRange) -> Int {
+        var lo = 0, hi = folded.count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if Self.precedes(folded[mid], range) { lo = mid + 1 } else { hi = mid }
+        }
+        return lo
+    }
+
+    private func index(of range: NSRange) -> Int? {
+        let index = insertionIndex(for: range)
+        return index < folded.count && folded[index] == range ? index : nil
+    }
+
     private mutating func recompute() {
-        let sorted = folded.sorted { $0.location == $1.location ? $0.length > $1.length : $0.location < $1.location }
         var result: [NSRange] = []
-        result.reserveCapacity(sorted.count)
-        for range in sorted {
+        for range in folded {
             if let last = result.last, range.location < NSMaxRange(last) { continue } // nested or overlapping
             result.append(range)
         }

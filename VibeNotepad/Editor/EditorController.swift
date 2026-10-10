@@ -38,12 +38,16 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     private var findAnchor: Int?
     private var findRefreshTask: Task<Void, Never>?
     private var bracketRanges: [NSRange] = []
+    private var lastSelection = NSRange(location: 0, length: 0)
+    private var isAdjustingSelection = false
 
     // Folding
     private(set) var foldState = FoldState()
     private(set) var foldRegions: [FoldRegion] = []
     private var foldAnalysisTask: Task<Void, Never>?
     private var textVersion = 0
+    /// `textVersion` that `foldRegions` were computed for.
+    private var foldRegionsVersion = -1
     private var foldsToRelayout: [NSRange] = []
 
     /// Called after every edit (debouncing is up to the receiver).
@@ -165,7 +169,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         let origin = scrollView.contentView.bounds.origin
         foldState.unfoldAll()
         foldRegions = []
-        layoutManager.hiddenRanges = []
+        layoutManager.foldSpans = []
         textVersion += 1
         isLoading = true
         textStorage.beginEditing()
@@ -188,6 +192,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         textView.language = language
         if !foldState.isEmpty { unfoldAll() }
         foldRegions = []
+        foldRegionsVersion = -1
         gutter.showsFoldMarkers = FoldingAnalyzer.supportsFolding(language)
         gutter.updateThickness(force: true)
         scheduleFoldAnalysis(immediate: true)
@@ -313,31 +318,54 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
     }
 
+    private var isStylingVisible = false
+    private var styleVisibleScheduled = false
+
     /// Paints the visible lines (plus a margin) that still need styling.
     func styleVisible() {
         guard !textView.hasMarkedText() else { return }
+        // Styling can trigger layout that scrolls or resizes the view, which calls back here.
+        guard !isStylingVisible else {
+            scheduleStyleVisible()
+            return
+        }
+        isStylingVisible = true
+        defer { isStylingVisible = false }
         let lines = visibleLines(margin: 80)
-        guard !foldState.isEmpty else {
+        guard !layoutManager.foldSpans.isEmpty else {
             styler.styleUnstyled(in: lines)
             return
         }
-        for run in engine.unstyledRuns(in: lines) {
-            styler.style(lines: expandedToFolds(run))
+        // Skip folded lines, except each fold's closing line: its text is drawn after the pill.
+        var line = lines.lowerBound
+        while line < lines.upperBound {
+            let start = engine.lineStart(line)
+            if let span = layoutManager.hiddenSpan(at: start) {
+                let closing = engine.lineIndex(containing: span.previewIndex)
+                styler.styleUnstyled(in: closing..<(closing + 1))
+                let next = engine.lineIndex(containing: NSMaxRange(span.hidden))
+                if span.hidesToEnd || next <= line { break }
+                line = next
+                continue
+            }
+            var end = lines.upperBound
+            if let span = layoutManager.nextSpan(from: start) {
+                end = min(end, engine.lineIndex(containing: span.lineEnd) + 1)
+            }
+            styler.styleUnstyled(in: line..<end)
+            line = max(end, line + 1)
         }
     }
 
-    /// Styling invalidates layout from the first edited line; if that line is hidden inside a
-    /// fold, TextKit would start a new line fragment there and split the folded line. Extend
-    /// runs so they start and end on visible lines.
-    private func expandedToFolds(_ run: Range<Int>) -> Range<Int> {
-        var lower = run.lowerBound, upper = run.upperBound
-        if let hidden = foldState.hiddenRange(containing: engine.lineStart(lower)) {
-            lower = engine.lineIndex(containing: hidden.location)
+    /// Runs `styleVisible()` once the current layout pass is over.
+    private func scheduleStyleVisible() {
+        guard !styleVisibleScheduled else { return }
+        styleVisibleScheduled = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.styleVisibleScheduled = false
+            self.styleVisible()
         }
-        if upper > lower, let hidden = foldState.hiddenRange(containing: engine.lineStart(upper - 1)) {
-            upper = engine.lineIndex(containing: NSMaxRange(hidden)) + 1
-        }
-        return lower..<min(max(upper, lower + 1), engine.lineCount)
     }
 
     func visibleLines(margin: Int = 0) -> Range<Int> {
@@ -359,9 +387,20 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         foldRegions.applyEdit(editedRange: editedRange, changeInLength: delta)
         if !foldState.isEmpty {
             let removed = foldState.applyEdit(editedRange: editedRange, changeInLength: delta)
-            layoutManager.hiddenRanges = foldState.effective
-            // Text that was hidden must be laid out again once the edit settles.
-            foldsToRelayout += removed.map { NSRange(location: $0.location, length: max(0, $0.length + delta)) }
+            if removed.isEmpty, let shifted = layoutManager.foldSpans.shifted(editedRange: editedRange, changeInLength: delta) {
+                layoutManager.foldSpans = shifted
+            } else {
+                let previous = layoutManager.foldSpans
+                layoutManager.foldSpans = makeFoldSpans()
+                // Text that was hidden must be laid out again once the edit settles.
+                let editStart = editedRange.location, oldEditEnd = NSMaxRange(editedRange) - delta
+                foldsToRelayout += previous.compactMap { span in
+                    let extent = span.extent
+                    if NSMaxRange(extent) <= editStart { return extent }
+                    if extent.location >= oldEditEnd { return NSRange(location: extent.location + delta, length: extent.length) }
+                    return NSRange(location: min(extent.location, editStart), length: max(0, NSMaxRange(extent) + delta - min(extent.location, editStart)))
+                }
+            }
         }
     }
 
@@ -387,6 +426,18 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
+        // Extending the selection with ⇧-arrows bypasses `setSelectedRanges`: move its ends out of folds here.
+        if !layoutManager.foldSpans.isEmpty, !isAdjustingSelection {
+            let selection = textView.selectedRange()
+            let adjusted = textView.outsideFolds(selection, from: lastSelection, layout: layoutManager)
+            if adjusted != selection {
+                isAdjustingSelection = true
+                textView.setSelectedRange(adjusted)
+                isAdjustingSelection = false
+                return
+            }
+        }
+        lastSelection = textView.selectedRange()
         updateStatus()
         gutter.needsDisplay = true
         updateBracketHighlight()
@@ -429,7 +480,9 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     }
 
     @objc private func textViewFrameDidChange(_ notification: Notification) {
-        styleVisible()
+        // Frame changes arrive in the middle of layout; styling now would edit the text storage
+        // and start another layout pass from inside this one.
+        scheduleStyleVisible()
         gutter.needsDisplay = true
     }
 
@@ -613,7 +666,9 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
     /// Scrolls so that `range` sits in the middle of the viewport (when it isn't already visible).
     func scrollToCenter(_ range: NSRange) {
-        layoutManager.ensureLayout(forCharacterRange: NSRange(location: 0, length: min(textStorage.length, NSMaxRange(range) + 1)))
+        // Non-contiguous layout positions the target without laying out everything above it.
+        let location = min(range.location, textStorage.length)
+        layoutManager.ensureLayout(forCharacterRange: NSRange(location: location, length: min(textStorage.length - location, max(range.length, 1))))
         let glyphs = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
         var rect = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
         if range.length == 0, rect.height == 0 { rect.size.height = lineHeight }
@@ -760,6 +815,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
         if immediate, textStorage.length < 300_000 {
             foldRegions = FoldingAnalyzer.regions(in: nsText, language: document.language)
+            foldRegionsVersion = textVersion
             gutter.needsDisplay = true
             return
         }
@@ -774,14 +830,16 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
             }.value
             guard !Task.isCancelled, version == self.textVersion else { return }
             self.foldRegions = regions
+            self.foldRegionsVersion = version
             self.gutter.needsDisplay = true
         }
     }
 
     private func refreshFoldRegionsNow() {
+        guard supportsFolding, foldRegionsVersion != textVersion else { return }
         foldAnalysisTask?.cancel()
-        guard supportsFolding else { return }
         foldRegions = FoldingAnalyzer.regions(in: nsText, language: document.language)
+        foldRegionsVersion = textVersion
     }
 
     func foldRegion(startingOnLine line: Int) -> FoldRegion? {
@@ -793,7 +851,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
     func toggleFold(atLine line: Int) {
         guard let region = foldRegion(startingOnLine: line) else { return }
-        let previous = foldState.effective
+        let previous = layoutManager.foldSpans
         if foldState.isFolded(region.hiddenRange) {
             foldState.unfold(region.hiddenRange)
         } else {
@@ -814,7 +872,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
                 .max { $0.hiddenStart < $1.hiddenStart }
         }
         guard let target else { NSSound.beep(); return }
-        let previous = foldState.effective
+        let previous = layoutManager.foldSpans
         foldState.fold(target.hiddenRange)
         applyFoldChange(from: previous)
     }
@@ -824,7 +882,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         let lineEnd = engine.lineContentEnd(engine.lineIndex(containing: caret))
         let targets = foldState.folded.filter { $0.location == lineEnd || ($0.location < caret && caret <= NSMaxRange($0)) }
         guard !targets.isEmpty else { NSSound.beep(); return }
-        let previous = foldState.effective
+        let previous = layoutManager.foldSpans
         for target in targets { foldState.unfold(target) }
         applyFoldChange(from: previous)
     }
@@ -835,43 +893,147 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         refreshFoldRegionsNow()
         guard !foldRegions.isEmpty else { NSSound.beep(); return }
         let minDepth = level.map { max(0, $0 - 1) } ?? (foldRegions.contains { $0.depth >= 1 } ? 1 : 0)
-        let previous = foldState.effective
+        let previous = layoutManager.foldSpans
         foldState.fold(contentsOf: foldRegions.filter { $0.depth >= minDepth }.map(\.hiddenRange))
         applyFoldChange(from: previous)
     }
 
     func unfoldAll() {
         guard !foldState.isEmpty else { return }
-        let previous = foldState.effective
+        let previous = layoutManager.foldSpans
         foldState.unfoldAll()
         applyFoldChange(from: previous)
     }
 
     func unfold(range: NSRange) {
-        let previous = foldState.effective
+        let previous = layoutManager.foldSpans
         foldState.unfold(range)
         applyFoldChange(from: previous)
     }
 
+    /// Unfolds whatever hides part of `range` (outer folds first, then nested ones they revealed).
     func unfoldIfNeeded(_ range: NSRange) {
         guard !foldState.isEmpty else { return }
-        let previous = foldState.effective
-        if foldState.unfold(containing: range) { applyFoldChange(from: previous) }
+        let previous = layoutManager.foldSpans
+        var spans = previous
+        var changed = false
+        for _ in 0..<64 {
+            let hiding = spans.filter { span in
+                NSLocationInRange(range.location, span.hidden)
+                    || (span.hidesToEnd && range.location == NSMaxRange(span.hidden))
+                    || NSIntersectionRange(span.hidden, range).length > 0
+            }
+            guard !hiding.isEmpty else { break }
+            for span in hiding { foldState.unfold(span.fold) }
+            spans = makeFoldSpans()
+            changed = true
+        }
+        if changed { applyFoldChange(from: previous, current: spans) }
     }
 
-    private func applyFoldChange(from previous: [NSRange]) {
-        let current = foldState.effective
-        layoutManager.hiddenRanges = current
-        let changed = Set(previous).symmetricDifference(current)
+    /// Layout spans for the effective folds: each hides the lines after the fold's first line
+    /// through its closing line, whose text (`},`) is drawn after the `⋯` pill instead.
+    private func makeFoldSpans() -> [FoldSpan] {
+        let folds = foldState.effective
+        guard !folds.isEmpty else { return [] }
+        let text = nsText
+        let length = text.length
+        var spans: [FoldSpan] = []
+        spans.reserveCapacity(folds.count)
+        for (index, fold) in folds.enumerated() {
+            let lineEnd = fold.location
+            guard lineEnd < length, text.character(at: lineEnd) == 0x0A else { continue }
+            let closingStart = min(NSMaxRange(fold), length)
+            let closingLine = engine.lineIndex(containing: closingStart)
+            let closingEnd = engine.lineContentEnd(closingLine)
+            var hiddenEnd = closingEnd < length ? closingEnd + 1 : length
+            var hidesToEnd = closingEnd >= length
+            var preview = text.substring(with: NSRange(location: closingStart, length: max(0, closingEnd - closingStart)))
+                .trimmingCharacters(in: .whitespaces)
+            // The next fold starts on this one's closing line: keep that line visible.
+            if index + 1 < folds.count, folds[index + 1].location < hiddenEnd {
+                hiddenEnd = engine.lineStart(closingLine)
+                hidesToEnd = false
+                preview = ""
+            }
+            if let last = spans.last, lineEnd < NSMaxRange(last.hidden) { continue }
+            spans.append(FoldSpan(lineEnd: lineEnd, hidden: NSRange(location: lineEnd + 1, length: max(0, hiddenEnd - lineEnd - 1)),
+                                  fold: fold, preview: preview, previewIndex: closingStart, hidesToEnd: hidesToEnd))
+        }
+        return spans
+    }
+
+    private func applyFoldChange(from previous: [FoldSpan], current: [FoldSpan]? = nil) {
+        let anchor = scrollAnchor()
+        let current = current ?? makeFoldSpans()
+        // Bring the line that will anchor the view on screen while the old layout is still valid:
+        // NSTextView keeps its visible text in view when it resizes, and locating text deep inside
+        // a fold that was just collapsed is slow.
+        var target = anchor
+        if let anchor {
+            let line = anchorLine(anchor.line, in: current)
+            if line != anchor.line {
+                // The anchor line gets folded away: show the fold's first line in full instead.
+                target = (line, max(0, anchor.offset))
+                scroll(toLine: line, offset: max(0, anchor.offset))
+            }
+        }
+        layoutManager.foldSpans = current
+        let changed = Set(previous.map(\.extent)).symmetricDifference(current.map(\.extent))
         invalidateFoldLayout(Array(changed))
         // Keep the caret out of hidden text.
         let selection = textView.selectedRange()
-        if let hidden = foldState.hiddenRange(containing: selection.location) {
-            textView.setSelectedRange(NSRange(location: hidden.location, length: 0))
+        if let span = layoutManager.spanHidingCaret(at: selection.location) {
+            textView.setSelectedRange(NSRange(location: span.lineEnd, length: 0))
         }
+        if let target { scroll(toLine: target.line, offset: target.offset) }
         gutter.needsDisplay = true
         textView.needsDisplay = true
         styleVisible()
+    }
+
+    /// The first visible line and its distance from the top of the viewport.
+    private func scrollAnchor() -> (line: Int, offset: CGFloat)? {
+        guard textStorage.length > 0 else { return nil }
+        let visible = textView.visibleRect
+        let origin = textView.textContainerOrigin
+        let glyph = layoutManager.glyphIndex(for: NSPoint(x: 0, y: max(0, visible.minY - origin.y)), in: textContainer)
+        var character = layoutManager.characterIndexForGlyph(at: glyph)
+        if let span = layoutManager.hiddenSpan(at: character) { character = span.lineEnd }
+        let line = engine.lineIndex(containing: character)
+        let rect = layoutManager.lineFragmentRect(forGlyphAt: layoutManager.glyphIndexForCharacter(at: engine.lineStart(line)),
+                                                  effectiveRange: nil, withoutAdditionalLayout: true)
+        return (line, rect.minY + origin.y - visible.minY)
+    }
+
+    /// `line`, or the first line of the fold in `spans` that hides it.
+    private func anchorLine(_ line: Int, in spans: [FoldSpan]) -> Int {
+        guard line < engine.lineCount, !spans.isEmpty else { return line }
+        let start = engine.lineStart(line)
+        var lo = 0, hi = spans.count - 1
+        while lo <= hi {
+            let mid = (lo + hi) / 2
+            let span = spans[mid]
+            if start < span.hidden.location { hi = mid - 1 } else if start >= NSMaxRange(span.hidden), !span.hidesToEnd { lo = mid + 1 } else {
+                return engine.lineIndex(containing: span.lineEnd)
+            }
+        }
+        return line
+    }
+
+    /// Scrolls so `line` starts `offset` points below the top of the viewport, laying out only
+    /// around that line.
+    private func scroll(toLine line: Int, offset: CGFloat) {
+        guard line < engine.lineCount else { return }
+        let glyph = layoutManager.glyphIndexForCharacter(at: engine.lineStart(line))
+        layoutManager.ensureLayout(forGlyphRange: NSRange(location: glyph, length: 1))
+        let rect = layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+        guard rect.height > 0 else { return }
+        let clip = scrollView.contentView
+        let y = max(0, rect.minY + textView.textContainerOrigin.y - offset)
+        guard abs(y - clip.bounds.minY) > 0.5 else { return }
+        clip.scroll(to: NSPoint(x: clip.bounds.minX, y: y))
+        scrollView.reflectScrolledClipView(clip)
     }
 
     private func invalidateFoldLayout(_ ranges: [NSRange]) {
@@ -885,7 +1047,6 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         lower = min(lower, length)
         upper = min(max(upper, lower), length)
         let affected = nsText.lineRange(for: NSRange(location: lower, length: upper - lower))
-        layoutManager.invalidateGlyphs(forCharacterRange: affected, changeInLength: 0, actualCharacterRange: nil)
         layoutManager.invalidateLayout(forCharacterRange: affected, actualCharacterRange: nil)
         textView.needsDisplay = true
     }

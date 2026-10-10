@@ -58,14 +58,9 @@ final class CodeTextView: NSTextView {
 
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
         var ranges = ranges
-        // A caret can't sit inside folded text: skip over the fold in the direction of travel.
-        if ranges.count == 1, let layout = editorLayout, !layout.hiddenRanges.isEmpty {
-            let range = ranges[0].rangeValue
-            if range.length == 0, let hidden = layout.hiddenRange(at: range.location), range.location > hidden.location {
-                let previous = selectedRange().location
-                let target = previous <= hidden.location ? NSMaxRange(hidden) : hidden.location
-                ranges = [NSValue(range: NSRange(location: target, length: 0))]
-            }
+        // Carets and selection edges can't sit inside folded text: skip over the fold.
+        if ranges.count == 1, let layout = editorLayout, !layout.foldSpans.isEmpty {
+            ranges = [NSValue(range: outsideFolds(ranges[0].rangeValue, from: selectedRange(), layout: layout))]
         }
         let old = highlightsCurrentLine ? currentLineRect() : .zero
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelecting)
@@ -75,6 +70,21 @@ final class CodeTextView: NSTextView {
             setNeedsDisplay(old.insetBy(dx: 0, dy: -2))
             setNeedsDisplay(new.insetBy(dx: 0, dy: -2))
         }
+    }
+
+    /// `range` with its ends moved out of folded text, in the direction they were moving.
+    func outsideFolds(_ range: NSRange, from old: NSRange, layout: EditorLayoutManager) -> NSRange {
+        func visible(_ index: Int, forward: Bool) -> Int {
+            guard let span = layout.spanHidingCaret(at: index) else { return index }
+            return forward && !span.hidesToEnd ? NSMaxRange(span.hidden) : span.lineEnd
+        }
+        if range.length == 0 {
+            let location = visible(range.location, forward: range.location > old.location)
+            return NSRange(location: location, length: 0)
+        }
+        let start = visible(range.location, forward: range.location > old.location)
+        let end = max(start, visible(NSMaxRange(range), forward: NSMaxRange(range) >= NSMaxRange(old)))
+        return NSRange(location: start, length: end - start)
     }
 
     // MARK: Typing
@@ -118,8 +128,8 @@ final class CodeTextView: NSTextView {
     override func deleteBackward(_ sender: Any?) {
         let selection = selectedRange()
         // Backspacing into a fold unfolds it instead of deleting hidden text.
-        if selection.length == 0, selection.location > 0, let hidden = editorLayout?.hiddenRange(at: selection.location - 1) {
-            controller?.unfold(range: hidden)
+        if selection.length == 0, selection.location > 0, let span = editorLayout?.hiddenSpan(at: selection.location - 1) {
+            controller?.unfold(range: span.fold)
             return
         }
         guard selection.length == 0, selection.location > 0, !hasMarkedText() else {
@@ -155,8 +165,8 @@ final class CodeTextView: NSTextView {
 
     override func deleteForward(_ sender: Any?) {
         let selection = selectedRange()
-        if selection.length == 0, let hidden = editorLayout?.hiddenRange(at: selection.location), selection.location == hidden.location {
-            controller?.unfold(range: hidden)
+        if selection.length == 0, let span = editorLayout?.span(endingLineAt: selection.location) {
+            controller?.unfold(range: span.fold)
             return
         }
         super.deleteForward(sender)
@@ -165,25 +175,24 @@ final class CodeTextView: NSTextView {
     // MARK: Folding
 
     override func mouseDown(with event: NSEvent) {
-        if let layout = editorLayout, !layout.hiddenRanges.isEmpty, let hidden = foldPill(at: event, layout: layout) {
-            controller?.unfold(range: hidden)
+        if let layout = editorLayout, !layout.foldSpans.isEmpty, let span = foldPill(at: event, layout: layout) {
+            controller?.unfold(range: span.fold)
             return
         }
         super.mouseDown(with: event)
     }
 
-    /// The fold whose `⋯` pill is under the mouse.
-    private func foldPill(at event: NSEvent, layout: EditorLayoutManager) -> NSRange? {
+    /// The fold whose `⋯` pill (or closing preview) is under the mouse.
+    private func foldPill(at event: NSEvent, layout: EditorLayoutManager) -> FoldSpan? {
         let point = convert(event.locationInWindow, from: nil)
         let containerPoint = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
-        let index = characterIndexForInsertion(at: point)
-        for candidate in [index - 1, index, index + 1] where candidate >= 0 {
-            if let hidden = layout.hiddenRange(at: candidate), let pill = layout.foldPillRect(for: hidden),
-               pill.insetBy(dx: -3, dy: -3).contains(containerPoint) {
-                return hidden
-            }
-        }
-        return nil
+        let text = nsText
+        let index = min(characterIndexForInsertion(at: point), text.length)
+        var contentsEnd = 0
+        text.getLineStart(nil, end: nil, contentsEnd: &contentsEnd, for: NSRange(location: index, length: 0))
+        guard let span = layout.span(endingLineAt: contentsEnd), let hit = layout.foldHitRect(for: span),
+              hit.insetBy(dx: -3, dy: -3).contains(containerPoint) else { return nil }
+        return span
     }
 
     private static let pairs: [Character: String] = ["(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"]

@@ -97,24 +97,125 @@ enum LaunchRouter {
                     if character == "\n" { editor.textView.insertNewline(nil) } else { editor.textView.insertText(String(character), replacementRange: editor.textView.selectedRange()) }
                 }
             }
+        case "debug-key":
+            // Runs a text view command (deleteForward, moveRight…) and logs the result.
+            guard let editor = Workspace.shared.activeEditor else { break }
+            if let location = value("at").flatMap(Int.init) { editor.textView.setSelectedRange(NSRange(location: location, length: 0)) }
+            let op = value("op") ?? "moveRight"
+            for _ in 0..<(value("count").flatMap(Int.init) ?? 1) { editor.textView.doCommand(by: NSSelectorFromString(op + ":")) }
+            NSLog("[debug] key %@ → selection %@, folds %d, length %d", op, NSStringFromRange(editor.textView.selectedRange()),
+                  editor.layoutManager.foldSpans.count, editor.textStorage.length)
+        case "debug-click":
+            // Clicks the fold pill (or its closing preview) on a line.
+            guard let editor = Workspace.shared.activeEditor, let window = editor.textView.window,
+                  let line = value("line").flatMap(Int.init),
+                  let span = editor.layoutManager.span(endingLineAt: editor.engine.lineContentEnd(line - 1)),
+                  let hit = editor.layoutManager.foldHitRect(for: span) else { NSLog("[debug] click: no fold"); break }
+            let x = value("target") == "preview" ? hit.maxX - 4 : hit.minX + 6
+            let origin = editor.textView.textContainerOrigin
+            let point = editor.textView.convert(NSPoint(x: x + origin.x, y: hit.midY + origin.y), to: nil)
+            if let event = NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0,
+                                              windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                editor.textView.mouseDown(with: event)
+            }
+            NSLog("[debug] click line %d → folds %d", line, editor.layoutManager.foldSpans.count)
         case "debug-fold":
-            let editor = Workspace.shared.activeEditor
-            switch value("op") ?? "toggle" {
-            case "all":
-                let start = Date()
-                editor?.foldAll(level: value("level").flatMap(Int.init))
-                NSLog("[debug] fold all took %.1f ms", Date().timeIntervalSince(start) * 1000)
-            case "none": editor?.unfoldAll()
+            guard let editor = Workspace.shared.activeEditor else { break }
+            let start = Date()
+            let op = value("op") ?? "toggle"
+            switch op {
+            case "all": editor.foldAll(level: value("level").flatMap(Int.init))
+            case "none": editor.unfoldAll()
             case "stress":
-                let start = Date()
                 let line = (value("line").flatMap(Int.init) ?? 2) - 1
                 for _ in 0..<(value("count").flatMap(Int.init) ?? 60) {
-                    editor?.toggleFold(atLine: line)
-                    editor?.textView.displayIfNeeded()
+                    editor.toggleFold(atLine: line)
+                    editor.textView.displayIfNeeded()
                 }
-                NSLog("[debug] fold stress took %.1f ms", Date().timeIntervalSince(start) * 1000)
-            default: editor?.toggleFold(atLine: (value("line").flatMap(Int.init) ?? 1) - 1)
+            case "random":
+                // Random fold, unfold and scroll operations; logs the slowest ones.
+                var generator = SystemRandomNumberGenerator()
+                var timings: [(Double, String)] = []
+                let clip = editor.scrollView.contentView
+                for _ in 0..<(value("count").flatMap(Int.init) ?? 100) {
+                    let opStart = Date()
+                    let name: String
+                    switch Int.random(in: 0..<10, using: &generator) {
+                    case 0:
+                        let before = editor.layoutManager.foldSpans.count
+                        let top = editor.visibleLines().lowerBound
+                        editor.foldAll()
+                        name = "fold all (spans \(before) → \(editor.layoutManager.foldSpans.count), top line \(top + 1))"
+                    case 1:
+                        let before = editor.layoutManager.foldSpans.count
+                        editor.unfoldAll()
+                        name = "unfold all (spans \(before))"
+                    case 2:
+                        let level = Int.random(in: 1...3, using: &generator)
+                        let before = editor.layoutManager.foldSpans.count
+                        let top = editor.visibleLines().lowerBound
+                        editor.foldAll(level: level)
+                        name = "fold level \(level) (spans \(before) → \(editor.layoutManager.foldSpans.count), top line \(top + 1))"
+                    case 3, 4:
+                        let y = Double.random(in: 0...1, using: &generator) * max(0, editor.textView.frame.height - clip.bounds.height)
+                        clip.scroll(to: NSPoint(x: 0, y: y))
+                        editor.scrollView.reflectScrolledClipView(clip)
+                        name = "scroll"
+                    default:
+                        // Toggle a foldable line on screen (or anywhere).
+                        let lines = editor.visibleLines()
+                        var line = Int.random(in: lines.lowerBound..<max(lines.lowerBound + 1, lines.upperBound), using: &generator)
+                        if Bool.random(using: &generator) { line = Int.random(in: 0..<editor.engine.lineCount, using: &generator) }
+                        if let region = editor.foldRegions.last(where: { editor.engine.lineIndex(containing: $0.hiddenStart) <= line }) {
+                            line = editor.engine.lineIndex(containing: region.hiddenStart)
+                        }
+                        editor.toggleFold(atLine: line)
+                        name = "toggle \(line + 1)"
+                    }
+                    editor.textView.displayIfNeeded()
+                    editor.gutter.displayIfNeeded()
+                    timings.append((Date().timeIntervalSince(opStart) * 1000, name))
+                }
+                for (ms, name) in timings.sorted(by: { $0.0 > $1.0 }).prefix(6) { NSLog("[debug]   %.1f ms %@", ms, name) }
+            default: editor.toggleFold(atLine: (value("line").flatMap(Int.init) ?? 1) - 1)
             }
+            editor.textView.displayIfNeeded()
+            NSLog("[debug] fold %@ took %.1f ms (height %.0f)", op, Date().timeIntervalSince(start) * 1000, editor.textView.frame.height)
+        case "debug-measure":
+            guard let editor = Workspace.shared.activeEditor else { break }
+            var start = Date()
+            let lines = editor.visibleLines(margin: 80)
+            let visibleTime = Date().timeIntervalSince(start) * 1000
+            start = Date()
+            let used = editor.layoutManager.usedRect(for: editor.textContainer)
+            let usedTime = Date().timeIntervalSince(start) * 1000
+            NSLog("[debug] visibleLines %d..<%d took %.1f ms; used height %.0f took %.1f ms; frame %.0f; spans %d",
+                  lines.lowerBound, lines.upperBound, visibleTime, used.height, usedTime, editor.textView.frame.height,
+                  editor.layoutManager.foldSpans.count)
+            let layout = editor.layoutManager
+            NSLog("[debug] firstUnlaidChar %d of %d, nonContiguous %d", layout.firstUnlaidCharacterIndex(), editor.textStorage.length,
+                  layout.hasNonContiguousLayout ? 1 : 0)
+            if let span = layout.foldSpans.first {
+                var effective = NSRange()
+                let glyph = layout.glyphIndexForCharacter(at: span.hidden.location)
+                let rect = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: &effective, withoutAdditionalLayout: true)
+                NSLog("[debug] span glyph %d fragment %@ effective %@ (glyphs %d)", glyph, NSStringFromRect(rect),
+                      NSStringFromRange(effective), layout.numberOfGlyphs)
+            }
+            let raw = layout.glyphRange(forBoundingRect: editor.textView.visibleRect, in: editor.textContainer)
+            NSLog("[debug] visible rect %@ glyphs %@", NSStringFromRect(editor.textView.visibleRect), NSStringFromRange(raw))
+        case "debug-scroll":
+            // Scrolls to a 0…1 fraction of the document and times the redraw.
+            guard let editor = Workspace.shared.activeEditor else { break }
+            let start = Date()
+            let clip = editor.scrollView.contentView
+            let fraction = value("to").flatMap(Double.init) ?? 1
+            let target = max(0, (editor.textView.frame.height - clip.bounds.height) * fraction)
+            clip.scroll(to: NSPoint(x: 0, y: target))
+            editor.scrollView.reflectScrolledClipView(clip)
+            editor.textView.displayIfNeeded()
+            editor.gutter.displayIfNeeded()
+            NSLog("[debug] scroll to %.2f took %.1f ms (y %.0f of %.0f)", fraction, Date().timeIntervalSince(start) * 1000, clip.bounds.minY, editor.textView.frame.height)
         case "debug-undo":
             Workspace.shared.activeEditor?.undoManager.undo()
         case "debug-save":
