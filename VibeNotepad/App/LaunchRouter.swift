@@ -55,7 +55,11 @@ enum LaunchRouter {
         return result
     }
 
+    #if DEBUG
+    static let scheme = "vibenotepad-dev"
+    #else
     static let scheme = "vibenotepad"
+    #endif
 
     static func isAppLink(_ url: URL) -> Bool {
         url.scheme?.lowercased() == scheme

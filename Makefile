@@ -15,7 +15,7 @@ release: project   ## Release build
 	$(XCB) -configuration Release build
 
 run: build   ## Build and launch the debug app
-	open "$(DERIVED)/Build/Products/Debug/$(APP_NAME).app"
+	open "$(DERIVED)/Build/Products/Debug/$(APP_NAME) Dev.app"
 
 test:   ## Run the VibeCore unit tests
 	swift test --package-path Packages/VibeCore

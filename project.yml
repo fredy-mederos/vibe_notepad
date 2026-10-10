@@ -31,10 +31,21 @@ targets:
       - package: VibeCore
         product: VibeCore
     settings:
+      # Debug builds get their own identity (name, bundle id, URL scheme, preferences and data
+      # folder) so they never take over links or "Open With" from the installed app.
+      configs:
+        Debug:
+          PRODUCT_NAME: "Vibe Notepad Dev"
+          PRODUCT_BUNDLE_IDENTIFIER: com.fredymederos.vibenotepad.dev
+          VIBE_DISPLAY_NAME: "Vibe Notepad Dev"
+          VIBE_URL_SCHEME: vibenotepad-dev
+        Release:
+          PRODUCT_NAME: "Vibe Notepad"
+          PRODUCT_BUNDLE_IDENTIFIER: com.fredymederos.vibenotepad
+          VIBE_DISPLAY_NAME: "Vibe Notepad"
+          VIBE_URL_SCHEME: vibenotepad
       base:
-        PRODUCT_NAME: "Vibe Notepad"
         PRODUCT_MODULE_NAME: VibeNotepad
-        PRODUCT_BUNDLE_IDENTIFIER: com.fredymederos.vibenotepad
         INFOPLIST_FILE: VibeNotepad/Resources/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

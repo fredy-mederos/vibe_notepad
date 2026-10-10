@@ -67,6 +67,10 @@ make run    # debug build + launch
 make test   # VibeCore unit tests (syntax engine, lexers, Markdown, codecs, transforms)
 ```
 
+Debug builds are called **Vibe Notepad Dev** and have their own bundle ID, preferences, data folder
+and link scheme (`vibenotepad-dev://`), so they never take over links or "Open With" from the
+installed app.
+
 ## Keyboard shortcuts
 
 | Action | Shortcut |

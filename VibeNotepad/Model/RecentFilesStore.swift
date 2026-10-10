@@ -158,7 +158,11 @@ nonisolated enum AppPaths {
         }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
+        #if DEBUG
+        let directory = base.appendingPathComponent("Vibe Notepad Dev", isDirectory: true)
+        #else
         let directory = base.appendingPathComponent("Vibe Notepad", isDirectory: true)
+        #endif
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }()

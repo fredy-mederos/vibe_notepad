@@ -340,13 +340,15 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = VibeNotepad/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.fredymederos.vibenotepad;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fredymederos.vibenotepad.dev;
 				PRODUCT_MODULE_NAME = VibeNotepad;
-				PRODUCT_NAME = "Vibe Notepad";
+				PRODUCT_NAME = "Vibe Notepad Dev";
 				SDKROOT = macosx;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_STRICT_CONCURRENCY = complete;
+				VIBE_DISPLAY_NAME = "Vibe Notepad Dev";
+				VIBE_URL_SCHEME = "vibenotepad-dev";
 			};
 			name = Debug;
 		};
@@ -438,6 +440,8 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_STRICT_CONCURRENCY = complete;
+				VIBE_DISPLAY_NAME = "Vibe Notepad";
+				VIBE_URL_SCHEME = vibenotepad;
 			};
 			name = Release;
 		};

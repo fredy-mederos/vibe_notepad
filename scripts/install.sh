@@ -22,7 +22,10 @@ osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
 sleep 1
 rm -rf "$DEST"
 ditto "$SOURCE" "$DEST"
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST"
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+"$LSREGISTER" -f "$DEST"
+# Xcode registers the copy it built too; leave only the installed one as the handler.
+"$LSREGISTER" -u "$SOURCE" >/dev/null 2>&1 || true
 echo "✓ Installed $DEST"
 
 scripts/install-cli.sh "$DEST"
