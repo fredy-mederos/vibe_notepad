@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Settings → General's About and Updates sections. GitTree and KeepMyMacClean show the same rows.
+// Settings → General's About and Updates sections. Vibe GitTree and Vibe Clean show the same rows.
 
 /// Version, build (commit count · commit), configuration and build time, with Copy Version Info for bug reports.
 struct AboutSection: View {

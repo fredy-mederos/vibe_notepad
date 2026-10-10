@@ -1,6 +1,10 @@
-# Vibe Notepad ✨
+<img src="VibeNotepad/Resources/Assets.xcassets/AppIcon.appiconset/icon_256x256@1x.png" width="80" alt="Vibe Notepad icon" align="left" style="margin-right:16px" />
 
-[![Latest release](https://img.shields.io/github/v/release/fredy-mederos/vibe_notepad)](https://github.com/fredy-mederos/vibe_notepad/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)<br>[![Latest release](https://img.shields.io/github/v/release/fredy-mederos/vibe_notepad)](https://github.com/fredy-mederos/vibe_notepad/releases/latest)
+
+<br clear="left"/>
+
+# Vibe Notepad ✨
 
 A fast, native macOS text editor for the files you open every day: Markdown, `.env` files,
 YAML/JSON configs, shell scripts and code. It uses SwiftUI and AppKit with Liquid Glass, and has
