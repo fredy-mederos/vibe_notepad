@@ -48,12 +48,15 @@ public enum FindEngine {
     }
 
     /// The text that replaces `match`, expanding `$1`-style references and `\n`/`\t` in regex mode.
-    public static func replacement(for match: NSRange, in text: NSString, pattern: String, template: String, options: FindOptions) -> String {
+    /// Returns nil when `match` is no longer a match of `pattern` (the text changed since searching).
+    public static func replacement(for match: NSRange, in text: NSString, pattern: String, template: String, options: FindOptions) -> String? {
+        guard NSMaxRange(match) <= text.length, let expression = try? regex(for: pattern, options: options) else { return nil }
+        // Transparent bounds let lookbehind and \b see the surrounding text.
+        let result = expression.firstMatch(in: text as String,
+                                           options: [.anchored, .withTransparentBounds, .withoutAnchoringBounds],
+                                           range: NSRange(location: match.location, length: text.length - match.location))
+        guard let result, result.range == match else { return nil }
         guard options.isRegex else { return template }
-        guard let expression = try? regex(for: pattern, options: options),
-              let result = expression.firstMatch(in: text as String, options: [.anchored], range: NSRange(location: match.location, length: text.length - match.location)) else {
-            return template
-        }
         return expression.replacementString(for: result, in: text as String, offset: 0, template: expandEscapes(template))
     }
 
@@ -80,9 +83,8 @@ public enum FindEngine {
             guard c == "\\" else { out.append(c); continue }
             guard let n = iterator.next() else { out.append("\\\\"); break }
             switch n {
-            case "n": out.append("\n")
+            case "n", "r": out.append("\n") // the buffer always uses \n line breaks
             case "t": out.append("\t")
-            case "r": out.append("\r")
             default:
                 out.append("\\")
                 out.append(n)

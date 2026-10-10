@@ -100,8 +100,16 @@ public enum TextFileCodec {
     // MARK: Decoding
 
     /// Decodes file data, detecting BOMs, UTF-16 without BOM, UTF-8 and legacy 8-bit encodings.
-    /// - Parameter forced: decode with this encoding instead of detecting (the "Reopen with Encoding" menu).
-    public static func decode(_ data: Data, forced: String.Encoding? = nil) throws -> DecodedText {
+    /// - Parameters:
+    ///   - forced: decode with this encoding instead of detecting (the "Reopen with Encoding" menu).
+    ///   - preserveLineEndings: keep `\r` characters untouched (byte-exact round trips, e.g. binaries
+    ///     opened as Latin-1); the document then saves with `.lf`, which writes the text as-is.
+    public static func decode(_ data: Data, forced: String.Encoding? = nil, preserveLineEndings: Bool = false) throws -> DecodedText {
+        if preserveLineEndings {
+            let encoding = forced ?? .isoLatin1
+            guard let text = String(data: data, encoding: encoding) else { throw CodecError.undecodable }
+            return DecodedText(text: text, encoding: encoding, hasBOM: false, lineEnding: .lf)
+        }
         if let forced {
             var body = data
             var bom = false

@@ -22,28 +22,40 @@ public enum FuzzyMatcher {
         for c in haystack where k < needle.count && c == needle[k] { k += 1 }
         guard k == needle.count else { return nil }
 
+        // latest[k]: the last position where needle[k...] can still start (so choices stay feasible).
+        var latest = [Int](repeating: -1, count: needle.count)
+        var position = haystack.count - 1
+        for k in stride(from: needle.count - 1, through: 0, by: -1) {
+            while position >= 0, haystack[position] != needle[k] { position -= 1 }
+            guard position >= 0 else { return nil }
+            latest[k] = position
+            position -= 1
+        }
+
         var best: FuzzyMatch?
         var starts = 0
         for start in haystack.indices where haystack[start] == needle[0] {
+            if start > latest[0] { break }
             starts += 1
             if starts > 24 { break }
-            if let m = greedy(needle, haystack, original, from: start), m.score > (best?.score ?? .min) {
+            if let m = greedy(needle, haystack, original, from: start, latest: latest), m.score > (best?.score ?? .min) {
                 best = m
             }
         }
         return best
     }
 
-    private static func greedy(_ needle: [Character], _ haystack: [Character], _ original: [Character], from start: Int) -> FuzzyMatch? {
+    private static func greedy(_ needle: [Character], _ haystack: [Character], _ original: [Character], from start: Int, latest: [Int]) -> FuzzyMatch? {
         var positions: [Int] = [start]
         positions.reserveCapacity(needle.count)
         var i = start + 1
-        for q in needle.dropFirst() {
+        for (offset, q) in needle.dropFirst().enumerated() {
+            let limit = latest[offset + 1]
             // Prefer the next occurrence at a word boundary if it's close; otherwise the nearest one.
             var nearest: Int?
             var boundary: Int?
             var j = i
-            while j < haystack.count {
+            while j < haystack.count, j <= limit {
                 if haystack[j] == q {
                     if nearest == nil { nearest = j }
                     if isBoundary(original, j) { boundary = j; break }

@@ -175,7 +175,7 @@ public struct CodeLexer: SyntaxLexer {
         if spec.preprocessor, st.mode == Mode.normal, i == line.start {
             i = lexPreprocessor(line, tokens: &tokens, context: &context)
         }
-        lexCode(line, from: i, state: &st, context: &context, tokens: &tokens, nested: false)
+        lexCode(line, from: i, state: &st, context: &context, tokens: &tokens, depth: 0)
         state.main = st
     }
 
@@ -191,7 +191,8 @@ public struct CodeLexer: SyntaxLexer {
     /// Lexes `[from, line.end)`. When not `nested`, an unterminated multi-line construct
     /// updates `state` so the next line continues it.
     private func lexCode(_ line: LineBuffer, from start: Int, state: inout LexState,
-                         context: inout Context, tokens: inout TokenBuffer, nested: Bool) {
+                         context: inout Context, tokens: inout TokenBuffer, depth: Int) {
+        let nested = depth > 0
         var i = start
         let end = line.end
         while i < end {
@@ -234,7 +235,7 @@ public struct CodeLexer: SyntaxLexer {
             // Strings
             if c < 128, stringStart[Int(c)], let (index, bodyStart) = matchString(line, at: i) {
                 let stringSpec = spec.strings[index]
-                if let after = scanString(line, bodyFrom: bodyStart, tokenStart: i, spec: stringSpec, tokens: &tokens) {
+                if let after = scanString(line, bodyFrom: bodyStart, tokenStart: i, spec: stringSpec, tokens: &tokens, depth: depth) {
                     if !spec.keyStringsBefore.isEmpty {
                         let next = line.skipSpaces(after)
                         if spec.keyStringsBefore.contains(line[next]), line[next + 1] != Ch.equals {
@@ -337,7 +338,7 @@ public struct CodeLexer: SyntaxLexer {
             // JSX tags
             if spec.jsx, c == Ch.lt, context.previous != .value,
                Ch.isIdentStart(line[i + 1]) || line[i + 1] == Ch.slash || line[i + 1] == Ch.gt {
-                i = lexJSXTag(line, from: i, tokens: &tokens)
+                i = lexJSXTag(line, from: i, tokens: &tokens, depth: depth)
                 context.previous = .op
                 continue
             }
@@ -514,7 +515,7 @@ public struct CodeLexer: SyntaxLexer {
 
     /// Scans a string body. Emits string/escape/interpolation tokens starting at `tokenStart`.
     /// Returns the index after the closing delimiter, or nil when the line ends first.
-    private func scanString(_ line: LineBuffer, bodyFrom start: Int, tokenStart: Int, spec s: StringSpec, tokens: inout TokenBuffer) -> Int? {
+    private func scanString(_ line: LineBuffer, bodyFrom start: Int, tokenStart: Int, spec s: StringSpec, tokens: inout TokenBuffer, depth: Int = 0) -> Int? {
         var segment = tokenStart
         var j = start
         let end = line.end
@@ -527,7 +528,7 @@ public struct CodeLexer: SyntaxLexer {
                 if s.interpolation == .backslashParen, line[j + 1] == Ch.lparen,
                    let close = matchingBracket(line, from: j + 1, open: Ch.lparen, close: Ch.rparen) {
                     tokens.add(j, j + 2, .escape)
-                    lexInterpolation(line, j + 2, close, tokens: &tokens)
+                    lexInterpolation(line, j + 2, close, tokens: &tokens, depth: depth)
                     tokens.add(close, close + 1, .escape)
                     j = close + 1
                     segment = j
@@ -551,7 +552,7 @@ public struct CodeLexer: SyntaxLexer {
                 if c == Ch.dollar, line[j + 1] == Ch.lbrace, let close = matchingBracket(line, from: j + 1, open: Ch.lbrace, close: Ch.rbrace) {
                     tokens.add(segment, j, s.kind)
                     tokens.add(j, j + 2, .escape)
-                    lexInterpolation(line, j + 2, close, tokens: &tokens)
+                    lexInterpolation(line, j + 2, close, tokens: &tokens, depth: depth)
                     tokens.add(close, close + 1, .escape)
                     j = close + 1
                     segment = j
@@ -569,7 +570,7 @@ public struct CodeLexer: SyntaxLexer {
                 if c == Ch.hash, line[j + 1] == Ch.lbrace, let close = matchingBracket(line, from: j + 1, open: Ch.lbrace, close: Ch.rbrace) {
                     tokens.add(segment, j, s.kind)
                     tokens.add(j, j + 2, .escape)
-                    lexInterpolation(line, j + 2, close, tokens: &tokens)
+                    lexInterpolation(line, j + 2, close, tokens: &tokens, depth: depth)
                     tokens.add(close, close + 1, .escape)
                     j = close + 1
                     segment = j
@@ -581,7 +582,7 @@ public struct CodeLexer: SyntaxLexer {
                     if let close = matchingBracket(line, from: j, open: Ch.lbrace, close: Ch.rbrace) {
                         tokens.add(segment, j, s.kind)
                         tokens.add(j, j + 1, .escape)
-                        lexInterpolation(line, j + 1, close, tokens: &tokens)
+                        lexInterpolation(line, j + 1, close, tokens: &tokens, depth: depth)
                         tokens.add(close, close + 1, .escape)
                         j = close + 1
                         segment = j
@@ -598,11 +599,12 @@ public struct CodeLexer: SyntaxLexer {
         return s.multiline ? nil : end
     }
 
-    private func lexInterpolation(_ line: LineBuffer, _ s: Int, _ e: Int, tokens: inout TokenBuffer) {
-        guard e > s else { return }
+    /// Lexes `${ … }`-style embedded code; nesting is capped so adversarial input can't recurse deeply.
+    private func lexInterpolation(_ line: LineBuffer, _ s: Int, _ e: Int, tokens: inout TokenBuffer, depth: Int) {
+        guard e > s, depth < 8 else { return }
         var scratch = LexState.initial
         var context = Context()
-        lexCode(line.slice(s, e), from: s, state: &scratch, context: &context, tokens: &tokens, nested: true)
+        lexCode(line.slice(s, e), from: s, state: &scratch, context: &context, tokens: &tokens, depth: depth + 1)
     }
 
     private func escapeEnd(_ line: LineBuffer, at j: Int) -> Int {
@@ -641,7 +643,7 @@ public struct CodeLexer: SyntaxLexer {
         return nil
     }
 
-    private func lexJSXTag(_ line: LineBuffer, from i: Int, tokens: inout TokenBuffer) -> Int {
+    private func lexJSXTag(_ line: LineBuffer, from i: Int, tokens: inout TokenBuffer, depth: Int) -> Int {
         var k = i + 1
         if line[k] == Ch.slash { k += 1 }
         tokens.add(i, k, .punctuation)
@@ -680,7 +682,7 @@ public struct CodeLexer: SyntaxLexer {
             }
             if c == Ch.lbrace, let close = matchingBracket(line, from: k, open: Ch.lbrace, close: Ch.rbrace) {
                 tokens.add(k, k + 1, .punctuation)
-                lexInterpolation(line, k + 1, close, tokens: &tokens)
+                lexInterpolation(line, k + 1, close, tokens: &tokens, depth: depth)
                 tokens.add(close, close + 1, .punctuation)
                 k = close + 1
                 continue

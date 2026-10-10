@@ -44,7 +44,7 @@ public enum SymbolExtractor {
     private static let goType = Rule(#"^type\s+([A-Za-z_]\w*)"#, .type)
     private static let jsConst = Rule(#"^[ \t]*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>"#, .function)
     private static let pythonRuby = Rule(#"^[ \t]*(?:async\s+)?(def|class|module)\s+(?:self\.)?([A-Za-z_]\w*[?!]?)"#, .function, group: 2, kindGroup: 1)
-    private static let cFunction = Rule(#"^(?:[\w:<>*&\s]+?)\s+\**([A-Za-z_][\w:~]*)\s*\([^;]*$"#, .function)
+    private static let cFunction = Rule(#"^(?!\s*(?:if|else|for|while|switch|return|do|case|sizeof|catch)\b)[ \t]*(?:[\w:<>*&]+[ \t]+)+\**([A-Za-z_][\w:~]*)[ \t]*\([^;\n]*$"#, .function)
     private static let elixir = Rule(#"^[ \t]*(def|defp|defmacro|defmodule)\s+([A-Za-z_][\w.?!]*)"#, .function, group: 2, kindGroup: 1)
     private static let shellFunction = Rule(#"^[ \t]*(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{?"#, .function)
     private static let shellKeywordFunction = Rule(#"^[ \t]*function\s+([A-Za-z_][\w-]*)"#, .function)

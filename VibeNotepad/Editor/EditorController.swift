@@ -685,7 +685,12 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         if currentMatchIndex == nil || findMatches.isEmpty { try find(query, options: options, reveal: true) }
         guard let index = currentMatchIndex, index < findMatches.count else { return }
         let range = findMatches[index]
-        let replacement = FindEngine.replacement(for: range, in: nsText, pattern: query, template: template, options: options)
+        guard let replacement = FindEngine.replacement(for: range, in: nsText, pattern: query, template: template, options: options) else {
+            // The text changed since the search: search again and let the next click replace.
+            findAnchor = range.location
+            try find(query, options: options, reveal: true)
+            return
+        }
         apply(TextEdit(range: range, replacement: replacement, selection: NSRange(location: range.location + (replacement as NSString).length, length: 0)), actionName: "Replace")
         findAnchor = range.location + (replacement as NSString).length
         try find(query, options: options, reveal: true)
