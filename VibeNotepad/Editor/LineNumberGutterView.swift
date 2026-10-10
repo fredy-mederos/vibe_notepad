@@ -94,7 +94,8 @@ final class LineNumberGutterView: NSView {
         guard let textView, let layoutManager = textView.layoutManager,
               let container = textView.textContainer, let storage = textView.textStorage, let engine else { return }
 
-        let visible = textView.visibleRect
+        let containerOrigin = textView.textContainerOrigin
+        let visible = textView.visibleRect.offsetBy(dx: -containerOrigin.x, dy: -containerOrigin.y)
         let glyphRange = layoutManager.glyphRange(forBoundingRect: visible, in: container)
         let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
         let length = storage.length

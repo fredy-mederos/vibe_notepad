@@ -146,7 +146,10 @@ struct ExternalChangeBanner: View {
                     .keyboardShortcut(.defaultAction)
             } else {
                 Button("Save Here Again") { Task { await workspace.save(document) } }
-                Button("Dismiss") { document.externalChange = nil }
+                Button("Dismiss") {
+                    document.deletionDismissed = true
+                    document.externalChange = nil
+                }
             }
         }
         .controlSize(.small)

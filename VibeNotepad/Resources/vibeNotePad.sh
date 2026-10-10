@@ -6,6 +6,7 @@
 #   vibeNotePad src/app.swift:42:7    open at line 42, column 7
 #   vibeNotePad a.txt b.yml .env      open several files
 #   cat server.log | vibeNotePad -    open stdin in a new tab
+#   vibeNotePad -- -notes.txt         treat what follows "--" as file names
 #   vibeNotePad                       bring Vibe Notepad to the front
 #
 # Deep link equivalent: open "vibeNotePad://open?path=/abs/path&line=42&column=7"
@@ -13,7 +14,7 @@
 APP="Vibe Notepad"
 
 usage() {
-  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 encode() {
@@ -44,13 +45,25 @@ if [ $# -eq 0 ]; then
 fi
 
 status=0
+only_files=0
 for arg in "$@"; do
-  case "$arg" in
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    -)
+  if [ "$only_files" -eq 1 ]; then
+    arg_kind=file
+  else
+    case "$arg" in
+      --) only_files=1; continue ;;
+      -h|--help) usage; exit 0 ;;
+      -) arg_kind=stdin ;;
+      -*)
+        echo "vibeNotePad: unknown option: $arg (use -- before file names that start with -)" >&2
+        usage >&2
+        exit 2
+        ;;
+      *) arg_kind=file ;;
+    esac
+  fi
+  case "$arg_kind" in
+    stdin)
       base="$(mktemp -t vibeNotePad)" || { status=1; continue; }
       tmp="$base.txt"
       mv "$base" "$tmp"

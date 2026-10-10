@@ -190,6 +190,12 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         scrollView.reflectScrolledClipView(scrollView.contentView)
         contentDidChange()
         scheduleFoldAnalysis(immediate: true)
+        // Matches found in the old text point at the wrong places now.
+        if !findMatches.isEmpty || Workspace.shared.findBarVisible {
+            findMatches = []
+            currentMatchIndex = nil
+            scheduleFindRefresh()
+        }
     }
 
     func setLanguage(_ language: LanguageID) {
@@ -379,8 +385,19 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
     }
 
+    /// Whether the view shows the end of the document (log files keep following it on reload).
+    var isScrolledToEnd: Bool {
+        let clip = scrollView.contentView
+        return clip.bounds.maxY >= textView.frame.height - lineHeight
+    }
+
+    func scrollToEnd() {
+        textView.scrollToEndOfDocument(nil)
+    }
+
     func visibleLines(margin: Int = 0) -> Range<Int> {
-        let visible = textView.visibleRect
+        let origin = textView.textContainerOrigin
+        let visible = textView.visibleRect.offsetBy(dx: -origin.x, dy: -origin.y)
         guard visible.height > 1 else { return 0..<min(engine.lineCount, 300) }
         let glyphRange = layoutManager.glyphRange(forBoundingRect: visible, in: textContainer)
         let characters = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
@@ -662,11 +679,12 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     // MARK: Navigation
 
     func goTo(line: Int, column: Int? = nil) {
-        let index = max(0, min(line - 1, engine.lineCount - 1))
+        // Clamp before doing arithmetic: links and the command line can pass any number.
+        let index = max(1, min(line, engine.lineCount)) - 1
         let start = engine.lineStart(index)
         let end = max(start, engine.lineContentEnd(index))
         unfoldIfNeeded(NSRange(location: start, length: end - start))
-        let location = column.map { min(start + max(0, $0 - 1), end) } ?? start
+        let location = column.map { start + max(0, min($0, end - start + 1) - 1) } ?? start
         textView.setSelectedRange(NSRange(location: location, length: 0))
         scrollToCenter(NSRange(location: start, length: end - start))
         if end > start { textView.showFindIndicator(for: NSRange(location: start, length: end - start)) }

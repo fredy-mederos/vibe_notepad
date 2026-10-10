@@ -82,7 +82,13 @@ final class Workspace {
         if settings.restoreSession { restoreSession() }
         externalCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
             Task { @MainActor in
-                if NSApp.isActive { Workspace.shared.checkExternalChanges() }
+                let workspace = Workspace.shared
+                if NSApp.isActive {
+                    workspace.checkExternalChanges()
+                } else if let window = workspace.mainWindow, window.occlusionState.contains(.visible) {
+                    // In the background, keep the visible tab current (a log on a second screen).
+                    workspace.checkExternalChanges(onlySelected: true)
+                }
             }
         }
     }
@@ -515,15 +521,20 @@ final class Workspace {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    private func reload(_ document: EditorDocument, from url: URL, encoding: String.Encoding?, announce: String?) {
+    private func reload(_ document: EditorDocument, from url: URL, encoding: String.Encoding?, announce: String?, followTail: Bool = false) {
         do {
             let loaded = try FileIO.load(url, encoding: encoding, preserveLineEndings: document.isBinary)
+            let editor = document.editor
+            let atEnd = followTail && editor.isScrolledToEnd
+            let caretAtEnd = followTail && editor.textView.selectedRange() == NSRange(location: editor.textStorage.length, length: 0)
             document.encoding = loaded.decoded.encoding
             document.hasBOM = loaded.decoded.hasBOM
             document.lineEnding = loaded.decoded.lineEnding
             document.fileModificationDate = loaded.modificationDate
             document.externalChange = nil
-            document.editor.replaceAllText(loaded.decoded.text)
+            editor.replaceAllText(loaded.decoded.text)
+            if caretAtEnd { editor.textView.setSelectedRange(NSRange(location: editor.textStorage.length, length: 0)) }
+            if atEnd { editor.scrollToEnd() }
             document.pendingDirty = false
             document.isDirty = false
             document.reloadCount += 1
@@ -534,19 +545,26 @@ final class Workspace {
     }
 
     /// Reloads files changed by other apps (when clean) or flags them (when edited here).
-    func checkExternalChanges() {
-        for document in documents {
+    func checkExternalChanges(onlySelected: Bool = false) {
+        let candidates = onlySelected ? [selectedDocument].compactMap { $0 } : documents
+        for document in candidates {
             guard let url = document.fileURL else { continue }
             guard FileManager.default.fileExists(atPath: url.path) else {
-                if document.externalChange != .deleted { document.externalChange = .deleted }
+                if document.externalChange != .deleted, !document.deletionDismissed { document.externalChange = .deleted }
                 continue
             }
+            document.deletionDismissed = false
             if document.externalChange == .deleted { document.externalChange = nil }
             guard let date = FileIO.modificationDate(of: url), let known = document.fileModificationDate,
                   abs(date.timeIntervalSince(known)) > 0.0005 else { continue }
             if !document.isDirty, settings.reloadChangedFiles {
-                reload(document, from: url, encoding: document.encoding, announce: nil)
-                toast("“\(document.displayName)” changed on disk — reloaded", symbol: "arrow.triangle.2.circlepath", tint: .blue)
+                // Files that change all the time (logs) reload quietly, and keep following the end.
+                let quiet = document.language == .log || document.lastAutoReload.map { Date().timeIntervalSince($0) < 60 } ?? false
+                reload(document, from: url, encoding: document.encoding, announce: nil, followTail: true)
+                document.lastAutoReload = Date()
+                if !quiet {
+                    toast("“\(document.displayName)” changed on disk — reloaded", symbol: "arrow.triangle.2.circlepath", tint: .blue)
+                }
             } else if document.externalChange == nil {
                 document.externalChange = .modified
             }

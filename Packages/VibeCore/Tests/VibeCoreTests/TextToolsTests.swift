@@ -152,6 +152,43 @@ private func apply(_ edit: TextEdit, to text: String) -> String {
         #expect(throws: TextTransforms.JSONFormatError.self) { try TextTransforms.formatJSON("{nope") }
     }
 
+    @Test func trimKeepsTheCaretOnItsLine() throws {
+        // Caret inside trailing spaces on the first line.
+        let text = "abc   \nnext  \nend" as NSString
+        let edit = try #require(TextTransforms.trimTrailingWhitespace(text, selection: NSRange(location: 5, length: 0)))
+        #expect(edit.replacement == "abc\nnext\nend")
+        #expect(edit.selection.location == 3)
+        // Caret after the trimmed lines keeps its place in the text.
+        let later = try #require(TextTransforms.trimTrailingWhitespace(text, selection: NSRange(location: 15, length: 0)))
+        #expect(later.selection.location == 10)
+    }
+
+    @Test func formatJSONKeepsComments() throws {
+        let source = """
+        // Editor settings
+        {"tabSize": 2, // spaces
+          /* theme */ "theme": "dark",
+          "list": [1, /* two */ 2]
+        } // end
+        """
+        let pretty = try TextTransforms.formatJSON(source)
+        #expect(pretty == """
+        // Editor settings
+        {
+          "tabSize": 2, // spaces
+          /* theme */
+          "theme": "dark",
+          "list": [
+            1, /* two */
+            2
+          ]
+        } // end
+        """)
+        // Formatting is stable, and minifying drops comments.
+        #expect(try TextTransforms.formatJSON(pretty) == pretty)
+        #expect(try TextTransforms.minifyJSON(source) == #"{"tabSize":2,"theme":"dark","list":[1,2]}"#)
+    }
+
     @Test func caseTransformOnWord() throws {
         let edit = try #require(TextTransforms.transform("hello world" as NSString, selection: NSRange(location: 8, length: 0)) { $0.uppercased() })
         #expect(apply(edit, to: "hello world") == "hello WORLD")

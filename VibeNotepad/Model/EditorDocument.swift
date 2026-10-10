@@ -53,6 +53,10 @@ final class EditorDocument: Identifiable {
     var wordCount: Int?
     var characterCount = 0
     var externalChange: ExternalChange?
+    /// The "deleted on disk" banner was dismissed: don't show it again until the file reappears.
+    @ObservationIgnored var deletionDismissed = false
+    /// When the file was last reloaded because another app changed it.
+    @ObservationIgnored var lastAutoReload: Date?
     /// Bumped on every save so views can animate a confirmation.
     var saveCount = 0
     /// Bumped when the file is reloaded from disk.

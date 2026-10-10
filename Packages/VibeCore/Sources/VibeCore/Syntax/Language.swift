@@ -212,10 +212,18 @@ public enum LanguageRegistry {
             return .env
         }
         if parent == ".ssh", name == "config" || name.hasSuffix(".conf") { return .sshConfig }
+        if parent == ".git", name == "config" { return .ini }
         if let id = byFileName[name] { return id }
-        if name.hasPrefix("dockerfile") || name.hasSuffix(".dockerfile") || name.hasPrefix("containerfile") { return .dockerfile }
-        if name.hasPrefix("makefile") { return .makefile }
-        if name.hasPrefix("jenkinsfile") { return .groovy }
+        // `Dockerfile.dev`, `Makefile.am`… but `dockerfile-notes.md` is Markdown.
+        let hasKnownExtension = name.lastIndex(of: ".").map { dot in
+            dot != name.startIndex && byExtension[String(name[name.index(after: dot)...])] != nil
+        } ?? false
+        if !hasKnownExtension {
+            if name.hasPrefix("dockerfile") || name.hasPrefix("containerfile") { return .dockerfile }
+            if name.hasPrefix("makefile") || name.hasPrefix("gnumakefile") { return .makefile }
+            if name.hasPrefix("jenkinsfile") { return .groovy }
+        }
+        if name.hasSuffix(".dockerfile") { return .dockerfile }
         if name.hasPrefix("requirements") && name.hasSuffix(".txt") { return .conf }
         if name.hasSuffix(".log") || name.contains(".log.") { return .log }
         if name.hasSuffix(".d.ts") { return .typescript }
@@ -249,18 +257,7 @@ public enum LanguageRegistry {
     public static func detectByContent(_ content: String) -> LanguageID? {
         let head = content.prefix(4096)
         let firstLine = head.prefix(while: { $0 != "\n" && $0 != "\r" })
-        if firstLine.hasPrefix("#!") {
-            let line = firstLine.lowercased()
-            let table: [(String, LanguageID)] = [
-                ("python", .python), ("node", .javascript), ("deno", .typescript), ("bun", .javascript),
-                ("ruby", .ruby), ("perl", .perl), ("php", .php), ("swift", .swift), ("lua", .lua),
-                ("rscript", .r), ("pwsh", .powershell), ("groovy", .groovy), ("kotlin", .kotlin),
-                ("make", .makefile), ("elixir", .elixir), ("osascript", .plainText),
-                ("bash", .shell), ("zsh", .shell), ("fish", .shell), ("ksh", .shell), ("dash", .shell), ("/sh", .shell), (" sh", .shell),
-            ]
-            for (needle, id) in table where line.contains(needle) { return id }
-            return .shell
-        }
+        if firstLine.hasPrefix("#!") { return shebangLanguage(firstLine) }
         let trimmed = head.drop(while: { $0.isWhitespace })
         if trimmed.hasPrefix("<?xml") || trimmed.hasPrefix("<plist") || trimmed.hasPrefix("<svg") { return .xml }
         let lowerHead = trimmed.prefix(64).lowercased()
@@ -269,10 +266,49 @@ public enum LanguageRegistry {
             if looksLikeJSON(trimmed) { return .json }
         }
         if head.hasPrefix("diff --git") || head.hasPrefix("--- ") && head.contains("\n+++ ") { return .diff }
-        if head.hasPrefix("---\n") || head.hasPrefix("%YAML") { return .yaml }
+        if head.hasPrefix("---\n") {
+            // Front matter followed by Markdown, or a YAML document?
+            if let close = head.range(of: "\n---\n", range: head.index(head.startIndex, offsetBy: 3)..<head.endIndex),
+               looksLikeMarkdown(head[close.upperBound...], threshold: 2) {
+                return .markdown
+            }
+            return .yaml
+        }
+        if head.hasPrefix("%YAML") { return .yaml }
         if looksLikeEnv(head) { return .env }
         if looksLikeMarkdown(head) { return .markdown }
         return nil
+    }
+
+    /// The language of a `#!` line's interpreter (`#!/usr/bin/env -S python3.12 -u` → Python).
+    static func shebangLanguage(_ line: Substring) -> LanguageID {
+        var tokens = line.dropFirst(2).split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
+        guard !tokens.isEmpty else { return .shell }
+        var program = (tokens.removeFirst() as NSString).lastPathComponent
+        if program == "env" {
+            // env [-S] [-i] [NAME=value…] program
+            while let next = tokens.first, next.hasPrefix("-") || next.contains("=") { tokens.removeFirst() }
+            program = tokens.first.map { ($0 as NSString).lastPathComponent } ?? ""
+        }
+        // python3.12 → python, ruby2.7 → ruby
+        switch String(program.lowercased().prefix { $0.isLetter }) {
+        case "python", "pypy": return .python
+        case "node", "nodejs", "bun", "zx": return .javascript
+        case "deno", "tsx", "ts": return .typescript
+        case "ruby", "jruby": return .ruby
+        case "perl": return .perl
+        case "php": return .php
+        case "swift": return .swift
+        case "lua", "luajit": return .lua
+        case "rscript": return .r
+        case "pwsh", "powershell": return .powershell
+        case "groovy": return .groovy
+        case "kotlin", "kotlinc", "kscript": return .kotlin
+        case "make", "gmake": return .makefile
+        case "elixir": return .elixir
+        case "osascript": return .plainText
+        default: return .shell
+        }
     }
 
     private static func looksLikeJSON(_ text: Substring) -> Bool {
@@ -301,7 +337,7 @@ public enum LanguageRegistry {
         return assignments >= 2 && others == 0
     }
 
-    private static func looksLikeMarkdown(_ text: Substring) -> Bool {
+    private static func looksLikeMarkdown(_ text: Substring, threshold: Int = 3) -> Bool {
         var score = 0
         for line in text.split(separator: "\n", maxSplits: 60, omittingEmptySubsequences: true) {
             if line.hasPrefix("# ") || line.hasPrefix("## ") || line.hasPrefix("### ") { score += 2 }
@@ -309,7 +345,7 @@ public enum LanguageRegistry {
             if line.hasPrefix("- [ ]") || line.hasPrefix("- [x]") { score += 2 }
             if line.contains("](") { score += 1 }
         }
-        return score >= 3
+        return score >= threshold
     }
 }
 

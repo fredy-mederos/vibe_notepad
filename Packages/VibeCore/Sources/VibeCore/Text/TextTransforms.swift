@@ -288,9 +288,16 @@ public enum TextTransforms {
         let original = text as String
         let trimmed = original.replacingOccurrences(of: "[ \\t]+(?=\\n|$)", with: "", options: .regularExpression)
         guard trimmed != original else { return nil }
-        let removedBefore = (original as NSString).substring(to: min(selection.location, text.length))
+        let location = min(selection.location, text.length)
+        var before = (original as NSString).substring(to: location)
             .replacingOccurrences(of: "[ \\t]+(?=\\n)", with: "", options: .regularExpression)
-        let caret = min(utf16(removedBefore), utf16(trimmed))
+        // A caret inside trailing whitespace lands at the end of its trimmed line.
+        let lineEnd = text.lineRange(for: NSRange(location: location, length: 0))
+        let rest = text.substring(with: NSRange(location: location, length: NSMaxRange(lineEnd) - location))
+        if rest.allSatisfy({ $0 == " " || $0 == "\t" || $0 == "\n" }) {
+            while before.last == " " || before.last == "\t" { before.removeLast() }
+        }
+        let caret = min(utf16(before), utf16(trimmed))
         return TextEdit(range: NSRange(location: 0, length: text.length), replacement: trimmed, selection: NSRange(location: caret, length: 0))
     }
 
@@ -430,7 +437,9 @@ public enum TextTransforms {
         }
     }
 
-    /// Streaming re-indenter: never reorders anything, only rewrites whitespace.
+    /// Streaming re-indenter: never reorders anything, only rewrites whitespace. Formatting keeps
+    /// `//` and `/* */` comments (a comment that trailed a value stays on its line); minifying
+    /// drops them.
     private static func reformatJSON(_ source: String, indent: String?) -> String {
         var out = String()
         out.reserveCapacity(source.utf8.count + source.utf8.count / 4)
@@ -440,11 +449,50 @@ public enum TextTransforms {
         var quote: Character = "\""
         let chars = Array(source)
         var i = 0
+        // Set right after a line break and its indentation, so breaks never pile up.
+        var atLineStart = false
+        var indentLength = 0
+
+        func emit(_ text: String) {
+            out.append(text)
+            atLineStart = false
+        }
         func newline() {
             guard let indent else { return }
-            out.append("\n")
+            if atLineStart {
+                out.removeLast(indentLength)
+            } else {
+                out.append("\n")
+            }
             out.append(String(repeating: indent, count: depth))
+            indentLength = indent.count * depth
+            atLineStart = true
         }
+        /// Whether the comment at `index` follows a value on the same source line.
+        func trailsValue(_ index: Int) -> Bool {
+            var j = index - 1
+            while j >= 0, chars[j] == " " || chars[j] == "\t" { j -= 1 }
+            return j >= 0 && chars[j] != "\n" && chars[j] != "\r"
+        }
+        func emitComment(_ comment: String, startingAt index: Int, isLine: Bool) {
+            guard indent != nil else { return } // minifying drops comments
+            guard trailsValue(index) else {
+                if !atLineStart, !out.isEmpty { newline() }
+                emit(comment)
+                newline()
+                return
+            }
+            // Put it back on the line of the value it followed.
+            var pulledUp = false
+            if atLineStart {
+                out.removeLast(indentLength + 1)
+                atLineStart = false
+                pulledUp = true
+            }
+            emit((out.last == " " ? "" : " ") + comment)
+            if isLine || pulledUp { newline() } else { emit(" ") }
+        }
+
         while i < chars.count {
             let c = chars[i]
             if inString {
@@ -457,43 +505,49 @@ public enum TextTransforms {
             case "\"", "'":
                 inString = true
                 quote = c
-                out.append(c)
+                emit(String(c))
             case "{", "[":
                 // Keep empty containers compact.
                 var j = i + 1
                 while j < chars.count, chars[j].isWhitespace { j += 1 }
                 if j < chars.count, chars[j] == (c == "{" ? "}" : "]") {
-                    out.append(c)
-                    out.append(chars[j])
+                    emit(String(c) + String(chars[j]))
                     i = j
                 } else {
-                    out.append(c)
+                    emit(String(c))
                     depth += 1
                     newline()
                 }
             case "}", "]":
                 depth = max(0, depth - 1)
                 newline()
-                out.append(c)
+                emit(String(c))
             case ",":
-                out.append(c)
+                emit(",")
                 newline()
             case ":":
-                out.append(indent == nil ? ":" : ": ")
+                emit(indent == nil ? ":" : ": ")
             case "/" where i + 1 < chars.count && chars[i + 1] == "/":
-                // Drop comments: they can't be placed reliably after reflowing.
-                while i < chars.count, chars[i] != "\n" { i += 1 }
+                var j = i
+                while j < chars.count, chars[j] != "\n", chars[j] != "\r" { j += 1 }
+                var comment = String(chars[i..<j])
+                while comment.last == " " || comment.last == "\t" { comment.removeLast() }
+                emitComment(comment, startingAt: i, isLine: true)
+                i = j
                 continue
             case "/" where i + 1 < chars.count && chars[i + 1] == "*":
-                i += 2
-                while i + 1 < chars.count, !(chars[i] == "*" && chars[i + 1] == "/") { i += 1 }
-                i += 2
+                var j = i + 2
+                while j + 1 < chars.count, !(chars[j] == "*" && chars[j + 1] == "/") { j += 1 }
+                j = min(j + 2, chars.count)
+                emitComment(String(chars[i..<j]), startingAt: i, isLine: false)
+                i = j
                 continue
             default:
-                if !c.isWhitespace { out.append(c) }
+                if !c.isWhitespace { emit(String(c)) }
             }
             i += 1
         }
+        if atLineStart { out.removeLast(indentLength + 1) }
         return out
     }
 }

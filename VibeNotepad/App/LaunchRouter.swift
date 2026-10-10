@@ -125,6 +125,12 @@ enum LaunchRouter {
             let index = value("index").flatMap(Int.init) ?? 0
             preview.webView.callAsyncJavaScript("document.querySelectorAll('.task-list-item-checkbox')[index]?.click()",
                                                 arguments: ["index": index], in: nil, in: .defaultClient, completionHandler: nil)
+        case "debug-check":
+            Workspace.shared.checkExternalChanges()
+            if let editor = Workspace.shared.activeEditor {
+                NSLog("[debug] check → length %d, selection %@, at end %d", editor.textStorage.length,
+                      NSStringFromRange(editor.textView.selectedRange()), editor.isScrolledToEnd ? 1 : 0)
+            }
         case "debug-fold":
             guard let editor = Workspace.shared.activeEditor else { break }
             let start = Date()

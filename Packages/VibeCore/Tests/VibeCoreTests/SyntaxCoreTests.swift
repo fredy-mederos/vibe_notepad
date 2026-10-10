@@ -51,6 +51,24 @@ func has(_ spans: [[(String, TokenKind)]], _ text: String, _ kind: TokenKind, li
         #expect(LanguageRegistry.detect(path: "/x/thing.h", content: "@interface Foo : NSObject\n@end") == .objectiveC)
     }
 
+    @Test func shebangsUseTheInterpreterName() {
+        #expect(LanguageRegistry.detect(path: "/x/a", content: "#!/usr/bin/env -S python3.12 -u\n") == .python)
+        #expect(LanguageRegistry.detect(path: "/x/a", content: "#!/usr/bin/env NODE_ENV=prod node\n") == .javascript)
+        #expect(LanguageRegistry.detect(path: "/x/a", content: "#!/Users/makeuser/bin/bash\n") == .shell)
+        #expect(LanguageRegistry.detect(path: "/x/a", content: "#!/home/phpdev/bin/python\n") == .python)
+        #expect(LanguageRegistry.detect(path: "/x/a", content: "#!/usr/bin/make -f\n") == .makefile)
+        #expect(LanguageRegistry.detect(path: "/x/a", content: "#!/bin/sh\n") == .shell)
+    }
+
+    @Test func specialNamesAndFrontMatter() {
+        #expect(LanguageRegistry.detect(path: "/repo/.git/config") == .ini)
+        #expect(LanguageRegistry.detect(path: "/x/Dockerfile.dev") == .dockerfile)
+        #expect(LanguageRegistry.detect(path: "/x/dockerfile-notes.md") == .markdown)
+        #expect(LanguageRegistry.detect(path: "/x/Makefile.am") == .makefile)
+        #expect(LanguageRegistry.detect(path: "/x/post", content: "---\ntitle: Hi\n---\n# Heading\nSee [docs](x).\n") == .markdown)
+        #expect(LanguageRegistry.detect(path: "/x/values", content: "---\nname: app\nreplicas: 2\n") == .yaml)
+    }
+
     @Test func fenceInfoStrings() {
         #expect(LanguageRegistry.language(forFenceInfo: "swift") == .swift)
         #expect(LanguageRegistry.language(forFenceInfo: "js {linenos}") == .javascript)
