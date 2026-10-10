@@ -135,7 +135,8 @@ struct ProjectSectionHeader: View {
             Button {
                 collapseAll()
             } label: {
-                Image(systemName: "chevron.up.chevron.down")
+                Label("Collapse All Folders", systemImage: "chevron.up.chevron.down")
+                    .labelStyle(.iconOnly)
             }
             .buttonStyle(.plain)
             .help("Collapse All Folders")
