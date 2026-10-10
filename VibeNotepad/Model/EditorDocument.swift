@@ -42,6 +42,8 @@ final class EditorDocument: Identifiable {
     }
     var isDirty = false
     var fileModificationDate: Date?
+    /// Opened as a binary file: decoded byte for byte, which reloads must do too.
+    var isBinary = false
     var markdownMode: MarkdownMode
     /// Per-document override of the word-wrap setting.
     var wrapLines: Bool? {
@@ -155,6 +157,12 @@ final class EditorDocument: Identifiable {
         editorStorage?.textView.selectedRange().location ?? pendingSelection ?? 0
     }
 
+    /// Marks a change that isn't in the text (line endings, encoding) so the document needs saving.
+    func markChangedWithoutUndo() {
+        if let editor = editorStorage { editor.markDirtyWithoutUndo() } else { pendingDirty = true }
+        isDirty = true
+    }
+
     /// Called by the editor after every edit.
     func contentDidChange() {
         guard let editor = editorStorage else { return }
@@ -165,7 +173,7 @@ final class EditorDocument: Identifiable {
             guard !Task.isCancelled, let self else { return }
             self.scheduleStats(text: self.text)
         }
-        loadedPreview?.setNeedsRender()
+        loadedPreview?.textDidChange()
         Workspace.shared.scheduleSessionSave()
     }
 

@@ -1,6 +1,21 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import VibeCore
+
+extension UTType {
+    /// A tab being dragged to a new position (private to the app, so other apps ignore it).
+    nonisolated static let vibeNotepadTab = UTType(exportedAs: "com.fredymederos.vibenotepad.tab")
+}
+
+/// What a dragged tab carries.
+nonisolated struct TabDragItem: Codable, Sendable, Transferable {
+    let id: UUID
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .vibeNotepadTab)
+    }
+}
 
 /// Open documents as tabs: a sliding selection pill, dirty dots that morph into close
 /// buttons on hover, drag to reorder.
@@ -112,7 +127,7 @@ struct TabItemView: View {
             withAnimation(.snappy(duration: 0.15)) { isHovering = hovering }
         }
         .help(document.fileURL?.abbreviatedPath ?? document.displayName)
-        .draggable(document.id.uuidString) {
+        .draggable(TabDragItem(id: document.id)) {
             HStack(spacing: 6) {
                 FileIcon(language: document.language, size: 15)
                 Text(document.displayName).font(.system(size: 12, weight: .medium))
@@ -121,8 +136,8 @@ struct TabItemView: View {
             .padding(.vertical, 6)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
         }
-        .dropDestination(for: String.self) { items, _ in
-            guard let raw = items.first, let id = UUID(uuidString: raw), id != document.id else { return false }
+        .dropDestination(for: TabDragItem.self) { items, _ in
+            guard let id = items.first?.id, id != document.id else { return false }
             workspace.moveDocument(id, before: document.id)
             return true
         } isTargeted: { targeted in

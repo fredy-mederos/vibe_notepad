@@ -124,8 +124,7 @@ extension Workspace {
             for ending in LineEnding.allCases where ending != document.lineEnding {
                 add("Line Endings: \(ending.description)", "File", "return") {
                     document.lineEnding = ending
-                    document.isDirty = true
-                    document.loadedEditor?.markDirtyWithoutUndo()
+                    document.markChangedWithoutUndo()
                 }
             }
             if hasFile {

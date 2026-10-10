@@ -98,11 +98,13 @@ enum PreviewTemplate {
     (() => {
       const post = (message) => { try { window.webkit.messageHandlers.vibe.postMessage(message); } catch (e) {} };
       let blocks = null;
+      let version = 0;
       const vibe = {
-        update(html) {
+        update(html, textVersion) {
           const content = document.getElementById('content');
           content.innerHTML = html;
           blocks = null;
+          version = textVersion;
           if (!document.body.classList.contains('ready')) {
             // Force a style flush so the fade-in transition runs, without relying on
             // requestAnimationFrame (paused while the window is hidden).
@@ -143,7 +145,7 @@ enum PreviewTemplate {
       document.addEventListener('change', (event) => {
         const target = event.target;
         if (target && target.classList && target.classList.contains('task-list-item-checkbox')) {
-          post({ type: 'toggleTask', line: Number(target.dataset.line), checked: target.checked });
+          post({ type: 'toggleTask', line: Number(target.dataset.line), checked: target.checked, version });
         }
       });
       post({ type: 'ready' });

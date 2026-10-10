@@ -106,13 +106,19 @@ final class CodeTextView: NSTextView {
         scrollRangeToVisible(selectedRange())
     }
 
+    /// ⇧↩ would insert a Unicode line separator (U+2028), which code files don't want.
+    override func insertLineBreak(_ sender: Any?) {
+        insertNewline(sender)
+    }
+
     override func insertTab(_ sender: Any?) {
         let selection = selectedRange()
         if selection.length > 0, nsText.substring(with: selection).contains("\n") {
             controller?.indent()
             return
         }
-        guard !indentation.usesTabs else {
+        // Makefile recipes must be indented with real tabs.
+        guard !indentation.usesTabs, language != .makefile else {
             super.insertTab(sender)
             return
         }
@@ -148,11 +154,12 @@ final class CodeTextView: NSTextView {
         }
         // Soft tabs: delete back to the previous tab stop inside leading whitespace.
         if !indentation.usesTabs {
-            let lineStart = text.lineRange(for: NSRange(location: location, length: 0)).location
-            let leading = text.substring(with: NSRange(location: lineStart, length: location - lineStart))
-            if !leading.isEmpty, leading.allSatisfy({ $0 == " " }) {
+            var start = location
+            while start > 0, text.character(at: start - 1) == 0x20 { start -= 1 }
+            let spaces = location - start
+            if spaces > 1, start == 0 || text.character(at: start - 1) == 0x0A {
                 let width = indentation.width
-                let remove = leading.count % width == 0 ? min(width, leading.count) : leading.count % width
+                let remove = spaces % width == 0 ? min(width, spaces) : spaces % width
                 if remove > 1 {
                     setSelectedRange(NSRange(location: location - remove, length: remove))
                     super.deleteBackward(sender)
@@ -257,9 +264,17 @@ final class CodeTextView: NSTextView {
     /// Column at `location` with tabs expanded.
     func visualColumn(at location: Int) -> Int {
         let text = nsText
-        let lineStart = text.lineRange(for: NSRange(location: min(location, text.length), length: 0)).location
+        let location = min(location, text.length)
+        var lineStart: Int
+        if let engine = controller?.engine, engine.textLength == text.length {
+            lineStart = engine.lineStart(engine.lineIndex(containing: location))
+        } else {
+            lineStart = text.lineRange(for: NSRange(location: location, length: 0)).location
+        }
+        // Only the position relative to tab stops matters; on huge lines the tail is enough.
+        lineStart = max(lineStart, location - 4096)
         var column = 0
-        for i in lineStart..<min(location, text.length) {
+        for i in lineStart..<location {
             column = text.character(at: i) == 0x09 ? (column / indentation.width + 1) * indentation.width : column + 1
         }
         return column

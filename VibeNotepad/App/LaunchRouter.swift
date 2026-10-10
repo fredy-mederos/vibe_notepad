@@ -119,6 +119,12 @@ enum LaunchRouter {
                 editor.textView.mouseDown(with: event)
             }
             NSLog("[debug] click line %d → folds %d", line, editor.layoutManager.foldSpans.count)
+        case "debug-task":
+            // Clicks the nth task checkbox in the preview, like a reader would.
+            guard let preview = Workspace.shared.selectedDocument?.loadedPreview else { break }
+            let index = value("index").flatMap(Int.init) ?? 0
+            preview.webView.callAsyncJavaScript("document.querySelectorAll('.task-list-item-checkbox')[index]?.click()",
+                                                arguments: ["index": index], in: nil, in: .defaultClient, completionHandler: nil)
         case "debug-fold":
             guard let editor = Workspace.shared.activeEditor else { break }
             let start = Date()

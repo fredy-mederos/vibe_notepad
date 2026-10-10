@@ -613,7 +613,19 @@ private struct PaletteHintLabelStyle: LabelStyle {
 
 /// Enumerates files under a folder for Quick Open (skipping VCS and build folders).
 enum FolderScanner {
+    /// Folders too broad to crawl: scanning them is slow, and walking into Desktop, Documents,
+    /// Photos or Mail from the home folder would trigger macOS privacy prompts.
+    nonisolated static func isTooBroad(_ directory: URL) -> Bool {
+        let path = directory.standardizedFileURL.resolvingSymlinksInPath().path
+        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.resolvingSymlinksInPath().path
+        if ["/", home, "/Users", "/Volumes", "/System", "/Library", "/Applications", "/private", "/usr", "/opt", "/bin", "/sbin"].contains(path) {
+            return true
+        }
+        return path.hasPrefix(home + "/Library/") || path == home + "/Library" || path.hasPrefix("/System/") || path.hasPrefix("/Library/")
+    }
+
     nonisolated static func files(in directory: URL, maxDepth: Int, limit: Int) -> [URL] {
+        guard !isTooBroad(directory) else { return [] }
         let skipped: Set<String> = [".git", ".svn", ".hg", "node_modules", "Pods", "DerivedData", ".build", "build", "dist", ".gradle", ".idea", ".next", "vendor", "__pycache__", ".venv", "venv", "Carthage", ".swiftpm", "target"]
         let binaryExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "ico", "icns", "pdf", "zip", "gz", "tar", "dmg", "app", "a", "o", "so", "dylib", "class", "jar", "mp3", "mp4", "mov", "wav", "ttf", "otf", "woff", "woff2", "sqlite", "db", "bin", "exe", "car"]
         guard let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey], options: [.skipsPackageDescendants]) else { return [] }

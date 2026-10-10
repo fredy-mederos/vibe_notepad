@@ -72,6 +72,8 @@ final class SyntaxStyler {
         let lo = max(0, lines.lowerBound), hi = min(engine.lineCount, lines.upperBound)
         guard lo < hi else { return }
         let range = engine.characterRange(lines: lo..<hi)
+        // The engine must describe the current text; a stale range would raise out of bounds.
+        guard engine.textLength == textStorage.length, NSMaxRange(range) <= textStorage.length else { return }
         let text = textStorage.mutableString
         textStorage.beginEditing()
         if range.length > 0 { textStorage.setAttributes(baseAttributes, range: range) }

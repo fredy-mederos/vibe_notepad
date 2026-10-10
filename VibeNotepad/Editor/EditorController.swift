@@ -22,10 +22,11 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
     private var isLoading = false
     private var changeCount = 0 {
-        didSet {
-            let dirty = changeCount != 0
-            if document.isDirty != dirty { document.isDirty = dirty }
-        }
+        didSet { updateDirtyState() }
+    }
+    /// Unsaved changes outside the undo history: line endings, encoding, restored hot-exit text.
+    private var hasChangesWithoutUndo = false {
+        didSet { updateDirtyState() }
     }
     private var styleSignature = ""
     private var appliedThemeID: String?
@@ -154,7 +155,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         textStorage.setAttributedString(NSAttributedString(string: text, attributes: styler.baseAttributes))
         textStorage.endEditing()
         isLoading = false
-        engine.reset(text: nsText, language: document.language)
+        if engine.textLength != textStorage.length { engine.reset(text: nsText, language: document.language) }
         restyleAfterReset()
         gutter.showsFoldMarkers = supportsFolding
         gutter.updateThickness(force: true)
@@ -177,10 +178,13 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         textStorage.setAttributes(styler.baseAttributes, range: NSRange(location: 0, length: textStorage.length))
         textStorage.endEditing()
         isLoading = false
-        engine.reset(text: nsText, language: document.language)
+        if engine.textLength != textStorage.length { engine.reset(text: nsText, language: document.language) }
         restyleAfterReset()
         undoManager.removeAllActions()
-        if markClean { changeCount = 0 }
+        if markClean {
+            changeCount = 0
+            hasChangesWithoutUndo = false
+        }
         textView.setSelectedRange(clamp(selection))
         scrollView.contentView.scroll(to: origin)
         scrollView.reflectScrolledClipView(scrollView.contentView)
@@ -205,12 +209,19 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
     func markSaved() {
         changeCount = 0
+        hasChangesWithoutUndo = false
         textView.breakUndoCoalescing()
     }
 
-    /// For hot-exit restores: content differs from disk but there is no undo history.
+    /// For changes undo can't take back (hot-exit restores, line endings, encoding): the
+    /// document stays dirty until it's saved or reverted.
     func markDirtyWithoutUndo() {
-        changeCount = 1
+        hasChangesWithoutUndo = true
+    }
+
+    private func updateDirtyState() {
+        let dirty = changeCount != 0 || hasChangesWithoutUndo
+        if document.isDirty != dirty { document.isDirty = dirty }
     }
 
     // MARK: Appearance & settings
@@ -323,7 +334,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
     /// Paints the visible lines (plus a margin) that still need styling.
     func styleVisible() {
-        guard !textView.hasMarkedText() else { return }
+        guard !textView.hasMarkedText(), !isLoading, engine.textLength == textStorage.length else { return }
         // Styling can trigger layout that scrolls or resizes the view, which calls back here.
         guard !isStylingVisible else {
             scheduleStyleVisible()
@@ -381,7 +392,13 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     // MARK: NSTextStorageDelegate
 
     func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
-        guard editedMask.contains(.editedCharacters), !isLoading else { return }
+        guard editedMask.contains(.editedCharacters) else { return }
+        // Whole-text loads re-lex from scratch, before layout (and any scroll or styling it
+        // triggers) can see line offsets from the old text.
+        guard !isLoading else {
+            engine.reset(text: textStorage.mutableString, language: document.language)
+            return
+        }
         engine.applyEdit(text: textStorage.mutableString, editedRange: editedRange, changeInLength: delta)
         textVersion += 1
         foldRegions.applyEdit(editedRange: editedRange, changeInLength: delta)
@@ -529,14 +546,14 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     }
 
     /// Applies an edit through the text view so it is undoable.
-    func apply(_ edit: TextEdit, actionName: String? = nil) {
+    func apply(_ edit: TextEdit, actionName: String? = nil, scroll: Bool = true) {
         let range = clamp(edit.range)
         guard textView.shouldChangeText(in: range, replacementString: edit.replacement) else { return }
         textStorage.replaceCharacters(in: range, with: edit.replacement)
         textView.didChangeText()
         let selection = clamp(edit.selection)
         textView.setSelectedRange(selection)
-        textView.scrollRangeToVisible(selection)
+        if scroll { textView.scrollRangeToVisible(selection) }
         if let actionName { undoManager.setActionName(actionName) }
     }
 

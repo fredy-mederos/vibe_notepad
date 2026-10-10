@@ -166,7 +166,10 @@ final class Workspace {
     func newDocument(text: String = "", language: LanguageID = .plainText) -> EditorDocument {
         let used = Set(documents.filter(\.isUntitled).map(\.untitledNumber))
         let number = (1...).first { !used.contains($0) } ?? 1
+        let text = TextFileCodec.normalizeLineEndings(text)
         let document = EditorDocument(fileURL: nil, text: text, language: language, untitledNumber: number)
+        // Text handed over by a link or script exists nowhere else: closing should offer to save it.
+        if !text.isEmpty { document.markChangedWithoutUndo() }
         insert(document)
         return document
     }
@@ -201,17 +204,22 @@ final class Workspace {
     @discardableResult
     func open(url rawURL: URL, select shouldSelect: Bool = true, encoding: String.Encoding? = nil) -> EditorDocument? {
         let url = rawURL.canonicalFileURL
-        if let existing = documents.first(where: { $0.path == url.path }) {
+        // The same file reached through a symlink (or the symlink itself) shares one tab.
+        let resolved = url.resolvingSymlinksInPath().canonicalPath
+        if let existing = documents.first(where: { $0.path == url.path })
+            ?? documents.first(where: { $0.fileURL.map { $0.resolvingSymlinksInPath().canonicalPath == resolved } ?? false }) {
             if shouldSelect { select(existing) }
             return existing
         }
         let loaded: FileIO.Loaded
+        var isBinary = false
         do {
             loaded = try FileIO.load(url, encoding: encoding)
         } catch TextFileCodec.CodecError.binary {
             guard confirmOpenBinary(url) else { return nil }
-            guard let latin = try? FileIO.load(url, encoding: .isoLatin1) else { return nil }
+            guard let latin = try? FileIO.load(url, encoding: .isoLatin1, preserveLineEndings: true) else { return nil }
             loaded = latin
+            isBinary = true
         } catch {
             if !FileManager.default.fileExists(atPath: url.path) {
                 recents.refreshMissing()
@@ -230,6 +238,7 @@ final class Workspace {
         document.hasBOM = loaded.decoded.hasBOM
         document.lineEnding = loaded.decoded.lineEnding
         document.fileModificationDate = loaded.modificationDate
+        document.isBinary = isBinary
         if let mode = remembered?.markdownMode { document.markdownMode = mode }
         document.pendingSelection = remembered?.selection
 
@@ -294,6 +303,11 @@ final class Workspace {
     }
 
     func closeSelected() {
+        // ⌘W in Settings (or any other window) closes that window, not a tab behind it.
+        if let key = NSApp.keyWindow, let main = mainWindow, key !== main {
+            key.performClose(nil)
+            return
+        }
         if let document = selectedDocument {
             close(document)
         } else {
@@ -383,7 +397,22 @@ final class Workspace {
     @discardableResult
     func save(_ document: EditorDocument) async -> Bool {
         guard let url = document.fileURL else { return await saveAs(document) }
+        // Another app changed the file since we read it: don't silently overwrite its changes.
+        if let known = document.fileModificationDate, let current = FileIO.modificationDate(of: url),
+           abs(current.timeIntervalSince(known)) > 0.0005, !confirmOverwrite(document) {
+            return false
+        }
         return write(document, to: url)
+    }
+
+    private func confirmOverwrite(_ document: EditorDocument) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "“\(document.displayName)” was changed by another app"
+        alert.informativeText = "Saving replaces those changes with the text in this tab."
+        alert.addButton(withTitle: "Save Anyway")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     @discardableResult
@@ -453,6 +482,7 @@ final class Workspace {
         document.fileModificationDate = date
         document.externalChange = nil
         document.loadedEditor?.markSaved()
+        document.pendingDirty = false
         document.isDirty = false
         document.saveCount += 1
         recents.noteOpened(url)
@@ -463,24 +493,38 @@ final class Workspace {
     // MARK: Reloading
 
     func revert(_ document: EditorDocument) {
-        guard let url = document.fileURL else { return }
-        reload(document, from: url, encoding: nil, announce: "Reverted to saved")
+        guard let url = document.fileURL, confirmDiscardingChanges(document, action: "Revert") else { return }
+        reload(document, from: url, encoding: document.isBinary ? .isoLatin1 : nil, announce: "Reverted to saved")
     }
 
     func reopen(_ document: EditorDocument, encoding: String.Encoding) {
-        guard let url = document.fileURL else { return }
+        guard let url = document.fileURL, confirmDiscardingChanges(document, action: "Reopen") else { return }
+        document.isBinary = false
         reload(document, from: url, encoding: encoding, announce: "Reopened as \(TextFileCodec.name(of: encoding))")
+    }
+
+    /// Reverting or reopening throws away unsaved edits (and their undo history): ask first.
+    private func confirmDiscardingChanges(_ document: EditorDocument, action: String) -> Bool {
+        guard document.isDirty else { return true }
+        let alert = NSAlert()
+        alert.messageText = "Discard your changes to “\(document.displayName)”?"
+        alert.informativeText = "\(action) loads the file from disk again. Your unsaved changes will be lost."
+        alert.addButton(withTitle: action)
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func reload(_ document: EditorDocument, from url: URL, encoding: String.Encoding?, announce: String?) {
         do {
-            let loaded = try FileIO.load(url, encoding: encoding)
+            let loaded = try FileIO.load(url, encoding: encoding, preserveLineEndings: document.isBinary)
             document.encoding = loaded.decoded.encoding
             document.hasBOM = loaded.decoded.hasBOM
             document.lineEnding = loaded.decoded.lineEnding
             document.fileModificationDate = loaded.modificationDate
             document.externalChange = nil
             document.editor.replaceAllText(loaded.decoded.text)
+            document.pendingDirty = false
             document.isDirty = false
             document.reloadCount += 1
             if let announce { toast(announce, symbol: "arrow.clockwise.circle.fill") }

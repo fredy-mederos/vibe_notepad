@@ -62,8 +62,7 @@ struct StatusBarView: View {
                     Button {
                         guard document.lineEnding != ending else { return }
                         document.lineEnding = ending
-                        document.loadedEditor?.markDirtyWithoutUndo()
-                        document.isDirty = true
+                        document.markChangedWithoutUndo()
                     } label: {
                         if ending == document.lineEnding {
                             Label(ending.description, systemImage: "checkmark")

@@ -19,6 +19,18 @@ nonisolated struct RecentFile: Codable, Hashable, Identifiable, Sendable {
     var name: String { url.lastPathComponent }
 }
 
+nonisolated extension RecentFile {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        path = try c.decode(String.self, forKey: .path)
+        lastOpened = (try? c.decode(Date.self, forKey: .lastOpened)) ?? .distantPast
+        pinned = (try? c.decode(Bool.self, forKey: .pinned)) ?? false
+        selection = (try? c.decodeIfPresent(Int.self, forKey: .selection)) ?? nil
+        language = (try? c.decodeIfPresent(LanguageID.self, forKey: .language)) ?? nil
+        markdownMode = (try? c.decodeIfPresent(MarkdownMode.self, forKey: .markdownMode)) ?? nil
+    }
+}
+
 /// Recent and pinned files, persisted as JSON in Application Support.
 @Observable
 final class RecentFilesStore {
@@ -115,7 +127,7 @@ final class RecentFilesStore {
 
     private func load() {
         guard let data = try? Data(contentsOf: fileURL),
-              let decoded = try? JSONDecoder().decode([RecentFile].self, from: data) else { return }
+              let decoded = (try? JSONDecoder().decode([Lossy<RecentFile>].self, from: data))?.compactMap(\.value) else { return }
         // Normalize and de-duplicate paths saved by older versions.
         var seen = Set<String>()
         items = decoded.compactMap { item in

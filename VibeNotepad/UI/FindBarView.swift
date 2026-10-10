@@ -60,7 +60,8 @@ struct FindBarView: View {
                         Button("Replace") { workspace.replaceCurrent() }
                             .disabled(workspace.findMatchCount == 0)
                         Button("All") { workspace.replaceAll() }
-                            .disabled(workspace.findMatchCount == 0)
+                            // Zero-length regex matches (`^`, `$`) aren't counted but can still be replaced.
+                            .disabled(workspace.findMatchCount == 0 && !(workspace.findOptions.isRegex && !workspace.findQuery.isEmpty))
                             .help("Replace All")
                     }
                     .controlSize(.small)

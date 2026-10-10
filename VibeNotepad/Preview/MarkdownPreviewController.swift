@@ -12,6 +12,10 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
     private var isPageLoaded = false
     private var renderTask: Task<Void, Never>?
     private var renderGeneration = 0
+    /// Bumped on every edit; the page echoes the version it was rendered from with task clicks.
+    private var textVersion = 0
+    /// A task was toggled from the page: keep the preview where the reader is.
+    private var keepsScrollOnNextRender = false
     private var templateURL: URL
     private var lastSync: (line: Int, fraction: Double, atEnd: Bool)?
 
@@ -53,7 +57,13 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
         }
     }
 
-    /// Debounced re-render after edits.
+    /// Called after every edit.
+    func textDidChange() {
+        textVersion += 1
+        setNeedsRender()
+    }
+
+    /// Debounced re-render.
     func setNeedsRender() {
         renderTask?.cancel()
         renderTask = Task { [weak self] in
@@ -67,6 +77,7 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
         guard isPageLoaded else { return }
         renderGeneration += 1
         let generation = renderGeneration
+        let version = textVersion
         let markdown = document.text
         let html: String
         if markdown.utf16.count > 250_000 {
@@ -75,7 +86,7 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
             html = Self.renderHTML(markdown)
         }
         guard generation == renderGeneration else { return }
-        webView.callAsyncJavaScript("window.vibe && window.vibe.update(html)", arguments: ["html": html], in: nil, in: .defaultClient) { [weak self] _ in
+        webView.callAsyncJavaScript("window.vibe && window.vibe.update(html, version)", arguments: ["html": html, "version": version], in: nil, in: .defaultClient) { [weak self] _ in
             guard let self else { return }
             if self.webView.alphaValue < 1 {
                 NSAnimationContext.runAnimationGroup { context in
@@ -83,7 +94,11 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
                     self.webView.animator().alphaValue = 1
                 }
             }
-            self.syncScroll(force: true)
+            if self.keepsScrollOnNextRender {
+                self.keepsScrollOnNextRender = false
+            } else {
+                self.syncScroll(force: true)
+            }
         }
     }
 
@@ -144,14 +159,19 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
         switch type {
         case "toggleTask":
             guard let line = message["line"] as? Int else { return }
-            toggleTask(atLine: line)
+            // The page was rendered from older text (lines may have moved): just re-render.
+            guard (message["version"] as? Int) == textVersion else {
+                Task { await render() }
+                return
+            }
+            toggleTask(atLine: line, checked: message["checked"] as? Bool)
         default:
             break
         }
     }
 
-    /// Clicking a checkbox in the preview flips `[ ]` ↔ `[x]` in the source.
-    private func toggleTask(atLine line: Int) {
+    /// Clicking a checkbox in the preview sets `[ ]` / `[x]` in the source.
+    private func toggleTask(atLine line: Int, checked: Bool?) {
         let editor = document.editor
         guard line >= 0, line < editor.engine.lineCount else { return }
         let start = editor.engine.lineStart(line)
@@ -161,10 +181,12 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
               let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) else { return }
         let markRange = match.range(at: 2)
         let current = (text as NSString).substring(with: markRange)
-        let replacement = current == " " ? "x" : " "
+        let replacement = (checked ?? (current == " ")) ? "x" : " "
+        guard replacement != current.lowercased() else { return }
         let range = NSRange(location: start + markRange.location, length: 1)
         let selection = editor.textView.selectedRange()
-        editor.apply(TextEdit(range: range, replacement: replacement, selection: selection), actionName: "Toggle Task")
+        keepsScrollOnNextRender = true
+        editor.apply(TextEdit(range: range, replacement: replacement, selection: selection), actionName: "Toggle Task", scroll: false)
     }
 
     // MARK: WKNavigationDelegate

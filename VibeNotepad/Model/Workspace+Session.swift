@@ -18,11 +18,70 @@ nonisolated struct SessionDocument: Codable, Sendable {
     var lineEnding: LineEnding
     var wrapLines: Bool?
     var modificationDate: Date?
+    /// Opened as a binary file (decoded byte for byte).
+    var binary: Bool?
+}
+
+nonisolated extension SessionDocument {
+    /// Values this version doesn't know (a language added later, say) fall back to defaults
+    /// instead of dropping the tab and its unsaved text.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        path = try c.decodeIfPresent(String.self, forKey: .path)
+        buffer = try c.decodeIfPresent(String.self, forKey: .buffer)
+        untitledNumber = (try? c.decode(Int.self, forKey: .untitledNumber)) ?? 1
+        dirty = (try? c.decode(Bool.self, forKey: .dirty)) ?? (buffer != nil)
+        selection = (try? c.decode(Int.self, forKey: .selection)) ?? 0
+        language = (try? c.decode(LanguageID.self, forKey: .language)) ?? .plainText
+        languageIsManual = (try? c.decode(Bool.self, forKey: .languageIsManual)) ?? false
+        markdownMode = (try? c.decode(MarkdownMode.self, forKey: .markdownMode)) ?? .split
+        encoding = (try? c.decode(UInt.self, forKey: .encoding)) ?? String.Encoding.utf8.rawValue
+        hasBOM = (try? c.decode(Bool.self, forKey: .hasBOM)) ?? false
+        lineEnding = (try? c.decode(LineEnding.self, forKey: .lineEnding)) ?? .lf
+        wrapLines = (try? c.decodeIfPresent(Bool.self, forKey: .wrapLines)) ?? nil
+        modificationDate = (try? c.decodeIfPresent(Date.self, forKey: .modificationDate)) ?? nil
+        binary = (try? c.decodeIfPresent(Bool.self, forKey: .binary)) ?? nil
+    }
 }
 
 nonisolated struct SessionState: Codable, Sendable {
     var documents: [SessionDocument]
     var selectedIndex: Int?
+    /// Entries that couldn't be read at all (their buffers must not be cleaned up).
+    var unreadableDocuments = 0
+
+    enum CodingKeys: String, CodingKey {
+        case documents, selectedIndex
+    }
+
+    init(documents: [SessionDocument], selectedIndex: Int?) {
+        self.documents = documents
+        self.selectedIndex = selectedIndex
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let entries = try c.decode([Lossy<SessionDocument>].self, forKey: .documents)
+        let selected = (try? c.decodeIfPresent(Int.self, forKey: .selectedIndex)) ?? nil
+        documents = []
+        for (index, entry) in entries.enumerated() {
+            guard let document = entry.value else {
+                unreadableDocuments += 1
+                continue
+            }
+            if index == selected { selectedIndex = documents.count }
+            documents.append(document)
+        }
+    }
+}
+
+/// Decodes an array element without failing the whole array.
+nonisolated struct Lossy<Value: Decodable>: Decodable {
+    let value: Value?
+
+    init(from decoder: Decoder) throws {
+        value = try? Value(from: decoder)
+    }
 }
 
 extension Workspace {
@@ -46,6 +105,7 @@ extension Workspace {
             return
         }
         var entries: [SessionDocument] = []
+        var selectedIndex: Int?
         var keptBuffers = Set<String>()
         for document in documents {
             var bufferName: String?
@@ -61,6 +121,7 @@ extension Workspace {
                 }
             }
             if document.isUntitled, bufferName == nil { continue }
+            if document.id == selectedID { selectedIndex = entries.count }
             entries.append(SessionDocument(
                 path: document.path,
                 untitledNumber: document.untitledNumber,
@@ -74,10 +135,10 @@ extension Workspace {
                 hasBOM: document.hasBOM,
                 lineEnding: document.lineEnding,
                 wrapLines: document.wrapLines,
-                modificationDate: document.fileModificationDate
+                modificationDate: document.fileModificationDate,
+                binary: document.isBinary ? true : nil
             ))
         }
-        let selectedIndex = documents.firstIndex { $0.id == selectedID }
         let state = SessionState(documents: entries, selectedIndex: selectedIndex)
         do {
             let data = try JSONEncoder().encode(state)
@@ -93,9 +154,37 @@ extension Workspace {
         }
     }
 
+    /// Moves hot-exit buffers that no readable session entry refers to into "Recovered", so a
+    /// damaged session never costs unsaved text.
+    private func recoverUnclaimedBuffers(claimed: Set<String>) {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(atPath: AppPaths.buffersDirectory.path) else { return }
+        let unclaimed = files.filter { !claimed.contains($0) && !$0.hasPrefix(".") }
+        guard !unclaimed.isEmpty else { return }
+        let folder = AppPaths.supportDirectory.appendingPathComponent("Recovered", isDirectory: true)
+        try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        let stamp = Int(Date().timeIntervalSince1970)
+        for file in unclaimed {
+            try? fm.moveItem(at: AppPaths.buffersDirectory.appendingPathComponent(file),
+                             to: folder.appendingPathComponent("\(stamp)-\(file)"))
+        }
+        NSLog("Vibe Notepad: moved %d unsaved buffer(s) from an unreadable session to %@", unclaimed.count, folder.path)
+        toast("Unsaved text from the last session was kept in Recovered", symbol: "lifepreserver", tint: .orange)
+    }
+
     func restoreSession() {
-        guard let data = try? Data(contentsOf: sessionURL),
-              let state = try? JSONDecoder().decode(SessionState.self, from: data) else { return }
+        guard let data = try? Data(contentsOf: sessionURL) else { return }
+        guard let state = try? JSONDecoder().decode(SessionState.self, from: data) else {
+            // Keep the unreadable session around instead of overwriting it, and its unsaved text.
+            let backup = AppPaths.supportDirectory.appendingPathComponent("session-unreadable-\(Int(Date().timeIntervalSince1970)).json")
+            try? FileManager.default.moveItem(at: sessionURL, to: backup)
+            NSLog("Vibe Notepad: couldn't read the saved session; kept it as \(backup.lastPathComponent)")
+            recoverUnclaimedBuffers(claimed: [])
+            return
+        }
+        if state.unreadableDocuments > 0 {
+            recoverUnclaimedBuffers(claimed: Set(state.documents.compactMap(\.buffer)))
+        }
         isRestoringSession = true
         defer { isRestoringSession = false }
 
@@ -107,13 +196,15 @@ extension Workspace {
             var document: EditorDocument?
             if let path = entry.path {
                 let url = URL(fileURLWithPath: path)
-                if FileManager.default.fileExists(atPath: path), let loaded = try? FileIO.load(url, encoding: String.Encoding(rawValue: entry.encoding)) {
+                if FileManager.default.fileExists(atPath: path),
+                   let loaded = try? FileIO.load(url, encoding: String.Encoding(rawValue: entry.encoding), preserveLineEndings: entry.binary == true) {
                     let text = (entry.dirty ? buffer : nil) ?? loaded.decoded.text
                     let doc = EditorDocument(fileURL: url, text: text, language: entry.language)
                     doc.encoding = loaded.decoded.encoding
                     doc.hasBOM = loaded.decoded.hasBOM
                     doc.lineEnding = loaded.decoded.lineEnding
                     doc.fileModificationDate = loaded.modificationDate
+                    doc.isBinary = entry.binary == true
                     if entry.dirty, buffer != nil {
                         doc.isDirty = true
                         doc.pendingDirty = true
