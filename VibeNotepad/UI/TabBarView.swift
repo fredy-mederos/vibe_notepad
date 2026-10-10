@@ -34,6 +34,7 @@ struct TabBarView: View {
                     ForEach(workspace.documents) { document in
                         TabItemView(document: document,
                                     isSelected: document.id == workspace.selectedID,
+                                    isInOtherPane: document.id != workspace.selectedID && workspace.isShownInPane(document),
                                     namespace: namespace)
                             .id(document.id)
                             .transition(.asymmetric(
@@ -73,6 +74,8 @@ struct TabItemView: View {
     @Environment(AppSettings.self) private var settings
     @Bindable var document: EditorDocument
     let isSelected: Bool
+    /// Shown in a pane other than the focused one.
+    var isInOtherPane = false
     let namespace: Namespace.ID
 
     @State private var isHovering = false
@@ -118,9 +121,10 @@ struct TabItemView: View {
                             .strokeBorder(theme.foreground.color.opacity(theme.isDark ? 0.12 : 0.07), lineWidth: 1)
                     )
                     .matchedGeometryEffect(id: "selected-tab", in: namespace)
-            } else if isHovering || isDropTarget {
+            } else if isHovering || isDropTarget || isInOtherPane {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(theme.foreground.color.opacity(isDropTarget ? 0.12 : 0.055))
+                    .fill(theme.foreground.color.opacity(isDropTarget ? 0.12 : isInOtherPane && !isHovering ? 0.04 : 0.055))
+                    .strokeBorder(theme.foreground.color.opacity(isInOtherPane ? 0.1 : 0), lineWidth: 1)
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -191,6 +195,11 @@ struct TabContextMenu: View {
             .disabled(workspace.documents.count < 2)
         Button("Close Tabs to the Right") { workspace.closeToTheRight(of: document) }
             .disabled(workspace.documents.last?.id == document.id)
+        Divider()
+        Button("Open to the Right", systemImage: "rectangle.split.2x1") { workspace.splitPane(.horizontal, showing: document) }
+            .disabled(workspace.paneCount >= Workspace.maxPanes)
+        Button("Open Below", systemImage: "rectangle.split.1x2") { workspace.splitPane(.vertical, showing: document) }
+            .disabled(workspace.paneCount >= Workspace.maxPanes)
         Divider()
         if let url = document.fileURL {
             EnclosingFolderButton(item: url)

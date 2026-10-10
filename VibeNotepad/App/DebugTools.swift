@@ -1,6 +1,7 @@
 #if DEBUG
 import AppKit
 import QuartzCore
+import VibeCore
 
 /// Development helpers reachable through `vibenotepad://debug-…` links (Debug builds only).
 enum DebugTools {
@@ -84,6 +85,77 @@ enum DebugTools {
                 lines.append("rows \(table.numberOfRows), selected row \(table.selectedRow), visible \(visible.location)..<\(visible.location + visible.length), offset \(Int(table.visibleRect.minY))")
             }
             try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
+    /// Drives the panes, then writes how they're laid out to `path`. Ops: split (value h or v, of pane
+    /// index `pane`), layout (a preset name), focus (left, right, up, down, next), close (pane index),
+    /// click (value "x,y" as fractions of the window, through the click monitor), drop (value
+    /// "tab,zone": a tab name dropped on pane index `pane`), report.
+    static func panes(_ op: String, value: String?, pane index: Int?, report path: String) {
+        let workspace = Workspace.shared
+        let panes = workspace.paneLayout.paneIDs
+        let pane = index.flatMap { $0 < panes.count ? panes[$0] : nil }
+        switch op {
+        case "split":
+            workspace.splitPane(value == "v" ? .vertical : .horizontal, pane: pane)
+        case "layout":
+            if let preset = PaneLayout.Preset(rawValue: value ?? "") { workspace.applyLayout(preset) }
+        case "focus":
+            switch value {
+            case "left": workspace.focusPane(toward: .left)
+            case "right": workspace.focusPane(toward: .right)
+            case "up": workspace.focusPane(toward: .up)
+            case "down": workspace.focusPane(toward: .down)
+            default: workspace.focusNextPane()
+            }
+        case "close":
+            workspace.closePane(pane)
+        case "click":
+            let parts = (value ?? "").split(separator: ",").compactMap { Double($0) }
+            if parts.count == 2, let window = workspace.windowReference, let content = window.contentView {
+                let point = NSPoint(x: content.bounds.width * parts[0], y: content.bounds.height * (1 - parts[1]))
+                let location = content.convert(point, to: nil)
+                if let event = NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [], timestamp: 0,
+                                                  windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                    workspace.paneClicked(event)
+                }
+            }
+        case "drop":
+            let parts = (value ?? "").split(separator: ",").map(String.init)
+            let zones: [String: PaneDropZone] = ["center": .center, "left": .left, "right": .right, "top": .top, "bottom": .bottom]
+            if parts.count == 2, let pane, let zone = zones[parts[1]], let document = workspace.documents.first(where: { $0.displayName == parts[0] }) {
+                workspace.dropTab(document.id, on: pane, zone: zone)
+            }
+        default:
+            break
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            let workspace = Workspace.shared
+            let window = workspace.windowReference
+            let responder = (window?.firstResponder as? CodeTextView)?.controller?.document.displayName ?? String(describing: window?.firstResponder.map { type(of: $0) })
+            var lines = ["layout \(describe(workspace.paneLayout))",
+                         "focused \(workspace.paneLayout.paneIDs.firstIndex(of: workspace.focusedPaneID).map(String.init) ?? "?"), selected \(workspace.selectedDocument?.displayName ?? "-"), first responder \(responder)"]
+            for (index, id) in workspace.paneLayout.paneIDs.enumerated() {
+                let frame = workspace.paneFrames[id].map { "\(Int($0.minX)),\(Int($0.minY)) \(Int($0.width))×\(Int($0.height))" } ?? "-"
+                let hosted = workspace.document(inPane: id)?.loadedEditor.map { editor -> String in
+                    if editor.rootView.window != nil { return "on screen" }
+                    guard let container = editor.rootView.superview else { return "not hosted" }
+                    return "in a container \(container.window == nil ? "off screen" : "on screen?") (superview \(container.superview == nil ? "none" : "yes"))"
+                } ?? "-"
+                lines.append("pane \(index): \(workspace.document(inPane: id)?.displayName ?? "(empty)") at \(frame), editor \(hosted)")
+            }
+            lines.append("tabs \(workspace.documents.map(\.displayName).joined(separator: " "))")
+            try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
+    private static func describe(_ layout: PaneLayout) -> String {
+        switch layout {
+        case .pane(let id):
+            return Workspace.shared.paneLayout.paneIDs.firstIndex(of: id).map { "P\($0)" } ?? "P?"
+        case .split(_, let axis, let ratio, let first, let second):
+            return "\(axis == .horizontal ? "H" : "V")(\(String(format: "%.2f", ratio)) \(describe(first)) \(describe(second)))"
         }
     }
 

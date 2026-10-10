@@ -256,6 +256,8 @@ struct RecentFileRow: View {
         .contextMenu {
             Button("Open", systemImage: "doc.text") { workspace.open(url: item.url) }
                 .disabled(missing)
+            OpenInPaneButtons(url: item.url)
+                .disabled(missing)
             Button(item.pinned ? "Unpin" : "Pin to Top", systemImage: item.pinned ? "pin.slash" : "pin") {
                 withAnimation(.snappy) { workspace.recents.togglePin(item.path) }
             }

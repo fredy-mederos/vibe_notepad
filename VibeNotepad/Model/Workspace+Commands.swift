@@ -149,6 +149,17 @@ extension Workspace {
                 }
             }
         }
+        let canSplit = paneCount < Self.maxPanes
+        add("Split Right", "Panes", "rectangle.split.2x1", "⌘\\", enabled: canSplit) { self.splitPane(.horizontal) }
+        add("Split Down", "Panes", "rectangle.split.1x2", "⇧⌘\\", enabled: canSplit) { self.splitPane(.vertical) }
+        if isSplit {
+            add("Close Pane", "Panes", "xmark.square", "⌃⌘W") { self.closePane() }
+            add("Close Other Panes", "Panes", "rectangle") { self.closeOtherPanes() }
+            add("Focus Next Pane", "Panes", "arrow.right.square", "⌥⌘`") { self.focusNextPane() }
+        }
+        for preset in PaneLayout.Preset.allCases where preset != .single || isSplit {
+            add("Layout: \(preset.title)", "Panes", preset.symbol) { self.applyLayout(preset) }
+        }
         add(settings.showLineNumbers ? "Hide Line Numbers" : "Show Line Numbers", "View", "list.number") { self.settings.showLineNumbers.toggle() }
         add(settings.showInvisibles ? "Hide Invisible Characters" : "Show Invisible Characters", "View", "paragraphsign") { self.settings.showInvisibles.toggle() }
         add(settings.showMinimap ? "Hide Minimap" : "Show Minimap", "View", "sidebar.right") { self.settings.showMinimap.toggle() }

@@ -223,6 +223,38 @@ struct AppCommands: Commands {
                 NotificationCenter.default.post(name: .toggleSidebarRequest, object: nil)
             }
             .keyboardShortcut("b")
+            Divider()
+            Button("Split Right") { workspace.splitPane(.horizontal) }
+                .keyboardShortcut("\\")
+                .disabled(workspace.paneCount >= Workspace.maxPanes)
+            Button("Split Down") { workspace.splitPane(.vertical) }
+                .keyboardShortcut("\\", modifiers: [.command, .shift])
+                .disabled(workspace.paneCount >= Workspace.maxPanes)
+            Button("Close Pane") { workspace.closePane() }
+                .keyboardShortcut("w", modifiers: [.command, .control])
+                .disabled(!workspace.isSplit)
+            Menu("Editor Layout") {
+                ForEach(PaneLayout.Preset.allCases, id: \.self) { preset in
+                    Button(preset.title) { workspace.applyLayout(preset) }
+                }
+            }
+            Menu("Focus Pane") {
+                Button("Left") { workspace.focusPane(toward: .left) }
+                    .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+                Button("Right") { workspace.focusPane(toward: .right) }
+                    .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+                Button("Above") { workspace.focusPane(toward: .up) }
+                    .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                Button("Below") { workspace.focusPane(toward: .down) }
+                    .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                Divider()
+                Button("Next Pane") { workspace.focusNextPane() }
+                    .keyboardShortcut("`", modifiers: [.command, .option])
+                Button("Previous Pane") { workspace.focusNextPane(forward: false) }
+                    .keyboardShortcut("`", modifiers: [.command, .option, .shift])
+            }
+            .disabled(!workspace.isSplit)
+            Divider()
             Toggle("Word Wrap", isOn: Binding(
                 get: { document?.wrapLines ?? settings.wrapLines },
                 set: { document?.wrapLines = $0 }

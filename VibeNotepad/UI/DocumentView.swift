@@ -40,7 +40,6 @@ struct DocumentView: View {
         }
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.externalChange)
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.showsMinifiedJSONNotice)
-        .modifier(DocumentProxy(url: document.fileURL))
     }
 }
 

@@ -51,6 +51,7 @@ struct MainView: View {
             window.tabbingMode = .disallowed
             window.isRestorable = false
             workspace.installTabReveal(on: window)
+            workspace.installPaneFocus(on: window)
         })
         .onAppear {
             AppDelegate.shared?.openMainWindow = { openWindow(id: "main") }
@@ -88,21 +89,7 @@ enum SidebarAnimation {
     static let settleDelay: Duration = .milliseconds(400)
 }
 
-/// Adds the title-bar proxy icon (drag the file, ⌘-click for its path) when there is a file.
-/// Applied inside the per-document view so the branch never rebuilds the split view.
-struct DocumentProxy: ViewModifier {
-    let url: URL?
-
-    func body(content: Content) -> some View {
-        if let url {
-            content.navigationDocument(url)
-        } else {
-            content
-        }
-    }
-}
-
-/// Tabs, the current document (or the welcome screen), find bar and status bar.
+/// Tabs, the editor panes (or the welcome screen), find bar and status bar.
 struct DetailView: View {
     @Environment(Workspace.self) private var workspace
     @Environment(AppSettings.self) private var settings
@@ -117,23 +104,8 @@ struct DetailView: View {
             if !workspace.documents.isEmpty {
                 Color.clear.frame(height: showsBars ? TabBarView.height : 0)
             }
-            ZStack(alignment: .topTrailing) {
-                if let document = workspace.selectedDocument {
-                    DocumentView(document: document)
-                        .id(document.id)
-                        .transition(.opacity)
-                } else {
-                    WelcomeView()
-                        .transition(.opacity.combined(with: .scale(scale: 0.985)))
-                }
-                if workspace.findBarVisible, workspace.selectedDocument != nil {
-                    FindBarView()
-                        .padding(.top, 10)
-                        .padding(.trailing, 18)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            PaneNodeView(node: workspace.paneLayout)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             if workspace.selectedDocument != nil {
                 Color.clear.frame(height: showsBars ? StatusBarView.height : 0)
             }
@@ -161,8 +133,23 @@ struct DetailView: View {
             }
         }
         .background(theme.background.color)
+        .background { DocumentProxy(url: workspace.selectedDocument?.fileURL) }
         .animation(.snappy(duration: 0.3), value: workspace.documents.isEmpty)
         .animation(SidebarAnimation.animation, value: settings.showsSidebar)
+    }
+}
+
+/// The title-bar proxy icon (drag the file, ⌘-click for its path) for the focused pane's file. An
+/// empty view of its own, so changing it never rebuilds the panes.
+private struct DocumentProxy: View {
+    let url: URL?
+
+    var body: some View {
+        if let url {
+            Color.clear.navigationDocument(url)
+        } else {
+            Color.clear
+        }
     }
 }
 
@@ -219,6 +206,24 @@ struct MainToolbar: ToolbarContent {
         ToolbarSpacer(.fixed, placement: .primaryAction)
 
         ToolbarItemGroup(placement: .primaryAction) {
+            Menu {
+                Button("Split Right", systemImage: "rectangle.split.2x1") { workspace.splitPane(.horizontal) }
+                    .disabled(workspace.paneCount >= Workspace.maxPanes)
+                Button("Split Down", systemImage: "rectangle.split.1x2") { workspace.splitPane(.vertical) }
+                    .disabled(workspace.paneCount >= Workspace.maxPanes)
+                Divider()
+                ForEach(PaneLayout.Preset.allCases, id: \.self) { preset in
+                    Button(preset.title, systemImage: preset.symbol) { workspace.applyLayout(preset) }
+                }
+                Divider()
+                Button("Close Pane", systemImage: "xmark.square") { workspace.closePane() }
+                    .disabled(!workspace.isSplit)
+            } label: {
+                Label("Split Editor", systemImage: workspace.isSplit ? "rectangle.split.2x2" : "rectangle.split.2x1")
+            }
+            .menuIndicator(.hidden)
+            .help("Split Editor (⌘\\, ⇧⌘\\)")
+
             Button {
                 workspace.showFindBar()
             } label: {

@@ -36,7 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         if !files.isEmpty { Workspace.shared.open(urls: files) }
-        showMainWindow()
+        // Debug links drive the app from scripts without bringing it up.
+        if !urls.allSatisfy({ $0.host?.hasPrefix("debug-") == true }) { showMainWindow() }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

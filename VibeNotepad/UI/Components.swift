@@ -108,9 +108,24 @@ struct WindowAccessor: NSViewRepresentable {
 /// so it survives SwiftUI recreating the representable when tabs switch.
 final class HostingContainerView: NSView {
     var onAttach: (() -> Void)?
+    /// Containers made later win: one on its way out (when a pane moves in the layout, or a document
+    /// to another pane) mustn't take the view back from the container it moved to, which may not be in
+    /// the window yet.
+    private static var count = 0
+    private let serial: Int
+
+    override init(frame: NSRect) {
+        Self.count += 1
+        serial = Self.count
+        super.init(frame: frame)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func host(_ view: NSView) {
         guard view.superview !== self else { return }
+        if let other = view.superview as? HostingContainerView, other.serial > serial { return }
         view.removeFromSuperview()
         view.frame = bounds
         view.autoresizingMask = [.width, .height]

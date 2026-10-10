@@ -181,6 +181,12 @@ final class CodeTextView: NSTextView {
 
     // MARK: Folding
 
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became, let document = controller?.document { Workspace.shared.documentDidTakeFocus(document) }
+        return became
+    }
+
     override func mouseDown(with event: NSEvent) {
         if let layout = editorLayout, !layout.foldSpans.isEmpty, let span = foldPill(at: event, layout: layout) {
             controller?.unfold(range: span.fold)

@@ -305,6 +305,8 @@ enum LaunchRouter {
             } else if let path = value("path") {
                 Workspace.shared.showOpenFolderPanel(revealing: URL(fileURLWithPath: path))
             }
+        case "debug-panes":
+            DebugTools.panes(value("op") ?? "report", value: value("value"), pane: value("pane").flatMap(Int.init), report: value("path") ?? "/tmp/vibe-panes.txt")
         case "debug-sidebar":
             DebugTools.measureSidebarToggle(to: value("path") ?? "/tmp/vibe-sidebar.txt")
         case "debug-undo":

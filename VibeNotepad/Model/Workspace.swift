@@ -27,12 +27,20 @@ final class Workspace {
     static let shared = Workspace()
 
     var documents: [EditorDocument] = []
+    /// The selected tab: it shows in the focused pane (see Workspace+Panes).
     var selectedID: UUID? {
         didSet {
             guard oldValue != selectedID else { return }
+            showSelectionInPanes()
             selectionDidChange(from: oldValue)
         }
     }
+    /// How the editor area is split into panes.
+    var paneLayout: PaneLayout
+    /// The document each pane shows (none for an empty pane). A document shows in one pane at most.
+    var paneDocuments: [UUID: UUID] = [:]
+    /// The pane that follows the tab selection and has the keyboard focus.
+    var focusedPaneID: UUID
     let recents = RecentFilesStore()
     let settings = AppSettings.shared
     /// Folders opened as projects (file trees in the sidebar, Quick Open over all their files).
@@ -63,6 +71,11 @@ final class Workspace {
     var sidebarRevealRequest: SidebarItem?
 
     @ObservationIgnored private var closedFiles: [(url: URL, selection: Int)] = []
+    /// Where each pane is in the window (top-left origin), kept by the pane views for clicks.
+    @ObservationIgnored var paneFrames: [UUID: CGRect] = [:]
+    /// Documents most recently shown first: a new pane shows the latest one that isn't on screen.
+    @ObservationIgnored var documentHistory: [UUID] = []
+    @ObservationIgnored var paneClickMonitor: Any?
     @ObservationIgnored var sessionSaveTaskStorage: Task<Void, Never>?
     @ObservationIgnored private var externalCheckTimer: Timer?
     @ObservationIgnored var isRestoringSession = false
@@ -77,7 +90,11 @@ final class Workspace {
         openSettingsAction?()
     }
 
-    private init() {}
+    private init() {
+        let pane = UUID()
+        paneLayout = .pane(pane)
+        focusedPaneID = pane
+    }
 
     var selectedDocument: EditorDocument? {
         guard let selectedID else { return nil }
@@ -283,15 +300,15 @@ final class Workspace {
         if let mode = remembered?.markdownMode { document.markdownMode = mode }
         document.pendingSelection = remembered?.selection
 
-        // Replace an empty untitled tab, like TextEdit does.
-        if let selected = selectedDocument, selected.isPristineUntitled, documents.count == 1 || shouldSelect {
-            remove(selected, remember: false)
-        }
+        // Replace an empty untitled tab, like TextEdit does (after the file has taken its place, so its
+        // pane shows the file).
+        let replaced = selectedDocument.flatMap { $0.isPristineUntitled && (documents.count == 1 || shouldSelect) ? $0 : nil }
         if shouldSelect {
             insert(document)
         } else {
             withAnimation(.snappy(duration: 0.3)) { documents.append(document) }
         }
+        if let replaced { remove(replaced, remember: false) }
         recents.noteOpened(url)
         scheduleSessionSave()
         return document
@@ -401,9 +418,8 @@ final class Workspace {
         if findBarVisible, selectedID == document.id, documents.count == 1 { findBarVisible = false }
         withAnimation(.snappy(duration: 0.28)) {
             documents.remove(at: index)
-            if selectedID == document.id {
-                selectedID = documents.isEmpty ? nil : documents[min(index, documents.count - 1)].id
-            }
+            documentHistory.removeAll { $0 == document.id }
+            if let pane = pane(showing: document.id) { paneLostDocument(pane, near: index) }
         }
         document.tearDown()
         scheduleSessionSave()

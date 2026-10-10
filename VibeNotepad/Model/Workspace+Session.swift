@@ -51,24 +51,34 @@ nonisolated struct SessionProject: Codable, Sendable {
     var collapsed: Bool?
 }
 
+/// How the editor area was split, and which document (an index into the session's documents)
+/// each pane showed.
+nonisolated struct SessionPanes: Codable, Sendable {
+    var layout: PaneLayout
+    var documents: [String: Int]
+    var focused: UUID
+}
+
 nonisolated struct SessionState: Codable, Sendable {
     var documents: [SessionDocument]
     var selectedIndex: Int?
     /// The folders open as projects, in sidebar order.
     var projects: [SessionProject]
+    var panes: SessionPanes?
     /// Entries that couldn't be read at all (their buffers must not be cleaned up).
     var unreadableDocuments = 0
 
     enum CodingKeys: String, CodingKey {
-        case documents, selectedIndex, projects
+        case documents, selectedIndex, projects, panes
         // Sessions from before several folders could be open.
         case projectPath, expandedFolders
     }
 
-    init(documents: [SessionDocument], selectedIndex: Int?, projects: [SessionProject] = []) {
+    init(documents: [SessionDocument], selectedIndex: Int?, projects: [SessionProject] = [], panes: SessionPanes? = nil) {
         self.documents = documents
         self.selectedIndex = selectedIndex
         self.projects = projects
+        self.panes = panes
     }
 
     func encode(to encoder: Encoder) throws {
@@ -76,6 +86,7 @@ nonisolated struct SessionState: Codable, Sendable {
         try c.encode(documents, forKey: .documents)
         try c.encodeIfPresent(selectedIndex, forKey: .selectedIndex)
         try c.encode(projects, forKey: .projects)
+        try c.encodeIfPresent(panes, forKey: .panes)
     }
 
     init(from decoder: Decoder) throws {
@@ -90,6 +101,7 @@ nonisolated struct SessionState: Codable, Sendable {
         } else {
             projects = []
         }
+        panes = (try? c.decodeIfPresent(SessionPanes.self, forKey: .panes)) ?? nil
         documents = []
         for (index, entry) in entries.enumerated() {
             guard let document = entry.value else {
@@ -134,6 +146,7 @@ extension Workspace {
         var entries: [SessionDocument] = []
         var selectedIndex: Int?
         var keptBuffers = Set<String>()
+        var entryIndex: [UUID: Int] = [:]
         for document in documents {
             var bufferName: String?
             let hasUnsavedContent = document.isDirty || (document.isUntitled && document.characterCount > 0)
@@ -149,6 +162,7 @@ extension Workspace {
             }
             if document.isUntitled, bufferName == nil { continue }
             if document.id == selectedID { selectedIndex = entries.count }
+            entryIndex[document.id] = entries.count
             entries.append(SessionDocument(
                 path: document.path,
                 untitledNumber: document.untitledNumber,
@@ -166,9 +180,15 @@ extension Workspace {
                 binary: document.isBinary ? true : nil
             ))
         }
+        var panes: SessionPanes?
+        if isSplit {
+            var shown: [String: Int] = [:]
+            for (pane, document) in paneDocuments { if let index = entryIndex[document] { shown[pane.uuidString] = index } }
+            panes = SessionPanes(layout: paneLayout, documents: shown, focused: focusedPaneID)
+        }
         let state = SessionState(documents: entries, selectedIndex: selectedIndex, projects: projects.map {
             SessionProject(path: $0.root.path, expandedFolders: $0.expandedFolders.sorted(), collapsed: $0.isCollapsed ? true : nil)
-        })
+        }, panes: panes)
         do {
             let data = try JSONEncoder().encode(state)
             try data.write(to: sessionURL, options: .atomic)
@@ -199,6 +219,31 @@ extension Workspace {
         }
         NSLog("Vibe Notepad: moved %d unsaved buffer(s) from an unreadable session to %@", unclaimed.count, folder.path)
         toast("Unsaved text from the last session was kept in Recovered", symbol: "lifepreserver", tint: .orange)
+    }
+
+    /// Splits the editor area as it was. Panes whose file is gone show another document, or close.
+    private func restorePanes(_ panes: SessionPanes, documents restored: [EditorDocument?]) {
+        let layout = panes.layout
+        guard layout.paneCount > 1, layout.paneCount <= Self.maxPanes, Set(layout.paneIDs).count == layout.paneCount else { return }
+        paneLayout = layout
+        paneDocuments = [:]
+        for (key, index) in panes.documents {
+            guard let pane = UUID(uuidString: key), layout.contains(pane), index >= 0, index < restored.count,
+                  let document = restored[index], self.pane(showing: document.id) == nil else { continue }
+            paneDocuments[pane] = document.id
+        }
+        focusedPaneID = layout.contains(panes.focused) ? panes.focused : layout.firstPane
+        for pane in layout.paneIDs where paneDocuments[pane] == nil {
+            if let document = hiddenDocument() {
+                paneDocuments[pane] = document.id
+            } else if let smaller = paneLayout.removing(pane) {
+                paneLayout = smaller
+                if focusedPaneID == pane { focusedPaneID = paneLayout.firstPane }
+            }
+        }
+        // What the panes show counts as recently shown (the focused one most).
+        documentHistory = paneLayout.paneIDs.compactMap { paneDocuments[$0] }
+        selectedID = paneDocuments[focusedPaneID]
     }
 
     func restoreSession() {
@@ -276,6 +321,7 @@ extension Workspace {
         } else {
             selectedID = documents.last?.id
         }
+        if let panes = state.panes { restorePanes(panes, documents: restored) }
         for project in state.projects where URL(fileURLWithPath: project.path).isFolder {
             openProject(URL(fileURLWithPath: project.path), expandedFolders: project.expandedFolders,
                         collapsed: project.collapsed == true, revealSidebar: false)

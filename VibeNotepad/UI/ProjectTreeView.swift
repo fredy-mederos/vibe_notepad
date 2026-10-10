@@ -244,6 +244,7 @@ struct ProjectFileRow: View {
         .help(node.url.abbreviatedPath)
         .contextMenu {
             Button("Open", systemImage: "doc.text") { workspace.open(url: node.url) }
+            OpenInPaneButtons(url: node.url)
             let pinned = workspace.recents.item(for: node.id)?.pinned == true
             Button(pinned ? "Unpin" : "Pin to Top", systemImage: pinned ? "pin.slash" : "pin") {
                 withAnimation(.snappy) {
@@ -284,6 +285,7 @@ struct ProjectMatchRow: View {
         .help(file.url.abbreviatedPath)
         .contextMenu {
             Button("Open", systemImage: "doc.text") { workspace.open(url: file.url) }
+            OpenInPaneButtons(url: file.url)
             Divider()
             EnclosingFolderButton(item: file.url)
             ProjectItemMenu(project: project, url: file.url)
@@ -332,6 +334,19 @@ struct FoldersSectionHeader: View {
             .menuIndicator(.hidden)
             .fixedSize()
         }
+    }
+}
+
+/// "Open to the Right" / "Open Below": a file in a new pane next to the focused one.
+struct OpenInPaneButtons: View {
+    @Environment(Workspace.self) private var workspace
+    let url: URL
+
+    var body: some View {
+        Button("Open to the Right", systemImage: "rectangle.split.2x1") { workspace.openInNewPane(url, axis: .horizontal) }
+            .disabled(workspace.paneCount >= Workspace.maxPanes)
+        Button("Open Below", systemImage: "rectangle.split.1x2") { workspace.openInNewPane(url, axis: .vertical) }
+            .disabled(workspace.paneCount >= Workspace.maxPanes)
     }
 }
 

@@ -19,6 +19,7 @@
 		4CF7DD7F3326DA3BB3343E35 /* Git.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F127011E493726BB64AA706 /* Git.swift */; };
 		4E0E827E71248AEBB28089E1 /* TabReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47EBFD11984621FDD0D91CF5 /* TabReveal.swift */; };
 		4EF3B6B8CF5579769B2D3FEA /* Workspace+Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6E3B414CE029E860924447 /* Workspace+Session.swift */; };
+		5CEF73568BED1F293BF6B9EF /* PaneViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F836E348881B0DC74F98AD8 /* PaneViews.swift */; };
 		66A9C6BB6AC5699985A20760 /* DirectoryWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0572373A51A8ED3ECA75D44F /* DirectoryWatcher.swift */; };
 		6A67BCF5B11DC1D268BE8D36 /* LaunchRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D8412D67D67F6FC419C0BC /* LaunchRouter.swift */; };
 		6ABA68263B79BC928F9E3C2E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D4FB5555DEF33D4C3B1D4AC /* SettingsView.swift */; };
@@ -30,6 +31,7 @@
 		808F958B88D9D9A787275D7C /* Theme+Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7615BC5FEF8411284934ED /* Theme+Platform.swift */; };
 		8D80BE40617C71B5D6E19408 /* BuildInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888F7CE73D5190B503D20276 /* BuildInfo.swift */; };
 		90A13ED7D728AC05316B87CF /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 661B30F5CA831B5EC5805B25 /* AppUpdater.swift */; };
+		9139DA27538B5415795D5A77 /* Workspace+Panes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E3E63E8569B47829715E18E /* Workspace+Panes.swift */; };
 		98A9AECA7C4AEDA12C8B27FC /* FileIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3943FBE0941E67073A4CC290 /* FileIO.swift */; };
 		A593863D7C92058D663249AD /* VibeNotepadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B892A2F3C410D8EF0F10AD6 /* VibeNotepadApp.swift */; };
 		B35A6FEC0926017C4C6D1417 /* EditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952088C1F91D0CB14F229D68 /* EditorController.swift */; };
@@ -66,6 +68,7 @@
 		32D32562140CC263EBB5E6A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3943FBE0941E67073A4CC290 /* FileIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileIO.swift; sourceTree = "<group>"; };
 		3AB415C8B7422712C6FF53F6 /* DebugTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTools.swift; sourceTree = "<group>"; };
+		3E3E63E8569B47829715E18E /* Workspace+Panes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+Panes.swift"; sourceTree = "<group>"; };
 		47EBFD11984621FDD0D91CF5 /* TabReveal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabReveal.swift; sourceTree = "<group>"; };
 		49C246D10B1001B9FE4551B9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		4B892A2F3C410D8EF0F10AD6 /* VibeNotepadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VibeNotepadApp.swift; sourceTree = "<group>"; };
@@ -91,6 +94,7 @@
 		93C2E7FB79519974404D03A6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		952088C1F91D0CB14F229D68 /* EditorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorController.swift; sourceTree = "<group>"; };
 		9F127011E493726BB64AA706 /* Git.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Git.swift; sourceTree = "<group>"; };
+		9F836E348881B0DC74F98AD8 /* PaneViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneViews.swift; sourceTree = "<group>"; };
 		A95BFD0DDDA786B80337FF4B /* CodeTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeTextView.swift; sourceTree = "<group>"; };
 		B8A2C7479EF093C880F202F6 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
 		C516B88CFACF4BDC1ACFDDB1 /* ProjectTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectTreeView.swift; sourceTree = "<group>"; };
@@ -174,6 +178,7 @@
 				5249F5600A8D6EB71687E65E /* RecentFilesStore.swift */,
 				77AB9D216A146ABA19863AF5 /* Workspace.swift */,
 				4F89EDC5800105A0F4F42F54 /* Workspace+Commands.swift */,
+				3E3E63E8569B47829715E18E /* Workspace+Panes.swift */,
 				597B0444E092DAED89BE7F2D /* Workspace+Project.swift */,
 				DA6E3B414CE029E860924447 /* Workspace+Session.swift */,
 			);
@@ -217,6 +222,7 @@
 				89917660F5E7B5297607C59D /* FindBarView.swift */,
 				7EE55A801BF37E4207548787 /* MainView.swift */,
 				D0822F49B79B98ED7ED06F59 /* PaletteView.swift */,
+				9F836E348881B0DC74F98AD8 /* PaneViews.swift */,
 				C516B88CFACF4BDC1ACFDDB1 /* ProjectTreeView.swift */,
 				7D4FB5555DEF33D4C3B1D4AC /* SettingsView.swift */,
 				1274C80A39803AF46085264D /* SidebarView.swift */,
@@ -370,6 +376,7 @@
 				CD86397BDA59EFEC22239250 /* MarkdownPreviewController.swift in Sources */,
 				B7A0CDB356A3AD3669F5FE5E /* MinimapView.swift in Sources */,
 				2432E1A8B5505C7E9367E8D0 /* PaletteView.swift in Sources */,
+				5CEF73568BED1F293BF6B9EF /* PaneViews.swift in Sources */,
 				B57D85C22437E865229CB7E5 /* PreviewTemplate.swift in Sources */,
 				4930B0019862FD9D2FBE71B8 /* Project.swift in Sources */,
 				C6DF656964545D3698D89A77 /* ProjectTreeView.swift in Sources */,
@@ -385,6 +392,7 @@
 				A593863D7C92058D663249AD /* VibeNotepadApp.swift in Sources */,
 				C9993F7D9358DD9641769723 /* WelcomeView.swift in Sources */,
 				F0496EA028D3D326F70BE334 /* Workspace+Commands.swift in Sources */,
+				9139DA27538B5415795D5A77 /* Workspace+Panes.swift in Sources */,
 				EA5694C1520FD942EF732F8E /* Workspace+Project.swift in Sources */,
 				4EF3B6B8CF5579769B2D3FEA /* Workspace+Session.swift in Sources */,
 				E5771C7171C22806E5498AF2 /* Workspace.swift in Sources */,
