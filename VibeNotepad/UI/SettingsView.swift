@@ -4,12 +4,15 @@ import VibeCore
 
 /// Preferences window (⌘,).
 struct SettingsView: View {
+    /// The tab shown last, so Settings reopens where you left it.
+    @AppStorage("settingsTab") private var tab = "general"
+
     var body: some View {
-        TabView {
-            Tab("General", systemImage: "gearshape") { GeneralSettings() }
-            Tab("Editor", systemImage: "character.cursor.ibeam") { EditorSettings() }
-            Tab("Themes", systemImage: "paintpalette") { ThemeSettings() }
-            Tab("Markdown", systemImage: "text.document") { MarkdownSettings() }
+        TabView(selection: $tab) {
+            Tab("General", systemImage: "gearshape", value: "general") { GeneralSettings() }
+            Tab("Editor", systemImage: "character.cursor.ibeam", value: "editor") { EditorSettings() }
+            Tab("Themes", systemImage: "paintpalette", value: "themes") { ThemeSettings() }
+            Tab("Markdown", systemImage: "text.document", value: "markdown") { MarkdownSettings() }
         }
         .frame(width: 640)
         .scenePadding()
@@ -42,9 +45,20 @@ private struct GeneralSettings: View {
             Section("Command line") {
                 CommandLineToolRow()
             }
+
+            Section("About") {
+                LabeledContent("Version", value: "\(BuildInfo.version) (build \(BuildInfo.build))")
+                if let date = BuildInfo.date {
+                    LabeledContent("Built", value: date.formatted(date: .long, time: .shortened))
+                }
+                if let commit = BuildInfo.commit {
+                    LabeledContent("Commit", value: BuildInfo.hasLocalChanges ? "\(commit) + local changes" : commit)
+                }
+            }
+            .textSelection(.enabled)
         }
         .formStyle(.grouped)
-        .frame(minHeight: 500)
+        .frame(minHeight: 590)
     }
 }
 

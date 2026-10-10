@@ -24,6 +24,7 @@
 		7A071B47E49812C1376A803A /* FindBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89917660F5E7B5297607C59D /* FindBarView.swift */; };
 		7AC6EE699217F2971245601F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 32D32562140CC263EBB5E6A2 /* Assets.xcassets */; };
 		808F958B88D9D9A787275D7C /* Theme+Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7615BC5FEF8411284934ED /* Theme+Platform.swift */; };
+		8D80BE40617C71B5D6E19408 /* BuildInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888F7CE73D5190B503D20276 /* BuildInfo.swift */; };
 		98A9AECA7C4AEDA12C8B27FC /* FileIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3943FBE0941E67073A4CC290 /* FileIO.swift */; };
 		A593863D7C92058D663249AD /* VibeNotepadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B892A2F3C410D8EF0F10AD6 /* VibeNotepadApp.swift */; };
 		B35A6FEC0926017C4C6D1417 /* EditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952088C1F91D0CB14F229D68 /* EditorController.swift */; };
@@ -67,6 +68,7 @@
 		7C89D612A76303F2D47A5327 /* DocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentView.swift; sourceTree = "<group>"; };
 		7D4FB5555DEF33D4C3B1D4AC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7EE55A801BF37E4207548787 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		888F7CE73D5190B503D20276 /* BuildInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildInfo.swift; sourceTree = "<group>"; };
 		89917660F5E7B5297607C59D /* FindBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindBarView.swift; sourceTree = "<group>"; };
 		8E7615BC5FEF8411284934ED /* Theme+Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Theme+Platform.swift"; sourceTree = "<group>"; };
 		93C2E7FB79519974404D03A6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -170,6 +172,7 @@
 			isa = PBXGroup;
 			children = (
 				49C246D10B1001B9FE4551B9 /* AppDelegate.swift */,
+				888F7CE73D5190B503D20276 /* BuildInfo.swift */,
 				DB73AE1B425B91A4147AF23E /* CommandLineTool.swift */,
 				3AB415C8B7422712C6FF53F6 /* DebugTools.swift */,
 				52D8412D67D67F6FC419C0BC /* LaunchRouter.swift */,
@@ -223,6 +226,7 @@
 				EDA680B6CA804FE6CB574915 /* Sources */,
 				A880A4126BA13E8F5BBA7679 /* Resources */,
 				62B651154873AE7B5F843EB8 /* Frameworks */,
+				1C6DF9F3D57CA1C4D6BF8F3A /* Stamp build info */,
 			);
 			buildRules = (
 			);
@@ -285,6 +289,29 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		1C6DF9F3D57CA1C4D6BF8F3A /* Stamp build info */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Stamp build info";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Build number = number of commits; also records the commit and when the build happened\n# (shown in Settings → General → About).\nplist=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nbuddy=/usr/libexec/PlistBuddy\nset_string() { \"$buddy\" -c \"Set :$1 $2\" \"$plist\" 2>/dev/null || \"$buddy\" -c \"Add :$1 string $2\" \"$plist\"; }\nif count=$(git -C \"$SRCROOT\" rev-list --count HEAD 2>/dev/null); then\n  \"$buddy\" -c \"Set :CFBundleVersion $count\" \"$plist\"\n  commit=$(git -C \"$SRCROOT\" rev-parse --short HEAD)\n  # A trailing + marks a build with uncommitted changes.\n  [ -n \"$(git -C \"$SRCROOT\" status --porcelain --untracked-files=no 2>/dev/null)\" ] && commit=\"$commit+\"\n  set_string VibeGitCommit \"$commit\"\nfi\nset_string VibeBuildDate \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		EDA680B6CA804FE6CB574915 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -292,6 +319,7 @@
 			files = (
 				DCA49109D890187E0D7C5507 /* AppDelegate.swift in Sources */,
 				CD241ADD944ED5ECB3B8DB95 /* AppSettings.swift in Sources */,
+				8D80BE40617C71B5D6E19408 /* BuildInfo.swift in Sources */,
 				30C7022EDC7851B9D773E2E6 /* CodeTextView.swift in Sources */,
 				16AC359F69CF401026583074 /* CommandLineTool.swift in Sources */,
 				1B68AC63B41406A1B37E0AC1 /* Components.swift in Sources */,
@@ -337,6 +365,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = VibeNotepad/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
@@ -430,6 +459,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = VibeNotepad/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";

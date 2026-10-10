@@ -78,6 +78,7 @@ enum LaunchRouter {
         case "debug-snapshot":
             DebugTools.snapshot(to: value("path") ?? "/tmp/vibe-snapshot.png", windowTitle: value("window"))
         case "debug-settings":
+            if let tab = value("tab") { UserDefaults.standard.set(tab, forKey: "settingsTab") }
             Workspace.shared.openSettingsAction?()
         case "debug-open":
             if let path = value("path") {
