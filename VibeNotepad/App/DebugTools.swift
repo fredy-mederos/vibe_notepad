@@ -53,6 +53,31 @@ enum DebugTools {
         }
     }
 
+    /// Selects sidebar row `row` (as clicking it does; nil selects nothing), then writes the number of
+    /// rows, the expanded project folders and whether an alert sheet came up to `path`.
+    static func selectSidebarRow(_ row: Int?, report path: String) {
+        guard let window = Workspace.shared.windowReference, let root = window.contentView?.superview ?? window.contentView,
+              let table = firstSubview(of: NSTableView.self, in: root) else {
+            try? "no sidebar table\n".write(toFile: path, atomically: true, encoding: .utf8)
+            return
+        }
+        if let row, row < table.numberOfRows { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            let lines = ["selected row \(row.map(String.init) ?? "-") of \(table.numberOfRows), alert sheet \(window.attachedSheet != nil)",
+                         "expanded \(Workspace.shared.project?.expandedFolders.map { ($0 as NSString).lastPathComponent }.sorted() ?? [])",
+                         "document \(Workspace.shared.selectedDocument?.displayName ?? "-")"]
+            try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
+    private static func firstSubview<T: NSView>(of type: T.Type, in view: NSView) -> T? {
+        if let match = view as? T { return match }
+        for subview in view.subviews {
+            if let match = firstSubview(of: type, in: subview) { return match }
+        }
+        return nil
+    }
+
     /// Renders the main window into a PNG without activating the app.
     static func snapshot(to path: String, windowTitle: String? = nil) {
         let titled = windowTitle.flatMap { title in NSApp.windows.first { $0.title.localizedCaseInsensitiveContains(title) } }

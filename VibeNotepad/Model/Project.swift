@@ -67,6 +67,11 @@ final class Project {
 
     func isExpanded(_ folder: String) -> Bool { expandedFolders.contains(folder) }
 
+    /// Whether `path` is a folder shown in the tree.
+    func isFolder(_ path: String) -> Bool {
+        children(of: (path as NSString).deletingLastPathComponent).contains { $0.id == path && $0.isDirectory }
+    }
+
     func setExpanded(_ folder: String, _ expanded: Bool) {
         if expanded {
             guard listings[folder] != nil || loadListing(folder) else { return }

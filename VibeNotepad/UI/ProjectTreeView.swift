@@ -27,9 +27,9 @@ struct ProjectTreeRows: View {
     }
 }
 
-/// A folder in the project tree: clicking it expands or collapses it.
+/// A folder in the project tree. Clicking it expands or collapses it (the sidebar's selection
+/// handles the click: the list selects the row before a tap gesture here would see it).
 struct ProjectFolderRow: View {
-    @Environment(Workspace.self) private var workspace
     let project: Project
     let node: ProjectNode
 
@@ -44,12 +44,6 @@ struct ProjectFolderRow: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: 0)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.snappy(duration: 0.2)) {
-                workspace.setFolder(node.id, expanded: !project.isExpanded(node.id))
-            }
         }
         .help(node.url.abbreviatedPath)
         .contextMenu {
@@ -138,16 +132,21 @@ struct ProjectSectionHeader: View {
             Text(project.name)
                 .help(project.root.abbreviatedPath)
             Spacer()
+            Button {
+                collapseAll()
+            } label: {
+                Image(systemName: "chevron.up.chevron.down")
+            }
+            .buttonStyle(.plain)
+            .help("Collapse All Folders")
+            .disabled(project.expandedFolders.isEmpty)
             Menu {
                 Button("Reveal in Finder", systemImage: "folder") {
                     NSWorkspace.shared.activateFileViewerSelecting([project.root])
                 }
                 Button("Copy Path", systemImage: "doc.on.clipboard") { copy(project.root.path) }
-                Button("Collapse All Folders", systemImage: "chevron.up.chevron.down") {
-                    withAnimation(.snappy) { project.collapseAll() }
-                    workspace.scheduleSessionSave()
-                }
-                .disabled(project.expandedFolders.isEmpty)
+                Button("Collapse All Folders", systemImage: "chevron.up.chevron.down") { collapseAll() }
+                    .disabled(project.expandedFolders.isEmpty)
                 Divider()
                 Button("Close Folder", systemImage: "xmark.circle") { workspace.closeProject() }
             } label: {
@@ -158,6 +157,11 @@ struct ProjectSectionHeader: View {
             .menuIndicator(.hidden)
             .fixedSize()
         }
+    }
+
+    private func collapseAll() {
+        withAnimation(.snappy) { project.collapseAll() }
+        workspace.scheduleSessionSave()
     }
 
     private func copy(_ text: String) {

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import VibeCore
 
-/// The project's file tree, then pinned and recent files, always one click away.
+/// Pinned files, the project's file tree, then recent files, always one click away.
 struct SidebarView: View {
     @Environment(Workspace.self) private var workspace
     @AppStorage("sidebarProjectExpanded") private var projectExpanded = true
@@ -17,6 +17,20 @@ struct SidebarView: View {
         let recent = filtered(recents.recent, filter)
 
         List(selection: selection) {
+            if !pinned.isEmpty {
+                Section(isExpanded: expansion($pinnedExpanded, filtering: !filter.isEmpty)) {
+                    ForEach(pinned) { item in
+                        RecentFileRow(item: item, highlight: filter)
+                            .tag(item.path)
+                    }
+                    .onMove { source, destination in
+                        guard filter.isEmpty else { return }
+                        withAnimation(.snappy) { recents.movePinned(from: source, to: destination) }
+                    }
+                } header: {
+                    Text("Pinned")
+                }
+            }
             if let project = workspace.project {
                 Section(isExpanded: expansion($projectExpanded, filtering: !filter.isEmpty)) {
                     if !filter.isEmpty {
@@ -40,20 +54,6 @@ struct SidebarView: View {
                     }
                 } header: {
                     ProjectSectionHeader(project: project)
-                }
-            }
-            if !pinned.isEmpty {
-                Section(isExpanded: expansion($pinnedExpanded, filtering: !filter.isEmpty)) {
-                    ForEach(pinned) { item in
-                        RecentFileRow(item: item, highlight: filter)
-                            .tag(item.path)
-                    }
-                    .onMove { source, destination in
-                        guard filter.isEmpty else { return }
-                        withAnimation(.snappy) { recents.movePinned(from: source, to: destination) }
-                    }
-                } header: {
-                    Text("Pinned")
                 }
             }
             Section(isExpanded: expansion($recentExpanded, filtering: !filter.isEmpty)) {
@@ -94,12 +94,18 @@ struct SidebarView: View {
         }
     }
 
-    /// Selecting a row opens (or focuses) that file.
+    /// Selecting a row opens (or focuses) that file; selecting a project folder expands or collapses it.
     private var selection: Binding<String?> {
         Binding(
             get: { workspace.selectedDocument?.path },
             set: { path in
                 guard let path else { return }
+                if let project = workspace.project, project.isFolder(path) {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        workspace.setFolder(path, expanded: !project.isExpanded(path))
+                    }
+                    return
+                }
                 if workspace.recents.isMissing(path) {
                     workspace.toast("“\((path as NSString).lastPathComponent)” no longer exists", symbol: "exclamationmark.triangle.fill", tint: .orange)
                     return
