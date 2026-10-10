@@ -4,12 +4,6 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 
 ## Next up
 
-- [ ] **Open a folder as a project**
-  - File → Open Folder…, `vibeNotePad .` (or any folder path), and dropping a folder on the window or Dock icon.
-  - The sidebar shows the folder as a file tree (folders load as you expand them), above the recent files.
-  - Quick Open (⌘P) searches the whole project: `git ls-files` in a repository, otherwise a folder scan that
-    skips `.git`, `node_modules`, `build` and the like.
-  - One project at a time (it's a single-window app); it comes back on the next launch.
 - [ ] **Git gutter**: added / modified / deleted line markers next to the line numbers.
   - The buffer is compared with the file's committed version (`git show :path`) as you type, in the background.
   - The line diff lives in VibeCore with unit tests. Files outside a repository, untracked files and huge files
@@ -18,6 +12,11 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
   highlighted; click or drag it to scroll. Can be turned off, and stays cheap on large files.
 
 ## Done
+
+- [x] **Open a folder as a project**: File → Open Folder… (⇧⌘O), `vibeNotePad .`, Finder's Open With, or dropping
+  a folder on the window or Dock icon. The sidebar shows the folder as a file tree (folders load as you expand them
+  and follow changes on disk), and Quick Open searches the whole project (`git ls-files` in a repository, otherwise
+  a folder scan). One project at a time; it comes back on the next launch, recent folders are in Open Recent.
 
 - [x] **Just the text** (Fredy's idea): collapsing the sidebar (⌘B or the sidebar button) also hides the status bar,
   leaving only the title bar, tabs and the text. One control for both, and it's remembered across launches.

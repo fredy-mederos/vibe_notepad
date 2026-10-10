@@ -17,8 +17,11 @@ no third-party dependencies.
   front matter), and fenced code blocks highlighted in their own language. There's also a **live preview**
   (Editor / Split / Preview) that supports GitHub-flavored tables, task lists, alerts and footnotes.
   Clicking a task checkbox in the preview ticks it in the file.
-- **Quick Open (⌘P)**: fuzzy search across open tabs, pinned and recent files, and files near the
-  current one. Type `name:42` to jump to a line.
+- **Open a folder as a project**: the sidebar shows its file tree, which follows changes on disk, and
+  Quick Open searches every file in it (`git ls-files` in a repository, so ignored files stay out).
+  Use File → Open Folder… (⇧⌘O), `vibeNotePad .`, or drop a folder on the window or the Dock icon.
+- **Quick Open (⌘P)**: fuzzy search across open tabs, pinned and recent files, the project's files, and files
+  near the current one. Type `name:42` to jump to a line.
 - **Command Palette (⇧⌘P)** with editing tools: sort lines, change case, Base64 and URL encode/decode,
   format or minify JSON (key order is kept), convert indentation, insert a UUID, and more.
 - **Find & Replace** with regex (`$1` groups, `\n`), match case, whole word, a live match counter, and
@@ -42,11 +45,11 @@ no third-party dependencies.
 
 | How | Example |
 | --- | --- |
-| Finder | Right-click any text file → **Open With → Vibe Notepad** |
-| Terminal | `vibeNotePad README.md`, `vibeNotePad src/app.swift:42:7`, `cat log.txt \| vibeNotePad -` |
+| Finder | Right-click any text file or folder → **Open With → Vibe Notepad** |
+| Terminal | `vibeNotePad README.md`, `vibeNotePad src/app.swift:42:7`, `vibeNotePad .`, `cat log.txt \| vibeNotePad -` |
 | Deep link (scripts, agents) | `open "vibeNotePad://open?path=/abs/path/file.md&line=42&column=7"` |
 | New buffer | `open "vibeNotePad://new?text=Hello&language=markdown"` |
-| Drag & drop | Drop files onto the window or the Dock icon |
+| Drag & drop | Drop files or a folder onto the window or the Dock icon |
 
 ## Install
 
@@ -79,6 +82,7 @@ installed app.
 | Action | Shortcut |
 | --- | --- |
 | New Tab (untitled file) | ⌘T or ⌘N |
+| Open Folder | ⇧⌘O |
 | Quick Open | ⌘P |
 | Show / Hide Sidebar (the status bar follows it) | ⌘B |
 | Command Palette | ⇧⌘P |
@@ -110,7 +114,8 @@ Packages/VibeCore          Platform-neutral core (builds for macOS and iOS)
                            find engine, fuzzy matcher, symbol extraction
 VibeNotepad                macOS app
   App/                     App entry, menus, AppDelegate (Finder/CLI/deep links), CLI installer
-  Model/                   Workspace (tabs, recents, session/hot exit), documents, settings, file I/O
+  Model/                   Workspace (tabs, recents, session/hot exit), project folder (tree, file index,
+                           FSEvents watcher), documents, settings, file I/O
   Editor/                  TextKit 1 editor: NSTextView subclass, gutter, syntax styling, line height
   Preview/                 WKWebView Markdown preview (page scripts disabled, app talks via an isolated world)
   UI/                      SwiftUI: sidebar, tabs, status bar, find bar, palette, welcome, settings

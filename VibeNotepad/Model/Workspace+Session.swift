@@ -47,22 +47,29 @@ nonisolated extension SessionDocument {
 nonisolated struct SessionState: Codable, Sendable {
     var documents: [SessionDocument]
     var selectedIndex: Int?
+    /// The folder open as a project, and its expanded folders in the sidebar.
+    var projectPath: String?
+    var expandedFolders: [String]?
     /// Entries that couldn't be read at all (their buffers must not be cleaned up).
     var unreadableDocuments = 0
 
     enum CodingKeys: String, CodingKey {
-        case documents, selectedIndex
+        case documents, selectedIndex, projectPath, expandedFolders
     }
 
-    init(documents: [SessionDocument], selectedIndex: Int?) {
+    init(documents: [SessionDocument], selectedIndex: Int?, projectPath: String? = nil, expandedFolders: [String]? = nil) {
         self.documents = documents
         self.selectedIndex = selectedIndex
+        self.projectPath = projectPath
+        self.expandedFolders = expandedFolders
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let entries = try c.decode([Lossy<SessionDocument>].self, forKey: .documents)
         let selected = (try? c.decodeIfPresent(Int.self, forKey: .selectedIndex)) ?? nil
+        projectPath = (try? c.decodeIfPresent(String.self, forKey: .projectPath)) ?? nil
+        expandedFolders = (try? c.decodeIfPresent([String].self, forKey: .expandedFolders)) ?? nil
         documents = []
         for (index, entry) in entries.enumerated() {
             guard let document = entry.value else {
@@ -139,7 +146,8 @@ extension Workspace {
                 binary: document.isBinary ? true : nil
             ))
         }
-        let state = SessionState(documents: entries, selectedIndex: selectedIndex)
+        let state = SessionState(documents: entries, selectedIndex: selectedIndex, projectPath: project?.root.path,
+                                 expandedFolders: project.map { $0.expandedFolders.sorted() })
         do {
             let data = try JSONEncoder().encode(state)
             try data.write(to: sessionURL, options: .atomic)
@@ -246,6 +254,9 @@ extension Workspace {
             selectedID = selected.id
         } else {
             selectedID = documents.last?.id
+        }
+        if let path = state.projectPath, URL(fileURLWithPath: path).isFolder {
+            openProject(URL(fileURLWithPath: path), expandedFolders: state.expandedFolders ?? [], revealSidebar: false)
         }
     }
 }

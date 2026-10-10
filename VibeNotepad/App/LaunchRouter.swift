@@ -89,7 +89,11 @@ enum LaunchRouter {
         case "debug-mode":
             if let mode = value("mode").flatMap(MarkdownMode.init(rawValue:)) { Workspace.shared.setMarkdownMode(mode) }
         case "debug-palette":
-            Workspace.shared.showPalette(.files, seed: value("q") ?? "")
+            if value("hide") != nil {
+                Workspace.shared.hidePalette(refocus: false)
+            } else {
+                Workspace.shared.showPalette(.files, seed: value("q") ?? "")
+            }
         case "debug-find":
             Workspace.shared.findQuery = value("q") ?? ""
             Workspace.shared.showFindBar(replace: value("replace") != nil)
@@ -281,6 +285,10 @@ enum LaunchRouter {
         let workspace = Workspace.shared
         if !FileManager.default.fileExists(atPath: request.url.path) {
             workspace.toast("“\(request.url.lastPathComponent)” doesn’t exist", symbol: "questionmark.folder", tint: .orange)
+            return
+        }
+        if request.url.isFolder {
+            workspace.openProject(request.url)
             return
         }
         guard let document = workspace.open(url: request.url) else { return }

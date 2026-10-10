@@ -35,6 +35,12 @@ final class Workspace {
     }
     let recents = RecentFilesStore()
     let settings = AppSettings.shared
+    /// The folder opened as a project (file tree in the sidebar, Quick Open over all its files).
+    var project: Project?
+    /// Folders recently opened as projects, most recent first.
+    var recentProjects: [String] = UserDefaults.standard.stringArray(forKey: "recentProjects") ?? [] {
+        didSet { UserDefaults.standard.set(recentProjects, forKey: "recentProjects") }
+    }
 
     // UI state
     var palette: PaletteMode?
@@ -196,16 +202,18 @@ final class Workspace {
         scheduleSessionSave()
     }
 
+    /// Opens files as tabs; a folder becomes the project (the last one, if several were given).
     func open(urls: [URL]) {
         var last: EditorDocument?
+        var folder: URL?
         for url in urls {
-            var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
-                toast("Folders can't be opened — drop files instead", symbol: "folder.badge.questionmark")
+            if url.isFolder {
+                folder = url
                 continue
             }
             if let document = open(url: url, select: false) { last = document }
         }
+        if let folder { openProject(folder) }
         if let last { select(last) }
         NSApp.activate()
     }
@@ -279,11 +287,11 @@ final class Workspace {
     func showOpenPanel() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
-        panel.canChooseDirectories = false
+        panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
         panel.showsHiddenFiles = true
         panel.treatsFilePackagesAsDirectories = true
-        panel.message = "Open any text file"
+        panel.message = "Open any text file, or a folder as a project"
         if let directory = selectedDocument?.fileURL?.deletingLastPathComponent() { panel.directoryURL = directory }
         let handler: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK else { return }

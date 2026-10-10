@@ -32,11 +32,15 @@ struct VibeNotepadApp: App {
 struct AppCommands: Commands {
     let workspace: Workspace
     let settings: AppSettings
+    @Environment(\.openWindow) private var openWindow
 
     private var editor: EditorController? { workspace.activeEditor }
     private var document: EditorDocument? { workspace.selectedDocument }
 
     var body: some Commands {
+        // The menus exist even when the window doesn't (it was closed before the last quit), so files
+        // and links that arrive at launch can still bring the window up.
+        let _ = AppDelegate.shared?.openMainWindow = { [openWindow] in openWindow(id: "main") }
         CommandGroup(replacing: .newItem) {
             Button("New Tab") { workspace.newDocument() }
                 .keyboardShortcut("t")
@@ -44,13 +48,27 @@ struct AppCommands: Commands {
                 .keyboardShortcut("n")
             Button("Open…") { workspace.showOpenPanel() }
                 .keyboardShortcut("o")
+            Button("Open Folder…") { workspace.showOpenFolderPanel() }
+                .keyboardShortcut("o", modifiers: [.command, .shift])
             Menu("Open Recent") {
                 ForEach(workspace.recents.all.prefix(20)) { item in
                     Button(item.name) { workspace.open(url: item.url) }
                         .disabled(workspace.recents.isMissing(item.path))
                 }
+                if !workspace.recentProjects.isEmpty {
+                    Section("Folders") {
+                        ForEach(workspace.recentProjects, id: \.self) { path in
+                            let url = URL(fileURLWithPath: path)
+                            Button(url.lastPathComponent) { workspace.openProject(url) }
+                                .disabled(!url.isFolder)
+                        }
+                    }
+                }
                 Divider()
                 Button("Clear Recent Files") { workspace.recents.clearRecent() }
+                if !workspace.recentProjects.isEmpty {
+                    Button("Clear Recent Folders") { workspace.clearRecentProjects() }
+                }
             }
             Divider()
             Button("Quick Open…") { workspace.showPalette(.files) }
@@ -62,6 +80,8 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .saveItem) {
             Button("Close Tab") { workspace.closeSelected() }
                 .keyboardShortcut("w")
+            Button("Close Folder") { workspace.closeProject() }
+                .disabled(workspace.project == nil)
             Divider()
             Button("Save") { workspace.saveSelected() }
                 .keyboardShortcut("s")

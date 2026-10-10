@@ -2,9 +2,12 @@ import AppKit
 import SwiftUI
 import VibeCore
 
-/// Pinned and recent files, always one click away.
+/// The project's file tree, then pinned and recent files, always one click away.
 struct SidebarView: View {
     @Environment(Workspace.self) private var workspace
+    @AppStorage("sidebarProjectExpanded") private var projectExpanded = true
+    @AppStorage("sidebarPinnedExpanded") private var pinnedExpanded = true
+    @AppStorage("sidebarRecentExpanded") private var recentExpanded = true
 
     var body: some View {
         @Bindable var workspace = workspace
@@ -14,8 +17,33 @@ struct SidebarView: View {
         let recent = filtered(recents.recent, filter)
 
         List(selection: selection) {
+            if let project = workspace.project {
+                Section(isExpanded: expansion($projectExpanded, filtering: !filter.isEmpty)) {
+                    if !filter.isEmpty {
+                        let matches = projectMatches(project, filter)
+                        if matches.isEmpty {
+                            EmptySidebarHint(isFiltering: true)
+                                .selectionDisabled()
+                        } else {
+                            ForEach(matches, id: \.file.relativePath) { match in
+                                ProjectMatchRow(project: project, file: match.file, positions: match.positions)
+                                    .tag(match.file.url.path)
+                            }
+                        }
+                    } else if !project.exists {
+                        Label("This folder was moved or deleted", systemImage: "questionmark.folder")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .selectionDisabled()
+                    } else {
+                        ProjectTreeRows(project: project, folder: project.root.path)
+                    }
+                } header: {
+                    ProjectSectionHeader(project: project)
+                }
+            }
             if !pinned.isEmpty {
-                Section("Pinned") {
+                Section(isExpanded: expansion($pinnedExpanded, filtering: !filter.isEmpty)) {
                     ForEach(pinned) { item in
                         RecentFileRow(item: item, highlight: filter)
                             .tag(item.path)
@@ -24,9 +52,11 @@ struct SidebarView: View {
                         guard filter.isEmpty else { return }
                         withAnimation(.snappy) { recents.movePinned(from: source, to: destination) }
                     }
+                } header: {
+                    Text("Pinned")
                 }
             }
-            Section {
+            Section(isExpanded: expansion($recentExpanded, filtering: !filter.isEmpty)) {
                 if recent.isEmpty {
                     EmptySidebarHint(isFiltering: !filter.isEmpty)
                         .selectionDisabled()
@@ -77,6 +107,24 @@ struct SidebarView: View {
                 workspace.open(url: URL(fileURLWithPath: path))
             }
         )
+    }
+
+    /// Sections can be collapsed, but always show their matches while filtering.
+    private func expansion(_ expanded: Binding<Bool>, filtering: Bool) -> Binding<Bool> {
+        filtering ? .constant(true) : expanded
+    }
+
+    /// Project files matching the filter, best first.
+    private func projectMatches(_ project: Project, _ filter: String) -> [(file: ProjectFile, positions: [Int])] {
+        var scored: [(file: ProjectFile, score: Int, positions: [Int])] = []
+        for file in project.files {
+            if let match = FuzzyMatcher.match(filter, in: file.name) {
+                scored.append((file, match.score + 40, match.positions))
+            } else if let match = FuzzyMatcher.match(filter, in: file.relativePath) {
+                scored.append((file, match.score, []))
+            }
+        }
+        return scored.sorted { $0.score > $1.score }.prefix(50).map { ($0.file, $0.positions) }
     }
 
     private func filtered(_ items: [RecentFile], _ filter: String) -> [RecentFile] {

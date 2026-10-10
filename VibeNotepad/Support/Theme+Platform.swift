@@ -136,6 +136,12 @@ extension URL {
 
     nonisolated var canonicalFileURL: URL { URL(fileURLWithPath: canonicalPath) }
 
+    /// Whether this is an existing folder (following symlinks).
+    nonisolated var isFolder: Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
+    }
+
     /// `~/path/to` style display of the parent folder.
     var abbreviatedParentPath: String {
         (deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath

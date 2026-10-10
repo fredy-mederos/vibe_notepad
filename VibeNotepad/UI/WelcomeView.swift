@@ -34,10 +34,14 @@ struct WelcomeView: View {
                     .offset(y: appeared ? 0 : 12)
 
                     GlassEffectContainer(spacing: 12) {
-                        HStack(spacing: 12) {
-                            WelcomeAction(title: "New File", symbol: "square.and.pencil", keys: "⌘N") { workspace.newDocument() }
-                            WelcomeAction(title: "Open…", symbol: "folder", keys: "⌘O") { workspace.showOpenPanel() }
-                            WelcomeAction(title: "Quick Open", symbol: "sparkle.magnifyingglass", keys: "⌘P") { workspace.showPalette(.files) }
+                        let actions = actions
+                        // One row when there's room, two otherwise.
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 12) { ForEach(actions.indices, id: \.self) { actions[$0] } }
+                            VStack(spacing: 12) {
+                                HStack(spacing: 12) { ForEach(0..<2, id: \.self) { actions[$0] } }
+                                HStack(spacing: 12) { ForEach(2..<actions.count, id: \.self) { actions[$0] } }
+                            }
                         }
                     }
                     .opacity(appeared ? 1 : 0)
@@ -62,7 +66,7 @@ struct WelcomeView: View {
                         .frame(maxWidth: 720)
                     }
 
-                    Label("Drop files anywhere to open them", systemImage: "arrow.down.document")
+                    Label("Drop files or a folder anywhere to open them", systemImage: "arrow.down.document")
                         .font(.system(size: 12))
                         .foregroundStyle(theme.mutedForeground.color.opacity(0.8))
                         .opacity(appeared ? 1 : 0)
@@ -76,6 +80,15 @@ struct WelcomeView: View {
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.82)) { appeared = true }
         }
+    }
+
+    private var actions: [WelcomeAction] {
+        [
+            WelcomeAction(title: "New File", symbol: "square.and.pencil", keys: "⌘N") { workspace.newDocument() },
+            WelcomeAction(title: "Open…", symbol: "doc", keys: "⌘O") { workspace.showOpenPanel() },
+            WelcomeAction(title: "Open Folder…", symbol: "folder", keys: "⇧⌘O") { workspace.showOpenFolderPanel() },
+            WelcomeAction(title: "Quick Open", symbol: "sparkle.magnifyingglass", keys: "⌘P") { workspace.showPalette(.files) },
+        ]
     }
 }
 

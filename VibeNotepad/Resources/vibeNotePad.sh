@@ -5,6 +5,7 @@
 #   vibeNotePad src/app.swift:42      open at line 42
 #   vibeNotePad src/app.swift:42:7    open at line 42, column 7
 #   vibeNotePad a.txt b.yml .env      open several files
+#   vibeNotePad .                     open the current folder as a project
 #   cat server.log | vibeNotePad -    open stdin in a new tab
 #   vibeNotePad -- -notes.txt         treat what follows "--" as file names
 #   vibeNotePad                       bring Vibe Notepad to the front
@@ -14,7 +15,7 @@
 APP="Vibe Notepad"
 
 usage() {
-  sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 encode() {
@@ -76,6 +77,12 @@ for arg in "$@"; do
   path="$arg"
   line=""
   column=""
+  if [ -d "$path" ]; then
+    # A folder opens as the project.
+    full=$(cd -- "$path" 2>/dev/null && pwd -P) || { status=1; continue; }
+    open -a "$APP" "$full" || status=1
+    continue
+  fi
   if [ ! -e "$path" ]; then
     last="${arg##*:}"
     rest="${arg%:*}"

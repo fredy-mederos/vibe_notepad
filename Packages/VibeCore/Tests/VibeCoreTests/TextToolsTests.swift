@@ -228,6 +228,16 @@ private func apply(_ edit: TextEdit, to text: String) -> String {
         let prefix = try #require(FuzzyMatcher.match("read", in: "README.md"))
         #expect(prefix.positions == [0, 1, 2, 3])
     }
+
+    @Test func positionsCountCharactersNotCodeUnits() throws {
+        let accented = try #require(FuzzyMatcher.match("ne", in: "café/naïve.md"))
+        #expect(accented.positions == [5, 9])
+        let emoji = try #require(FuzzyMatcher.match("n", in: "😀notes.md"))
+        #expect(emoji.positions == [1])
+        let uppercase = try #require(FuzzyMatcher.match("ü", in: "Über.txt"))
+        #expect(uppercase.positions == [0])
+        #expect(FuzzyMatcher.match("a b", in: "alpha beta") == FuzzyMatcher.match("ab", in: "alpha beta"))
+    }
 }
 
 @Suite struct ThemeTests {

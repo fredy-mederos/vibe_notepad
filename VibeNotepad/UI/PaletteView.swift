@@ -218,68 +218,100 @@ struct PaletteView: View {
         }
     }
 
+    /// Something Quick Open can open: a tab, a recent file, a project file or a file nearby.
+    private struct FileCandidate {
+        var url: URL?
+        var document: EditorDocument?
+        var badge: String?
+        var date: Date?
+        /// Path inside the project ("Sources/App/main.swift").
+        var relativePath: String?
+        var name: String
+    }
+
     private var fileItems: [PaletteItem] {
         let (needle, line, column) = parseFileQuery(query)
+        let project = workspace.project
         var seen = Set<String>()
-        var candidates: [(url: URL?, document: EditorDocument?, badge: String?, date: Date?)] = []
+        var candidates: [FileCandidate] = []
         for document in workspace.documents {
             let key = document.path ?? document.id.uuidString
             guard seen.insert(key).inserted else { continue }
-            candidates.append((document.fileURL, document, document.id == workspace.selectedID ? "current" : "open", nil))
+            candidates.append(FileCandidate(url: document.fileURL, document: document, badge: document.id == workspace.selectedID ? "current" : "open",
+                                            relativePath: document.path.flatMap { project?.relativePath(of: $0) }, name: document.displayName))
         }
         for item in workspace.recents.all where !workspace.recents.isMissing(item.path) {
             guard seen.insert(item.path).inserted else { continue }
-            candidates.append((item.url, nil, item.pinned ? "pinned" : nil, item.lastOpened))
+            candidates.append(FileCandidate(url: item.url, badge: item.pinned ? "pinned" : nil, date: item.lastOpened,
+                                            relativePath: project?.relativePath(of: item.path), name: item.name))
+        }
+        for file in project?.files ?? [] {
+            guard seen.insert(file.url.path).inserted else { continue }
+            candidates.append(FileCandidate(url: file.url, relativePath: file.relativePath, name: file.name))
         }
         for url in folderFiles {
             guard seen.insert(url.path).inserted else { continue }
-            candidates.append((url, nil, nil, nil))
+            candidates.append(FileCandidate(url: url, name: url.lastPathComponent))
         }
 
-        var scored: [(PaletteItem, Int)] = []
+        // Rank everything (a project can hold thousands of files), but only build the rows shown.
+        var ranked: [(index: Int, score: Int, matches: [Int])] = []
         for (index, candidate) in candidates.enumerated() {
-            let name = candidate.document?.displayName ?? candidate.url?.lastPathComponent ?? ""
-            let parent = candidate.url?.abbreviatedParentPath ?? "Unsaved"
+            if needle.isEmpty {
+                ranked.append((index, 0, []))
+                if ranked.count == 80 { break }
+                continue
+            }
             var matches: [Int] = []
-            var score = 1000 - index
-            if !needle.isEmpty {
-                if let match = FuzzyMatcher.match(needle, in: name) {
-                    matches = match.positions
-                    score = match.score + 40
-                } else if let url = candidate.url, let match = FuzzyMatcher.match(needle, in: Self.shortPath(url)) {
-                    score = match.score
-                } else {
-                    continue
-                }
-                if candidate.document != nil { score += 8 }
+            var score: Int
+            if let match = FuzzyMatcher.match(needle, in: candidate.name) {
+                matches = match.positions
+                score = match.score + 40
+            } else if let path = candidate.relativePath ?? candidate.url.map(Self.shortPath), let match = FuzzyMatcher.match(needle, in: path) {
+                score = match.score
+            } else {
+                continue
             }
-            let language = candidate.document?.language ?? LanguageRegistry.detect(path: candidate.url?.path ?? name)
-            let document = candidate.document
-            let url = candidate.url
-            let item = PaletteItem(
-                id: url?.path ?? document?.id.uuidString ?? name,
-                title: name,
-                subtitle: parent,
-                icon: .language(language),
-                matches: matches,
-                trailing: candidate.date.map { RelativeTime.short($0) },
-                badge: candidate.badge
-            ) {
-                let target: EditorDocument?
-                if let document {
-                    workspace.select(document)
-                    target = document
-                } else if let url {
-                    target = workspace.open(url: url)
-                } else {
-                    target = nil
-                }
-                if let line, let target { target.navigate(toLine: line, column: column) }
-            }
-            scored.append((item, score))
+            if candidate.document != nil { score += 8 }
+            ranked.append((index, score, matches))
         }
-        if needle.isEmpty { return scored.prefix(80).map(\.0) }
-        return scored.sorted { $0.1 > $1.1 }.prefix(80).map(\.0)
+        if !needle.isEmpty {
+            ranked.sort { $0.score != $1.score ? $0.score > $1.score : $0.index < $1.index }
+        }
+        return ranked.prefix(80).map { fileItem(candidates[$0.index], matches: $0.matches, line: line, column: column) }
+    }
+
+    private func fileItem(_ candidate: FileCandidate, matches: [Int], line: Int?, column: Int?) -> PaletteItem {
+        let subtitle: String
+        if let relative = candidate.relativePath, let project = workspace.project {
+            let folder = (relative as NSString).deletingLastPathComponent
+            subtitle = folder.isEmpty ? project.name : "\(project.name)/\(folder)"
+        } else {
+            subtitle = candidate.url?.abbreviatedParentPath ?? "Unsaved"
+        }
+        let language = candidate.document?.language ?? LanguageRegistry.detect(path: candidate.url?.path ?? candidate.name)
+        let document = candidate.document
+        let url = candidate.url
+        return PaletteItem(
+            id: url?.path ?? document?.id.uuidString ?? candidate.name,
+            title: candidate.name,
+            subtitle: subtitle,
+            icon: .language(language),
+            matches: matches,
+            trailing: candidate.date.map { RelativeTime.short($0) },
+            badge: candidate.badge
+        ) {
+            let target: EditorDocument?
+            if let document {
+                workspace.select(document)
+                target = document
+            } else if let url {
+                target = workspace.open(url: url)
+            } else {
+                target = nil
+            }
+            if let line, let target { target.navigate(toLine: line, column: column) }
+        }
     }
 
     /// "folder/file.ext" — enough context for path queries without matching every long absolute path.
@@ -436,7 +468,9 @@ struct PaletteView: View {
 
     private func prepare() {
         guard let document = workspace.selectedDocument else {
-            if mode == .files { loadFolderFiles(around: workspace.recents.recent.first?.url.deletingLastPathComponent()) }
+            if mode == .files, workspace.project == nil {
+                loadFolderFiles(around: workspace.recents.recent.first?.url.deletingLastPathComponent())
+            }
             return
         }
         if let editor = document.loadedEditor {
@@ -451,7 +485,10 @@ struct PaletteView: View {
                 if query.isEmpty, let nearest = symbols.lastIndex(where: { $0.line <= caretLine }) { selection = nearest }
             }
         case .files:
-            loadFolderFiles(around: document.fileURL?.deletingLastPathComponent())
+            // The project's own files are already indexed.
+            if let directory = document.fileURL?.deletingLastPathComponent(), workspace.project?.contains(document.fileURL?.path ?? "") != true {
+                loadFolderFiles(around: directory)
+            }
         case .theme:
             if let index = Themes.all.firstIndex(where: { $0.id == settings.theme.id }) { selection = index }
         default:
@@ -608,42 +645,5 @@ private struct PaletteHintLabelStyle: LabelStyle {
             configuration.icon.font(.system(size: 9.5, weight: .semibold))
             configuration.title
         }
-    }
-}
-
-/// Enumerates files under a folder for Quick Open (skipping VCS and build folders).
-enum FolderScanner {
-    /// Folders too broad to crawl: scanning them is slow, and walking into Desktop, Documents,
-    /// Photos or Mail from the home folder would trigger macOS privacy prompts.
-    nonisolated static func isTooBroad(_ directory: URL) -> Bool {
-        let path = directory.standardizedFileURL.resolvingSymlinksInPath().path
-        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.resolvingSymlinksInPath().path
-        if ["/", home, "/Users", "/Volumes", "/System", "/Library", "/Applications", "/private", "/usr", "/opt", "/bin", "/sbin"].contains(path) {
-            return true
-        }
-        return path.hasPrefix(home + "/Library/") || path == home + "/Library" || path.hasPrefix("/System/") || path.hasPrefix("/Library/")
-    }
-
-    nonisolated static func files(in directory: URL, maxDepth: Int, limit: Int) -> [URL] {
-        guard !isTooBroad(directory) else { return [] }
-        let skipped: Set<String> = [".git", ".svn", ".hg", "node_modules", "Pods", "DerivedData", ".build", "build", "dist", ".gradle", ".idea", ".next", "vendor", "__pycache__", ".venv", "venv", "Carthage", ".swiftpm", "target"]
-        let binaryExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "ico", "icns", "pdf", "zip", "gz", "tar", "dmg", "app", "a", "o", "so", "dylib", "class", "jar", "mp3", "mp4", "mov", "wav", "ttf", "otf", "woff", "woff2", "sqlite", "db", "bin", "exe", "car"]
-        guard let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey], options: [.skipsPackageDescendants]) else { return [] }
-        var result: [URL] = []
-        let baseDepth = directory.pathComponents.count
-        while let url = enumerator.nextObject() as? URL {
-            let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey])
-            let name = url.lastPathComponent
-            if values?.isDirectory == true {
-                if skipped.contains(name) || (name.hasPrefix(".") && name != ".github") || url.pathComponents.count - baseDepth >= maxDepth {
-                    enumerator.skipDescendants()
-                }
-                continue
-            }
-            guard values?.isRegularFile == true, !binaryExtensions.contains(url.pathExtension.lowercased()), name != ".DS_Store" else { continue }
-            result.append(url.canonicalFileURL)
-            if result.count >= limit { break }
-        }
-        return result
     }
 }
