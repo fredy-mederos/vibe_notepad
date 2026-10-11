@@ -6,31 +6,6 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 
 Picking up on 2026-10-12, in this order.
 
-- **Bug: the keyboard jumps back to the top-left pane** (split editor). After moving to another pane (⌥⌘ arrows,
-  Split, a tab shown in another pane), the next redraw puts the keyboard back in the first pane's editor, and the
-  focus follows it. SwiftUI does it: `FocusBridge.move(to:designatedPlatformResponder:)`, run from
-  `NSHostingView.layout`, makes the first editor first responder again. SwiftUI never learns about focus moves made
-  through AppKit (`window.makeFirstResponder`), so it keeps "restoring" the first editor it saw. With a single
-  pane that was harmless. To reproduce: split twice, `vibenotepad-dev://debug-panes?op=focus&value=right&path=…`,
-  then any other link (`op=report`), and the report shows pane 0 focused again. Tried, none helped:
-  - Text views in unfocused panes declining `acceptsFirstResponder` (SwiftUI calls `makeFirstResponder` directly).
-  - Making the editor's container (`HostingContainerView`) focusable and handing the keyboard on to the text view:
-    SwiftUI then restores the first pane's container instead.
-  - `prefersDefaultFocus(_:in:)` on the focused pane's editor inside a `focusScope`: ignored.
-  - `resetFocus(in:)` when the focused pane changes: worse (the hosting view itself ends up first responder).
-
-  Ideas: drive the editors' focus through SwiftUI (`@FocusState` + `.focused` on each pane's `EditorHost`) so its
-  state is the source of truth; or have an unfocused pane's text view refuse `becomeFirstResponder` unless a
-  click or our own code asked, then put the keyboard back (watch for ping-pong with SwiftUI). Check what real
-  clicks do too: the tests so far went through debug links.
-
-- **Pinned groups** (Fredy's idea): pin a set of files laid out in panes, like pinning a file. A split with two or
-  more files shows up as a group (with Recent, or a section of its own), it can be pinned, and clicking it opens
-  those files in the same arrangement (two side by side, three, the 2 × 2 grid…). Needs: what a group is (the
-  pane layout plus a file per pane), when one is recorded (on leaving a layout, or when it changes), names (the
-  files' names, renamable?), a row in the sidebar with a small picture of the layout, and the session/recents
-  file keeping them. Restoring reopens files that were closed and handles missing ones.
-
 - **Folder rows: center the disclosure chevrons** (Fredy noticed): on the two-line folder rows (name, then where
   the folder is) the chevron sits on the name's line, so it looks off next to the folder icon, which is centered.
   Center it on the row (an alignment guide on the row's first text baseline, or see how the outline places it).
@@ -48,14 +23,17 @@ Picking up on 2026-10-12, in this order.
 
 ## In progress
 
-- **Split editor** (Fredy's idea), on `main`, working apart from the focus bug above: up to four panes. View →
+- **Split editor** (Fredy's idea), on `main`: up to four panes. View →
   Split Right (⌘\\) / Split Down (⇧⌘\\), Close Pane (⌃⌘W), Editor Layout (Single, Two Columns, Two Rows, Three
   Columns, One Left Two Right, Grid 2 × 2) and Focus Pane (⌥⌘ arrows, ⌥⌘` for the next one), also in the toolbar,
   the palette, and the tab and sidebar menus (Open to the Right / Open Below). Thin dividers (drag to resize,
   double-click to even out), a slim header per pane (name, split and close buttons; drag it to move the file),
   unfocused panes dimmed a little, tabs shown in other panes outlined in the tab bar. A new pane shows the file
   last seen that isn't on screen; closing a file gives its pane the next tab that isn't on screen, or closes the
-  pane. The layout (`PaneLayout`, in VibeCore with tests) comes back with the session. Debug builds:
+  pane. The layout (`PaneLayout`, in VibeCore with tests) comes back with the session. Keyboard focus: SwiftUI
+  puts the keyboard back in the first view it knows of that accepts it, so with the editor split only the
+  focused pane's editor and preview accept it, and their hosts are updated when the focus moves so SwiftUI asks
+  again (checked with real clicks and keys, 2026-10-12). Debug builds:
   `vibenotepad-dev://debug-panes?op=split|layout|focus|close|click|drop|report&value=…&pane=…&path=…`.
 
 ## Done
@@ -107,5 +85,7 @@ Picking up on 2026-10-12, in this order.
 
 ## Not now
 
+- Pinned groups: pin a set of files laid out in panes and reopen them in the same arrangement (Fredy's idea, too
+  much for now).
 - iPadOS / iOS app sharing `VibeCore` (syntax engine, Markdown renderer, themes are already platform-neutral).
 - Multiple cursors / "select next occurrence" (⌘D) like Sublime.

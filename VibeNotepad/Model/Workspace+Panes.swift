@@ -75,6 +75,12 @@ extension Workspace {
         focusPane(panes[(index + (forward ? 1 : -1) + panes.count) % panes.count], focusEditor: true)
     }
 
+    /// Whether `document`'s editor or preview may take the keyboard: when it's in the focused pane (or
+    /// the editor isn't split, or it isn't in a pane).
+    func acceptsKeyboardFocus(_ document: EditorDocument) -> Bool {
+        !isSplit || paneDocuments[focusedPaneID] == document.id || pane(showing: document.id) == nil
+    }
+
     /// The document's editor took the keyboard (clicked, or tabbed into): its pane gets the focus.
     func documentDidTakeFocus(_ document: EditorDocument) {
         guard let pane = pane(showing: document.id), pane != focusedPaneID else { return }

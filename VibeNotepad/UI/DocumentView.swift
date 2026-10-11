@@ -6,6 +6,8 @@ import VibeCore
 struct DocumentView: View {
     @Environment(Workspace.self) private var workspace
     @Bindable var document: EditorDocument
+    /// Whether this is the focused pane's document (see `EditorHost.isInFocusedPane`).
+    var isInFocusedPane = true
     @State private var splitFraction: CGFloat = 0.5
 
     var body: some View {
@@ -22,7 +24,7 @@ struct DocumentView: View {
                 let mode = document.isMarkdown ? document.markdownMode : .editor
                 HStack(spacing: 0) {
                     if mode != .preview {
-                        EditorHost(document: document)
+                        EditorHost(document: document, isInFocusedPane: isInFocusedPane)
                             .frame(width: mode == .split ? max(220, geometry.size.width * splitFraction) : geometry.size.width)
                             .transition(.move(edge: .leading).combined(with: .opacity))
                     }
@@ -31,7 +33,7 @@ struct DocumentView: View {
                             .transition(.opacity)
                     }
                     if mode != .editor {
-                        PreviewHost(document: document)
+                        PreviewHost(document: document, isInFocusedPane: isInFocusedPane)
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
@@ -46,6 +48,11 @@ struct DocumentView: View {
 /// Embeds the document's AppKit editor.
 struct EditorHost: NSViewRepresentable {
     let document: EditorDocument
+    /// SwiftUI keeps putting the keyboard back in the first view it knows of that accepts it, and it
+    /// asks views whether they accept it when it updates them. With the editor split, only the focused
+    /// pane's editor accepts it (`CodeTextView.acceptsFirstResponder`), and passing this in updates the
+    /// hosts whenever the focus moves, so SwiftUI asks again.
+    let isInFocusedPane: Bool
 
     func makeNSView(context: Context) -> HostingContainerView {
         let container = HostingContainerView()
@@ -72,6 +79,8 @@ struct EditorHost: NSViewRepresentable {
 /// Embeds the document's Markdown preview.
 struct PreviewHost: NSViewRepresentable {
     let document: EditorDocument
+    /// See `EditorHost.isInFocusedPane`.
+    let isInFocusedPane: Bool
 
     func makeNSView(context: Context) -> HostingContainerView {
         let container = HostingContainerView()

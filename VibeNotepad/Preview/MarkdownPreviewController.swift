@@ -30,10 +30,11 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
         let content = WKUserContentController()
         content.addUserScript(WKUserScript(source: PreviewTemplate.script, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
         configuration.userContentController = content
-        webView = WKWebView(frame: .zero, configuration: configuration)
+        webView = PreviewWebView(frame: .zero, configuration: configuration)
         webView.allowsMagnification = true
         webView.allowsBackForwardNavigationGestures = false
         super.init()
+        (webView as? PreviewWebView)?.document = document
 
         content.add(WeakMessageHandler(self), contentWorld: .defaultClient, name: "vibe")
         webView.navigationDelegate = self
@@ -289,5 +290,17 @@ private final class WeakMessageHandler: NSObject, WKScriptMessageHandler {
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         target?.handle(message.body)
+    }
+}
+
+/// The preview's web view. With the editor split, only the focused pane's preview accepts the keyboard
+/// (see `EditorHost.isInFocusedPane`).
+final class PreviewWebView: WKWebView {
+    weak var document: EditorDocument?
+
+    override var acceptsFirstResponder: Bool {
+        guard super.acceptsFirstResponder else { return false }
+        guard let document else { return true }
+        return Workspace.shared.acceptsKeyboardFocus(document)
     }
 }

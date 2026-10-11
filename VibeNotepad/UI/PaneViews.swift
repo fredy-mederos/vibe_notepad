@@ -112,7 +112,7 @@ struct PaneView: View {
             }
             ZStack(alignment: .topTrailing) {
                 if let document {
-                    DocumentView(document: document)
+                    DocumentView(document: document, isInFocusedPane: isFocused || !isSplit)
                         .id(document.id)
                         .transition(.opacity)
                 } else if isSplit {

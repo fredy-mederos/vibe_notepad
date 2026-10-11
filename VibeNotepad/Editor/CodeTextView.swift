@@ -179,13 +179,23 @@ final class CodeTextView: NSTextView {
         super.deleteForward(sender)
     }
 
-    // MARK: Folding
+    // MARK: Focus
+
+    /// With the editor split, only the focused pane's editor accepts the keyboard (see
+    /// `EditorHost.isInFocusedPane`). A click in another pane focuses that pane first.
+    override var acceptsFirstResponder: Bool {
+        guard super.acceptsFirstResponder else { return false }
+        guard let document = controller?.document else { return true }
+        return Workspace.shared.acceptsKeyboardFocus(document)
+    }
 
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
         if became, let document = controller?.document { Workspace.shared.documentDidTakeFocus(document) }
         return became
     }
+
+    // MARK: Folding
 
     override func mouseDown(with event: NSEvent) {
         if let layout = editorLayout, !layout.foldSpans.isEmpty, let span = foldPill(at: event, layout: layout) {
