@@ -98,7 +98,6 @@ struct PaneView: View {
     @Environment(Workspace.self) private var workspace
     @Environment(AppSettings.self) private var settings
     let paneID: UUID
-    @State private var dropZone: PaneDropZone?
     @State private var size: CGSize = .zero
 
     var body: some View {
@@ -138,17 +137,16 @@ struct PaneView: View {
             }
         }
         .overlay {
-            if let dropZone {
-                PaneDropHighlight(zone: dropZone)
+            if let target = workspace.paneDropTarget, target.pane == paneID {
+                PaneDropHighlight(zone: target.zone)
                     .transition(.opacity)
             }
         }
-        .animation(.snappy(duration: 0.18), value: dropZone)
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
             workspace.paneFrames[paneID] = frame
             size = frame.size
         }
-        .onDrop(of: [.vibeNotepadTab], delegate: PaneDropDelegate(paneID: paneID, size: size, canSplit: workspace.paneCount < Workspace.maxPanes, zone: $dropZone))
+        .onDrop(of: [.vibeNotepadTab], delegate: PaneDropDelegate(paneID: paneID, size: size))
     }
 }
 
@@ -360,52 +358,48 @@ private struct PaneDropHighlight: View {
     }
 }
 
-/// Accepts tabs (and pane headers) dragged onto a pane. Near an edge the tab goes into a new pane
-/// on that side; elsewhere it shows in this pane.
+/// Accepts tabs (and pane headers) dragged onto a pane's header or an empty pane (over the text or
+/// a preview, those views take the drag; see `Workspace.tabDragMoved`). Near an edge the tab goes into a
+/// new pane on that side; elsewhere it shows in this pane.
 private struct PaneDropDelegate: DropDelegate {
     let paneID: UUID
     let size: CGSize
-    let canSplit: Bool
-    @Binding var zone: PaneDropZone?
 
     func validateDrop(info: DropInfo) -> Bool {
         info.hasItemsConforming(to: [.vibeNotepadTab])
     }
 
     func dropEntered(info: DropInfo) {
-        zone = zone(at: info.location)
+        update(info)
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        let current = zone(at: info.location)
-        if zone != current { zone = current }
+        update(info)
         return DropProposal(operation: .move)
     }
 
     func dropExited(info: DropInfo) {
-        zone = nil
+        let workspace = Workspace.shared
+        if workspace.paneDropTarget?.pane == paneID { workspace.setPaneDropTarget(nil) }
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        let target = zone ?? .center
-        zone = nil
+        let workspace = Workspace.shared
+        let zone = workspace.dropZone(at: info.location, in: size)
+        workspace.setPaneDropTarget(nil)
         guard let provider = info.itemProviders(for: [.vibeNotepadTab]).first else { return false }
         let pane = paneID
         _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.vibeNotepadTab.identifier) { data, _ in
             guard let data, let item = try? JSONDecoder().decode(TabDragItem.self, from: data) else { return }
-            Task { @MainActor in Workspace.shared.dropTab(item.id, on: pane, zone: target) }
+            Task { @MainActor in Workspace.shared.dropTab(item.id, on: pane, zone: zone) }
         }
         return true
     }
 
-    /// The side within a quarter of the pane's width (or height) from the pointer, if any.
-    private func zone(at point: CGPoint) -> PaneDropZone {
-        guard canSplit, size.width > 0, size.height > 0 else { return .center }
-        let distances: [(PaneDropZone, CGFloat)] = [
-            (.left, point.x / size.width), (.right, 1 - point.x / size.width),
-            (.top, point.y / size.height), (.bottom, 1 - point.y / size.height),
-        ]
-        guard let nearest = distances.min(by: { $0.1 < $1.1 }), nearest.1 < 0.25 else { return .center }
-        return nearest.0
+    private func update(_ info: DropInfo) {
+        let workspace = Workspace.shared
+        // A late report about the drag that just ended.
+        if let drop = workspace.lastTabDrop, Date().timeIntervalSince(drop) < 0.5 { return }
+        workspace.setPaneDropTarget(PaneDropTarget(pane: paneID, zone: workspace.dropZone(at: info.location, in: size)))
     }
 }

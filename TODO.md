@@ -4,35 +4,23 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 
 ## Next up
 
-Picking up on 2026-10-12, in this order.
-
-- **Split editor, to finish and check**:
-  - Drag a tab (or a pane's header) onto a pane or one of its sides: the drop zones were only tried through code
-    (`debug-panes?op=drop`), not with a real drag.
-  - Dragging a divider over large wrapped files: does re-wrapping on every frame stutter? (The sidebar toggle had to
-    freeze the wrap width while it moves.)
-  - The collapsed-sidebar look: no pane headers, unfocused panes dimmed; check it reads well.
-  - Maybe: Quick Open ⌥↩ opens the file beside the current one; the same file in two panes (not possible yet: a
-    document has one editor view).
-  - README: the split editor and the sidebar's folders (highlights, shortcuts ⌘\\, ⇧⌘\\, ⌃⌘W, ⌥⌘ arrows, ⌥⌘`),
-    then a Done entry here.
-
-## In progress
-
-- **Split editor** (Fredy's idea), on `main`: up to four panes. View →
-  Split Right (⌘\\) / Split Down (⇧⌘\\), Close Pane (⌃⌘W), Editor Layout (Single, Two Columns, Two Rows, Three
-  Columns, One Left Two Right, Grid 2 × 2) and Focus Pane (⌥⌘ arrows, ⌥⌘` for the next one), also in the toolbar,
-  the palette, and the tab and sidebar menus (Open to the Right / Open Below). Thin dividers (drag to resize,
-  double-click to even out), a slim header per pane (name, split and close buttons; drag it to move the file),
-  unfocused panes dimmed a little, tabs shown in other panes outlined in the tab bar. A new pane shows the file
-  last seen that isn't on screen; closing a file gives its pane the next tab that isn't on screen, or closes the
-  pane. The layout (`PaneLayout`, in VibeCore with tests) comes back with the session. Keyboard focus: SwiftUI
-  puts the keyboard back in the first view it knows of that accepts it, so with the editor split only the
-  focused pane's editor and preview accept it, and their hosts are updated when the focus moves so SwiftUI asks
-  again (checked with real clicks and keys, 2026-10-12). Debug builds:
-  `vibenotepad-dev://debug-panes?op=split|layout|focus|close|click|drop|report&value=…&pane=…&path=…`.
+Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
+
+- [x] **Split editor** (Fredy's idea): up to four files at once. View → Split Right (⌘\\) / Split Down (⇧⌘\\),
+  Close Pane (⌃⌘W), Editor Layout (Single, Two Columns, Two Rows, Three Columns, One Left Two Right, Grid 2 × 2) and
+  Focus Pane (⌥⌘ arrows, ⌥⌘\` for the next one), also in the toolbar, the palette, and the tab and sidebar menus
+  (Open to the Right / Open Below); Quick Open's ⌥↩ opens a file beside the current one. Drag a tab (or a pane's
+  header) onto a pane to show it there, or onto one of its sides to split it. Thin dividers (drag to resize,
+  double-click to even out), a slim header per pane (name, split and close buttons), unfocused panes dimmed a
+  little, tabs shown in other panes outlined. A new pane shows the file last seen that isn't on screen; closing a
+  file gives its pane the next tab that isn't on screen, or closes the pane. The layout (`PaneLayout`, in VibeCore
+  with tests) comes back with the session. Two things worth knowing: SwiftUI puts the keyboard back in the first
+  view it knows of that accepts it, so with the editor split only the focused pane's editor and preview accept it
+  (their hosts are updated when the focus moves, so SwiftUI asks again); and a dragged tab also carries file
+  promises, which the text views and previews take, so they hand tab drags on to the panes. Checked with real
+  clicks, keys and drags on 2026-10-12; dragging a divider next to a 40,000-line wrapped file stays under a frame.
 
 - [x] **Several folders at once** (Fredy's idea): opening a folder adds it to the sidebar instead of replacing the
   open one. Each folder has a row of its own (a folder in a color of its own, its name, where it is and its git
@@ -83,5 +71,6 @@ Picking up on 2026-10-12, in this order.
 
 - Pinned groups: pin a set of files laid out in panes and reopen them in the same arrangement (Fredy's idea, too
   much for now).
+- The same file in two panes (a document has a single editor view for now).
 - iPadOS / iOS app sharing `VibeCore` (syntax engine, Markdown renderer, themes are already platform-neutral).
 - Multiple cursors / "select next occurrence" (⌘D) like Sublime.

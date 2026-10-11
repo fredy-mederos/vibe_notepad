@@ -21,6 +21,8 @@ struct PaletteItem: Identifiable {
     var action: () -> Void
     /// Called when the row becomes selected (live preview).
     var preview: (() -> Void)?
+    /// Run instead of `action` with ⌥↩ or ⌥-click (a file opens in a new pane beside the current one).
+    var alternateAction: (() -> Void)?
 }
 
 /// Dimmed backdrop + palette, shown above everything.
@@ -320,6 +322,15 @@ struct PaletteView: View {
                 target = nil
             }
             if let line, let target { target.navigate(toLine: line, column: column) }
+        } alternateAction: {
+            let target = document ?? url.flatMap { workspace.open(url: $0, select: false) }
+            guard let target else { return }
+            if workspace.paneCount < Workspace.maxPanes {
+                workspace.splitPane(.horizontal, showing: target)
+            } else {
+                workspace.select(target)
+            }
+            if let line { target.navigate(toLine: line, column: column) }
         }
     }
 
@@ -466,9 +477,10 @@ struct PaletteView: View {
     private func run(_ rows: [PaletteItem]) {
         guard selection < rows.count else { return }
         let item = rows[selection]
+        let alternate = NSEvent.modifierFlags.contains(.option) ? item.alternateAction : nil
         committed = true
-        workspace.hidePalette(refocus: mode != .commands)
-        DispatchQueue.main.async { item.action() }
+        workspace.hidePalette(refocus: mode != .commands && alternate == nil)
+        DispatchQueue.main.async { (alternate ?? item.action)() }
     }
 
     private func switchMode(_ newMode: PaletteMode, seed: String) {
@@ -544,6 +556,9 @@ struct PaletteView: View {
                 return nil
             case 53: // escape
                 workspace.hidePalette()
+                return nil
+            case 36 where event.modifierFlags.contains(.option): // ⌥↩ (a text field would take it as a line break)
+                run(items)
                 return nil
             default:
                 if event.modifierFlags.contains(.control), let chars = event.charactersIgnoringModifiers {

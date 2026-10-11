@@ -1,10 +1,17 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import VibeCore
 
 /// Where a dragged tab lands on a pane: in it, or in a new pane on one of its sides.
 enum PaneDropZone: Equatable {
     case center, left, right, top, bottom
+}
+
+/// The pane (and the part of it) a tab being dragged would land on, highlighted while it's over it.
+struct PaneDropTarget: Equatable {
+    let pane: UUID
+    let zone: PaneDropZone
 }
 
 /// The editor area split into up to four panes, each showing a different document (a document has
@@ -214,6 +221,8 @@ extension Workspace {
 
     /// A tab dropped on a pane: shown in it, or in a new pane on the side it was dropped on.
     func dropTab(_ id: UUID, on pane: UUID, zone: PaneDropZone) {
+        lastTabDrop = Date()
+        setPaneDropTarget(nil)
         guard let document = documents.first(where: { $0.id == id }) else { return }
         switch zone {
         case .center: show(document, inPane: pane)
@@ -222,6 +231,61 @@ extension Workspace {
         case .top: splitPane(.vertical, pane: pane, showing: document, before: true)
         case .bottom: splitPane(.vertical, pane: pane, showing: document)
         }
+    }
+
+    /// Where a tab dropped at `point` in a pane of `size` goes: a side within a quarter of the pane's
+    /// width (or height) of it (while there's room for another pane), otherwise the pane itself.
+    func dropZone(at point: CGPoint, in size: CGSize) -> PaneDropZone {
+        guard paneCount < Self.maxPanes, size.width > 0, size.height > 0 else { return .center }
+        let distances: [(PaneDropZone, CGFloat)] = [
+            (.left, point.x / size.width), (.right, 1 - point.x / size.width),
+            (.top, point.y / size.height), (.bottom, 1 - point.y / size.height),
+        ]
+        guard let nearest = distances.min(by: { $0.1 < $1.1 }), nearest.1 < 0.25 else { return .center }
+        return nearest.0
+    }
+
+    func setPaneDropTarget(_ target: PaneDropTarget?) {
+        guard paneDropTarget != target else { return }
+        withAnimation(.snappy(duration: 0.18)) { paneDropTarget = target }
+    }
+
+    // MARK: Tabs dragged over editors and previews
+
+    // AppKit hands a drag to the view under the pointer that takes one of its types. A dragged tab also
+    // carries file promises, which the editors and previews take, so they pass tab drags on to these.
+
+    static let tabPasteboardType = NSPasteboard.PasteboardType(UTType.vibeNotepadTab.identifier)
+
+    func isTabDrag(_ info: NSDraggingInfo) -> Bool {
+        info.draggingPasteboard.types?.contains(Self.tabPasteboardType) == true
+    }
+
+    /// A tab dragged over `document`'s editor or preview: highlights where it would land.
+    func tabDragMoved(_ info: NSDraggingInfo, over document: EditorDocument) -> NSDragOperation {
+        guard let target = dropTarget(info, over: document) else { return [] }
+        setPaneDropTarget(target)
+        return .move
+    }
+
+    func tabDragLeft(_ document: EditorDocument) {
+        if let target = paneDropTarget, target.pane == pane(showing: document.id) { setPaneDropTarget(nil) }
+    }
+
+    func tabDropped(_ info: NSDraggingInfo, on document: EditorDocument) -> Bool {
+        defer { setPaneDropTarget(nil) }
+        guard let target = dropTarget(info, over: document), let data = info.draggingPasteboard.data(forType: Self.tabPasteboardType),
+              let item = try? JSONDecoder().decode(TabDragItem.self, from: data) else { return false }
+        dropTab(item.id, on: target.pane, zone: target.zone)
+        return true
+    }
+
+    /// Where a tab dragged over `document`'s editor or preview would land.
+    private func dropTarget(_ info: NSDraggingInfo, over document: EditorDocument) -> PaneDropTarget? {
+        guard let pane = pane(showing: document.id), let frame = paneFrames[pane], let content = windowReference?.contentView else { return nil }
+        var point = content.convert(info.draggingLocation, from: nil)
+        if !content.isFlipped { point.y = content.bounds.height - point.y }
+        return PaneDropTarget(pane: pane, zone: dropZone(at: CGPoint(x: point.x - frame.minX, y: point.y - frame.minY), in: frame.size))
     }
 
     /// Opens the file at `url` in a new pane beside the focused one.

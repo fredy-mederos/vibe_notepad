@@ -88,6 +88,32 @@ enum DebugTools {
         }
     }
 
+    /// Times every main run loop pass for `seconds` and writes a summary to `path` (long passes are
+    /// dropped frames), for measuring something done meanwhile, like dragging a pane divider.
+    static func measureRunLoop(seconds: Double, to path: String) {
+        let start = CACurrentMediaTime()
+        var passes: [(at: Double, ms: Double)] = []
+        var passStart = start
+        let observer = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.afterWaiting.rawValue | CFRunLoopActivity.beforeWaiting.rawValue,
+                                                          true, 0) { _, activity in
+            let now = CACurrentMediaTime()
+            if activity == .afterWaiting {
+                passStart = now
+            } else {
+                passes.append(((passStart - start) * 1000, (now - passStart) * 1000))
+            }
+        }
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            CFRunLoopRemoveObserver(CFRunLoopGetMain(), observer, .commonModes)
+            let long = passes.filter { $0.ms > 16 }
+            var report = String(format: "run loop passes %d, busy %.1f ms, longest %.1f ms, over 16 ms: %d\n", passes.count,
+                                passes.reduce(0) { $0 + $1.ms }, passes.map(\.ms).max() ?? 0, long.count)
+            report += long.map { String(format: "  long pass at %.0f ms: %.1f ms", $0.at, $0.ms) }.joined(separator: "\n") + "\n"
+            try? report.write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
     /// Drives the panes, then writes how they're laid out to `path`. Ops: split (value h or v, of pane
     /// index `pane`), layout (a preset name), focus (left, right, up, down, next), close (pane index),
     /// click (value "x,y" as fractions of the window, through the click monitor), drop (value
@@ -146,6 +172,7 @@ enum DebugTools {
                 lines.append("pane \(index): \(workspace.document(inPane: id)?.displayName ?? "(empty)") at \(frame), editor \(hosted)")
             }
             lines.append("tabs \(workspace.documents.map(\.displayName).joined(separator: " "))")
+            lines.append("drop target \(workspace.paneDropTarget.map { "P\(workspace.paneLayout.paneIDs.firstIndex(of: $0.pane) ?? -1) \($0.zone)" } ?? "-")")
             try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
         }
     }

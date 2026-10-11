@@ -41,6 +41,10 @@ final class Workspace {
     var paneDocuments: [UUID: UUID] = [:]
     /// The pane that follows the tab selection and has the keyboard focus.
     var focusedPaneID: UUID
+    /// Where a tab being dragged over the panes would land.
+    var paneDropTarget: PaneDropTarget?
+    /// SwiftUI can report a dragged tab over a pane once more after the drop (see `PaneDropDelegate`).
+    @ObservationIgnored var lastTabDrop: Date?
     let recents = RecentFilesStore()
     let settings = AppSettings.shared
     /// Folders opened as projects (file trees in the sidebar, Quick Open over all their files).

@@ -38,14 +38,20 @@ any time.
   front matter), and fenced code blocks highlighted in their own language. There's also a **live preview**
   (Editor / Split / Preview) that supports GitHub-flavored tables, task lists, alerts and footnotes.
   Clicking a task checkbox in the preview ticks it in the file.
-- **Open a folder as a project**: the sidebar shows its file tree, which follows changes on disk, and
-  Quick Open searches every file in it (`git ls-files` in a repository, so ignored files stay out).
-  Use File → Open Folder… (⇧⌘O), `vibeNotePad .`, or drop a folder on the window or the Dock icon.
-  To see what's next to a file, right-click it in the sidebar or its tab → **Open Enclosing Folder…**:
-  the folder panel starts where the file is, so Open Folder takes its folder (or go up with the menu at the
-  top), and the tree opens expanded down to the file.
-- **Quick Open (⌘P)**: fuzzy search across open tabs, pinned and recent files, the project's files, and files
-  near the current one. Type `name:42` to jump to a line.
+- **Folders in the sidebar**: open as many as you like (File → Open Folder… ⇧⌘O, `vibeNotePad .`, or drop a
+  folder on the window or the Dock icon). Each one is a row of its own, with a folder in its own color, where it
+  is and its git branch, that folds its file tree; the trees follow changes on disk. Right-click a folder to
+  close it or the others, or to collapse what's inside, and Quick Open searches every file in all of them (`git
+  ls-files` in a repository, so ignored files stay out). To see what's next to a file, right-click it in the
+  sidebar or its tab → **Open Enclosing Folder…**: the folder panel starts where the file is, so Open Folder
+  takes its folder (or go up with the menu at the top), and the tree opens expanded down to the file.
+- **Split editor**: up to four files side by side or stacked. View → Split Right (⌘\\) or Split Down
+  (⇧⌘\\), Editor Layout (two columns, two rows, three columns, one left and two right, a 2 × 2 grid), or drag a
+  tab onto a pane, or onto one of its sides to split it. The dividers are thin (drag to resize, double-click to
+  even out), the focused pane follows the tab you pick, ⌥⌘ arrows move between panes, and every pane scrolls on
+  its own, also with the sidebar collapsed. The layout comes back on the next launch.
+- **Quick Open (⌘P)**: fuzzy search across open tabs, pinned and recent files, the folders' files, and files
+  near the current one. Type `name:42` to jump to a line; ⌥↩ opens the file in a new pane beside the current one.
 - **Command Palette (⇧⌘P)** with editing tools: sort lines, change case, Base64 and URL encode/decode,
   format or minify JSON (key order is kept), convert indentation, insert a UUID, and more. Minified JSON
   (lines too long to highlight) shows a banner offering to format it.
@@ -150,6 +156,11 @@ the project), builds the disk image, tags `vX.Y.Z` and publishes the GitHub rele
 | Next / Previous Tab | ⌃Tab / ⌃⇧Tab, ⇧⌘] / ⇧⌘[ |
 | Go to Tab 1…9 | ⌘1…⌘9 |
 | Reopen Closed Tab | ⇧⌘T |
+| Split Right / Split Down | ⌘\\ / ⇧⌘\\ |
+| Close Pane | ⌃⌘W |
+| Focus the Pane Left / Right / Above / Below | ⌥⌘← / ⌥⌘→ / ⌥⌘↑ / ⌥⌘↓ |
+| Next / Previous Pane | ⌥⌘\` / ⇧⌥⌘\` |
+| Open a Quick Open result beside the current file | ⌥↩ |
 | Zoom In / Out / Reset | ⌘= / ⌘- / ⌘0 (or pinch) |
 
 ## Architecture
@@ -161,14 +172,15 @@ Packages/VibeCore          Platform-neutral core (builds for macOS and iOS)
   Theme/                   Color schemes
   Text/                    File codec (encodings, BOMs, line endings), editing transforms,
                            find engine, fuzzy matcher, symbol extraction, line diff (git gutter)
+  Layout/                  The split editor's pane layout (splitting, closing, frames, neighbors, presets)
 VibeNotepad                macOS app
   App/                     App entry, menus, AppDelegate (Finder/CLI/deep links), CLI installer, version info,
                            update checks
-  Model/                   Workspace (tabs, recents, session/hot exit), project folder (tree, file index,
-                           FSEvents watcher), documents, settings, file I/O
+  Model/                   Workspace (tabs, panes, recents, session/hot exit), project folders (tree, file
+                           index, FSEvents watcher), documents, settings, file I/O
   Editor/                  TextKit 1 editor: NSTextView subclass, gutter, minimap, syntax styling, line height
   Preview/                 WKWebView Markdown preview (page scripts disabled, app talks via an isolated world)
-  UI/                      SwiftUI: sidebar, tabs, status bar, find bar, palette, welcome, settings
+  UI/                      SwiftUI: sidebar, tabs, panes, status bar, find bar, palette, welcome, settings
 ```
 
 The syntax engine stores the lexer state at the start of every line. After an edit it re-lexes from the

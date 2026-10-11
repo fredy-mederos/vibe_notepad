@@ -303,4 +303,35 @@ final class PreviewWebView: WKWebView {
         guard let document else { return true }
         return Workspace.shared.acceptsKeyboardFocus(document)
     }
+
+    // A tab dragged over the preview goes to the pane (see `Workspace.tabDragMoved`).
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard let document, Workspace.shared.isTabDrag(sender) else { return super.draggingEntered(sender) }
+        return Workspace.shared.tabDragMoved(sender, over: document)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard let document, Workspace.shared.isTabDrag(sender) else { return super.draggingUpdated(sender) }
+        return Workspace.shared.tabDragMoved(sender, over: document)
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        guard let sender, let document, Workspace.shared.isTabDrag(sender) else { return super.draggingExited(sender) }
+        Workspace.shared.tabDragLeft(document)
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        Workspace.shared.isTabDrag(sender) || super.prepareForDragOperation(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let document, Workspace.shared.isTabDrag(sender) else { return super.performDragOperation(sender) }
+        return Workspace.shared.tabDropped(sender, on: document)
+    }
+
+    override func concludeDragOperation(_ sender: NSDraggingInfo?) {
+        if let sender, Workspace.shared.isTabDrag(sender) { return }
+        super.concludeDragOperation(sender)
+    }
 }

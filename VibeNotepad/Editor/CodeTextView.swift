@@ -179,6 +179,34 @@ final class CodeTextView: NSTextView {
         super.deleteForward(sender)
     }
 
+    // MARK: Dragged tabs
+
+    // A tab dragged over the text goes to the pane (see `Workspace.tabDragMoved`).
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard let document = controller?.document, Workspace.shared.isTabDrag(sender) else { return super.draggingEntered(sender) }
+        return Workspace.shared.tabDragMoved(sender, over: document)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard let document = controller?.document, Workspace.shared.isTabDrag(sender) else { return super.draggingUpdated(sender) }
+        return Workspace.shared.tabDragMoved(sender, over: document)
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        guard let sender, let document = controller?.document, Workspace.shared.isTabDrag(sender) else { return super.draggingExited(sender) }
+        Workspace.shared.tabDragLeft(document)
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        Workspace.shared.isTabDrag(sender) || super.prepareForDragOperation(sender)
+    }
+
+    override func concludeDragOperation(_ sender: NSDraggingInfo?) {
+        if let sender, Workspace.shared.isTabDrag(sender) { return }
+        super.concludeDragOperation(sender)
+    }
+
     // MARK: Focus
 
     /// With the editor split, only the focused pane's editor accepts the keyboard (see
@@ -314,6 +342,9 @@ final class CodeTextView: NSTextView {
     // MARK: Dropping files
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        if let document = controller?.document, Workspace.shared.isTabDrag(sender) {
+            return Workspace.shared.tabDropped(sender, on: document)
+        }
         let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
         if !NSEvent.modifierFlags.contains(.option),
            let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL],
