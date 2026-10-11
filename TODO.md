@@ -6,10 +6,6 @@ Ideas to revisit later. Nothing here is implemented yet unless it's checked.
 
 Picking up on 2026-10-12, in this order.
 
-- **Folder rows: center the disclosure chevrons** (Fredy noticed): on the two-line folder rows (name, then where
-  the folder is) the chevron sits on the name's line, so it looks off next to the folder icon, which is centered.
-  Center it on the row (an alignment guide on the row's first text baseline, or see how the outline places it).
-
 - **Split editor, to finish and check**:
   - Drag a tab (or a pane's header) onto a pane or one of its sides: the drop zones were only tried through code
     (`debug-panes?op=drop`), not with a real drag.

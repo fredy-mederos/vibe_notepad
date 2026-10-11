@@ -83,43 +83,48 @@ struct ProjectRootRow: View {
     @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: project.exists ? "folder.fill" : "questionmark.folder.fill")
-                .font(.system(size: 19))
-                .foregroundStyle(project.exists ? project.tint.gradient : Color.gray.gradient)
-                .shadow(color: project.tint.opacity(project.exists ? 0.3 : 0), radius: 1.5, y: 0.5)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 0) {
+        // The list lines the disclosure chevron up with the row's first line, so the folder sits on that
+        // line, next to the name, and where it is goes underneath.
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: project.exists ? "folder.fill" : "questionmark.folder.fill")
+                    .font(.system(size: 17))
+                    .foregroundStyle(project.exists ? project.tint.gradient : Color.gray.gradient)
+                    .shadow(color: project.tint.opacity(project.exists ? 0.3 : 0), radius: 1.5, y: 0.5)
+                    .frame(width: 22)
                 Text(project.name)
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Text(project.root.abbreviatedParentPath)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.head)
-            }
-            Spacer(minLength: 4)
-            ZStack(alignment: .trailing) {
-                if isHovering {
-                    Button {
-                        workspace.closeProject(project)
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 9.5, weight: .bold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20, height: 20)
-                            .contentShape(Rectangle())
+                    .layoutPriority(1)
+                Spacer(minLength: 4)
+                ZStack(alignment: .trailing) {
+                    if isHovering {
+                        Button {
+                            workspace.closeProject(project)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9.5, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 20, height: 20)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Close Folder")
+                        .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    } else if let branch = project.branch {
+                        BranchBadge(branch: branch)
+                            .transition(.opacity)
                     }
-                    .buttonStyle(.plain)
-                    .help("Close Folder")
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
-                } else if let branch = project.branch {
-                    BranchBadge(branch: branch)
-                        .transition(.opacity)
                 }
+                .frame(height: 18)
             }
+            Text(project.root.abbreviatedParentPath)
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.head)
+                .padding(.leading, 30)
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
