@@ -39,6 +39,8 @@ struct AppCommands: Commands {
     /// The selected document, unless it's a picture (which has no text to edit, find or save).
     private var textDocument: EditorDocument? { document?.isImage == true ? nil : document }
     private var isImage: Bool { document?.isImage == true }
+    /// An image, or an SVG with its preview showing.
+    private var showsPicture: Bool { isImage || (document?.isSVG == true && document?.markdownMode != .editor) }
     private var updater: AppUpdater { .shared }
 
     var body: some Commands {
@@ -210,7 +212,7 @@ struct AppCommands: Commands {
             Button("Command Palette…") { workspace.showPalette(.commands) }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
             Divider()
-            Menu("Markdown") {
+            Menu("Preview") {
                 Button("Editor Only") { workspace.setMarkdownMode(.editor) }
                     .keyboardShortcut("1", modifiers: [.command, .option])
                 Button("Editor & Preview") { workspace.setMarkdownMode(.split) }
@@ -221,7 +223,7 @@ struct AppCommands: Commands {
                 Button("Toggle Preview") { workspace.cycleMarkdownPreview() }
                     .keyboardShortcut("v", modifiers: [.command, .shift])
             }
-            .disabled(document?.isMarkdown != true)
+            .disabled(document?.hasPreview != true)
             Button("Toggle Sidebar Files") {
                 NotificationCenter.default.post(name: .toggleSidebarRequest, object: nil)
             }
@@ -274,9 +276,15 @@ struct AppCommands: Commands {
                 .keyboardShortcut("-")
             Button("Actual Size") { workspace.resetZoom() }
                 .keyboardShortcut("0")
-            Button("Zoom to Fit") { workspace.selectedImageViewer?.zoomToFit() }
+            Button("Zoom to Fit") { workspace.pictureViewer?.zoomToFit() }
                 .keyboardShortcut("0", modifiers: [.command, .option])
-                .disabled(!isImage)
+                .disabled(!showsPicture)
+            Picker("Image Background", selection: Binding(get: { settings.imageBackground }, set: { settings.imageBackground = $0 })) {
+                ForEach(ImageBackground.allCases, id: \.self) { background in
+                    Text(background.title).tag(background)
+                }
+            }
+            .disabled(!showsPicture)
             Button(settings.showsImageInfo ? "Hide Image Info" : "Show Image Info") { workspace.toggleImageInfo() }
                 .keyboardShortcut("i")
                 .disabled(!isImage)

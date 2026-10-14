@@ -191,7 +191,7 @@ struct MainToolbar: ToolbarContent {
     @ToolbarContentBuilder
     private var actions: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            if let document = workspace.selectedDocument, document.isMarkdown {
+            if let document = workspace.selectedDocument, document.hasPreview {
                 Picker("View", selection: Binding(get: { document.markdownMode }, set: { workspace.setMarkdownMode($0) })) {
                     ForEach(MarkdownMode.allCases, id: \.self) { mode in
                         Label(mode.title, systemImage: mode.symbol).tag(mode)

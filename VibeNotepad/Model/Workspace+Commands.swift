@@ -115,20 +115,28 @@ extension Workspace {
             add("Minify JSON", "JSON", "curlybraces") { self.runJSON(editor, minify: true) }
         }
 
-        // Images
-        if let viewer = selectedImageViewer, let document {
+        // Images (and SVG previews)
+        if let viewer = pictureViewer {
             add("Zoom to Fit", "Image", "arrow.down.right.and.arrow.up.left", "⌥⌘0") { viewer.zoomToFit() }
-            add(settings.showsImageInfo ? "Hide Image Info" : "Show Image Info", "Image", "info.circle", "⌘I") { self.toggleImageInfo() }
             add("Copy Image", "Image", "photo.on.rectangle") { viewer.copyImage() }
+            for background in ImageBackground.allCases where background != settings.imageBackground {
+                add("Image Background: \(background.title)", "Image", background.symbol) { self.settings.imageBackground = background }
+            }
+        }
+        if selectedImageViewer != nil, let document {
+            add(settings.showsImageInfo ? "Hide Image Info" : "Show Image Info", "Image", "info.circle", "⌘I") { self.toggleImageInfo() }
             add("Open in Default App", "Image", "arrow.up.forward.app") { self.openInDefaultApp(document) }
         }
 
         // View
         if let document, !document.isImage {
+            if document.hasPreview {
+                let category = document.isSVG ? "SVG" : "Markdown"
+                add("Show Editor Only", category, MarkdownMode.editor.symbol, "⌥⌘1") { self.setMarkdownMode(.editor) }
+                add("Show Editor & Preview", category, MarkdownMode.split.symbol, "⌥⌘2") { self.setMarkdownMode(.split) }
+                add("Show Preview Only", category, MarkdownMode.preview.symbol, "⌥⌘3") { self.setMarkdownMode(.preview) }
+            }
             if document.isMarkdown {
-                add("Show Editor Only", "Markdown", MarkdownMode.editor.symbol, "⌥⌘1") { self.setMarkdownMode(.editor) }
-                add("Show Editor & Preview", "Markdown", MarkdownMode.split.symbol, "⌥⌘2") { self.setMarkdownMode(.split) }
-                add("Show Preview Only", "Markdown", MarkdownMode.preview.symbol, "⌥⌘3") { self.setMarkdownMode(.preview) }
                 add("Export Preview as HTML…", "Markdown", "square.and.arrow.up") { document.preview.exportHTML() }
             }
             let wraps = document.wrapLines ?? settings.wrapLines
@@ -198,17 +206,19 @@ extension Workspace {
         }
     }
 
+    /// Editor, editor and preview, or preview, for Markdown and SVG. Markdown files open the way the
+    /// last one was shown.
     func setMarkdownMode(_ mode: MarkdownMode) {
-        guard let document = selectedDocument, document.isMarkdown else { return }
+        guard let document = selectedDocument, document.hasPreview else { return }
         withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
             document.markdownMode = mode
         }
-        settings.markdownMode = mode
+        if document.isMarkdown { settings.markdownMode = mode }
         scheduleSessionSave()
     }
 
     func cycleMarkdownPreview() {
-        guard let document = selectedDocument, document.isMarkdown else { return }
+        guard let document = selectedDocument, document.hasPreview else { return }
         setMarkdownMode(document.markdownMode == .preview ? .editor : .preview)
     }
 

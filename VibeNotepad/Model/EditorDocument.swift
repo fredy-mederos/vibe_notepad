@@ -47,6 +47,7 @@ final class EditorDocument: Identifiable {
     var fileModificationDate: Date?
     /// Opened as a binary file: decoded byte for byte, which reloads must do too.
     var isBinary = false
+    /// How a document with a preview (Markdown, SVG) is shown.
     var markdownMode: MarkdownMode
     /// Per-document override of the word-wrap setting.
     var wrapLines: Bool? {
@@ -71,6 +72,7 @@ final class EditorDocument: Identifiable {
     @ObservationIgnored private var editorStorage: EditorController?
     @ObservationIgnored private var previewStorage: MarkdownPreviewController?
     @ObservationIgnored private var imageViewerStorage: ImageViewerController?
+    @ObservationIgnored private var svgPreviewStorage: SVGPreviewController?
     @ObservationIgnored private var initialText: String
     @ObservationIgnored var pendingSelection: Int?
     @ObservationIgnored var pendingDirty = false
@@ -103,6 +105,9 @@ final class EditorDocument: Identifiable {
 
     var isUntitled: Bool { fileURL == nil }
     var isMarkdown: Bool { language == .markdown }
+    var isSVG: Bool { language == .xml && fileURL?.pathExtension.lowercased() == "svg" }
+    /// Markdown and SVG can show a preview beside (or instead of) the text.
+    var hasPreview: Bool { isMarkdown || isSVG }
     var path: String? { fileURL?.canonicalPath }
 
     /// Whether this is an empty, unmodified untitled buffer that can be replaced by an opened file.
@@ -184,6 +189,16 @@ final class EditorDocument: Identifiable {
 
     var loadedImageViewer: ImageViewerController? { imageViewerStorage }
 
+    /// The SVG preview, created on first use.
+    var svgPreview: SVGPreviewController {
+        if let svgPreviewStorage { return svgPreviewStorage }
+        let preview = SVGPreviewController(document: self)
+        svgPreviewStorage = preview
+        return preview
+    }
+
+    var loadedSVGPreview: SVGPreviewController? { svgPreviewStorage }
+
     var text: String { editorStorage?.text ?? initialText }
 
     var selectionLocation: Int {
@@ -210,6 +225,7 @@ final class EditorDocument: Identifiable {
             self.updateMinifiedJSONNotice()
         }
         loadedPreview?.textDidChange()
+        loadedSVGPreview?.textDidChange()
         Workspace.shared.scheduleSessionSave()
     }
 
@@ -233,6 +249,7 @@ final class EditorDocument: Identifiable {
         statsTask?.cancel()
         previewStorage?.tearDown()
         imageViewerStorage?.tearDown()
+        svgPreviewStorage?.tearDown()
         editorStorage?.endFind()
         editorStorage?.rootView.removeFromSuperview()
     }

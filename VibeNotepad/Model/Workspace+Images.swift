@@ -16,6 +16,22 @@ extension Workspace {
         return document.imageViewer
     }
 
+    /// The picture on screen for the selected tab: an image, or an SVG's preview while it shows.
+    var pictureViewer: ImageViewerController? {
+        guard let document = selectedDocument else { return nil }
+        if document.isImage { return document.imageViewer }
+        guard document.isSVG, document.markdownMode != .editor else { return nil }
+        return document.svgPreview.viewer
+    }
+
+    /// The picture ⌘+, ⌘− and ⌘0 zoom: an image, or an SVG's preview when it shows alone or has the
+    /// keyboard (otherwise they change the text size).
+    private var zoomableViewer: ImageViewerController? {
+        guard let document = selectedDocument, let viewer = pictureViewer else { return nil }
+        if document.isImage || document.markdownMode == .preview { return viewer }
+        return mainWindow?.firstResponder === viewer.canvas ? viewer : nil
+    }
+
     /// Another app changed the picture: show the new one (there's nothing to lose, so no asking).
     func reloadImage(_ document: EditorDocument) {
         guard let url = document.fileURL else { return }
@@ -27,18 +43,16 @@ extension Workspace {
 
     // MARK: Zoom
 
-    // ⌘+, ⌘− and ⌘0 zoom the picture when one is selected, and the text size otherwise.
-
     func zoomIn() {
-        if let viewer = selectedImageViewer { viewer.zoomIn() } else { settings.zoom(by: 1) }
+        if let viewer = zoomableViewer { viewer.zoomIn() } else { settings.zoom(by: 1) }
     }
 
     func zoomOut() {
-        if let viewer = selectedImageViewer { viewer.zoomOut() } else { settings.zoom(by: -1) }
+        if let viewer = zoomableViewer { viewer.zoomOut() } else { settings.zoom(by: -1) }
     }
 
     func resetZoom() {
-        if let viewer = selectedImageViewer { viewer.actualSize() } else { settings.resetZoom() }
+        if let viewer = zoomableViewer { viewer.actualSize() } else { settings.resetZoom() }
     }
 
     func toggleImageInfo() {

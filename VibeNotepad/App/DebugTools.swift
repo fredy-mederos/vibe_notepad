@@ -199,7 +199,7 @@ enum DebugTools {
     /// writes what it shows to `path`.
     static func image(_ op: String, value: String?, report path: String) {
         let workspace = Workspace.shared
-        guard let viewer = workspace.selectedImageViewer else {
+        guard let viewer = workspace.pictureViewer else {
             try? "no image selected (\(workspace.selectedDocument?.displayName ?? "-"))\n".write(toFile: path, atomically: true, encoding: .utf8)
             return
         }
@@ -211,6 +211,7 @@ enum DebugTools {
         case "zoom": if let zoom = value.flatMap(Double.init) { viewer.setZoom(CGFloat(zoom)) }
         case "info": workspace.toggleImageInfo()
         case "copy": viewer.copyImage()
+        case "background": if let background = value.flatMap(ImageBackground.init(rawValue:)) { workspace.settings.imageBackground = background }
         case "focus": viewer.focus()
         case "layers":
             // Renders the viewer's layer tree (what the window shows, unlike a snapshot, which draws).
@@ -242,7 +243,7 @@ enum DebugTools {
             let window = workspace.windowReference
             let clip = viewer.scrollView.contentView
             let responder = window?.firstResponder.map { String(describing: type(of: $0)) } ?? "-"
-            var lines = ["state \(viewer.state), zoom \(String(format: "%.4f", viewer.zoom)), fits \(viewer.fitsPane), magnification \(String(format: "%.4f", viewer.scrollView.magnification))",
+            var lines = ["state \(viewer.state), vector \(viewer.isVector), error \(viewer.renderError ?? "-"), background \(workspace.settings.imageBackground.rawValue), zoom \(String(format: "%.4f", viewer.zoom)), fits \(viewer.fitsPane), magnification \(String(format: "%.4f", viewer.scrollView.magnification))",
                          "scroll view \(NSStringFromRect(viewer.scrollView.frame)) in window \(viewer.scrollView.window != nil), clip bounds \(NSStringFromRect(clip.bounds)), canvas \(NSStringFromRect(viewer.canvas.frame))",
                          "image size \(viewer.image.map { NSStringFromSize($0.size) } ?? "-"), first responder \(responder), info panel \(workspace.settings.showsImageInfo)",
                          "pasteboard \(NSPasteboard.general.types?.map(\.rawValue).joined(separator: " ") ?? "-")"]

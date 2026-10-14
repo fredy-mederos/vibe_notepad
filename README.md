@@ -32,10 +32,16 @@ any time.
 - **Opens images too** (read-only): PNG, JPEG, GIF (animated), HEIC, WebP, TIFF, BMP, ICO, ICNS, PSD, camera raw and
   anything else macOS can decode, even without an extension. Zoom with a pinch, ⌘+ / ⌘−, the status bar or a
   double-click; ⌘0 is actual size and ⌥⌘0 fits the picture to the pane (the default, never enlarged). Drag it
-  around or scroll; from 200% on, pixels show as sharp squares, and transparent areas sit on a checkerboard.
+  around or scroll; from 200% on, pixels show as sharp squares. Transparent areas sit on a checkerboard, or on
+  white, black or nothing (the status bar's background menu, View → Image Background).
   The status bar shows the size, format and file size; **Image Info (⌘I)** adds dimensions, resolution, color
   model and profile, frames, orientation, camera and exposure, and the file's details. ⌘C copies the picture,
-  and a picture that changes on disk reloads by itself. SVG still opens as text.
+  and a picture that changes on disk reloads by itself.
+- **SVG with a live preview**: SVG files open as code with the picture beside it (Editor / Split / Preview, like
+  Markdown). It's drawn by WebKit, so CSS, gradients, filters and text look as they do in a browser, stays sharp at
+  any zoom, and follows your typing; a mistake in the XML shows its line over the last good picture. The preview
+  zooms and pans like an image, with its size, zoom and background in a bar in its corner. SVGs are drawn as
+  pictures, so their scripts never run and they can't load anything.
 - **Recent and pinned files in the sidebar**, with fuzzy filtering, relative times, and missing-file detection.
   Pin the config files you edit all the time (`~/.zshrc`, `.env`, `~/.ssh/config`).
 - **Sublime-style syntax highlighting** for 50+ languages, done incrementally: only the lines that change or scroll
@@ -156,7 +162,7 @@ the project), builds the disk image, tags `vX.Y.Z` and publishes the GitHub rele
 | Move Line Up / Down | ⌃⌘↑ / ⌃⌘↓ |
 | Duplicate / Delete Line | ⇧⌘D / ⌃⇧K |
 | Join Lines / Select Line | ⌘J / ⌘L |
-| Markdown: Editor / Split / Preview | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 (toggle: ⇧⌘V) |
+| Markdown and SVG: Editor / Split / Preview | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 (toggle: ⇧⌘V) |
 | Fold / Unfold | ⌥⌘[ / ⌥⌘] |
 | Fold All / Unfold All | ⇧⌥⌘[ / ⇧⌥⌘] |
 | Format JSON | ⌥⌘J |
@@ -168,7 +174,7 @@ the project), builds the disk image, tags `vX.Y.Z` and publishes the GitHub rele
 | Focus the Pane Left / Right / Above / Below | ⌥⌘← / ⌥⌘→ / ⌥⌘↑ / ⌥⌘↓ |
 | Next / Previous Pane | ⌥⌘\` / ⇧⌥⌘\` |
 | Open a Quick Open result beside the current file | ⌥↩ |
-| Zoom In / Out / Reset (the picture's zoom, for an image) | ⌘= / ⌘- / ⌘0 (or pinch) |
+| Zoom In / Out / Reset (the picture's zoom for an image, or an SVG preview that has the keyboard) | ⌘= / ⌘- / ⌘0 (or pinch) |
 | Image: Zoom to Fit / Image Info | ⌥⌘0 / ⌘I |
 
 ## Architecture
@@ -187,7 +193,8 @@ VibeNotepad                macOS app
   Model/                   Workspace (tabs, panes, recents, session/hot exit), project folders (tree, file
                            index, FSEvents watcher), documents, settings, file I/O
   Editor/                  TextKit 1 editor: NSTextView subclass, gutter, minimap, syntax styling, line height
-  Preview/                 WKWebView Markdown preview (page scripts disabled, app talks via an isolated world)
+  Preview/                 WKWebView Markdown preview (page scripts disabled, app talks via an isolated world);
+                           SVG preview (WebKit draws the SVG as an image into a PDF the image viewer shows)
   Image/                   Image viewer: zoomable scroll view, pictures decoded off the main thread and shown as
                            layer contents (the GPU scales them), animations, checkerboard, panning
   UI/                      SwiftUI: sidebar, tabs, panes, status bar, find bar, palette, welcome, settings

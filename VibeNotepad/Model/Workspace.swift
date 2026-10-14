@@ -148,6 +148,7 @@ final class Workspace {
             _ = settings.spellCheckProse
             _ = settings.previewFont
             _ = settings.previewFontSize
+            _ = settings.imageBackground
         } onChange: {
             Task { @MainActor in
                 Workspace.shared.applySettingsToEditors()
@@ -177,6 +178,7 @@ final class Workspace {
             document.loadedEditor?.applySettings(settings, theme: theme)
             document.loadedPreview?.applyTheme()
             document.loadedImageViewer?.applyTheme()
+            document.loadedSVGPreview?.viewer.applyTheme()
         }
     }
 
@@ -328,7 +330,11 @@ final class Workspace {
         document.lineEnding = loaded.decoded.lineEnding
         document.fileModificationDate = loaded.modificationDate
         document.isBinary = isBinary
-        if let mode = remembered?.markdownMode { document.markdownMode = mode }
+        if let mode = remembered?.markdownMode {
+            document.markdownMode = mode
+        } else if document.isSVG {
+            document.markdownMode = .split
+        }
         document.pendingSelection = remembered?.selection
         return document
     }
@@ -463,7 +469,7 @@ final class Workspace {
         let selection = document.selectionLocation
         recents.update(path) { item in
             item.selection = selection
-            item.markdownMode = document.isMarkdown ? document.markdownMode : nil
+            item.markdownMode = document.hasPreview ? document.markdownMode : nil
             item.language = document.languageIsManual ? document.language : nil
         }
     }

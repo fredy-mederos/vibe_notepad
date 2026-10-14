@@ -13,7 +13,7 @@ struct ImageDocumentView: View {
         let viewer = document.imageViewer
         HStack(spacing: 0) {
             ZStack {
-                ImageHost(document: document, isInFocusedPane: isInFocusedPane)
+                ImageHost(document: document, viewer: viewer, isInFocusedPane: isInFocusedPane, takesFocus: true)
                 if case .failed(let message) = viewer.state {
                     ImageErrorView(document: document, message: message)
                         .transition(.opacity)
@@ -27,26 +27,29 @@ struct ImageDocumentView: View {
     }
 }
 
-/// Embeds the document's image viewer.
+/// Embeds an image viewer: a document's picture, or an SVG's preview.
 struct ImageHost: NSViewRepresentable {
     let document: EditorDocument
+    let viewer: ImageViewerController
     /// See `EditorHost.isInFocusedPane`.
     let isInFocusedPane: Bool
+    /// Whether it takes the keyboard when it appears (an SVG's preview does only when it shows alone).
+    let takesFocus: Bool
 
     func makeNSView(context: Context) -> HostingContainerView {
         let container = HostingContainerView()
-        container.onAttach = { [weak document] in
-            guard let document, let viewer = document.loadedImageViewer else { return }
+        container.onAttach = { [weak document, weak viewer, takesFocus] in
+            guard let document, let viewer else { return }
             viewer.fitToPane()
             let workspace = Workspace.shared
-            if !workspace.findBarVisible, workspace.palette == nil, workspace.selectedDocument === document { viewer.focus() }
+            if takesFocus, !workspace.findBarVisible, workspace.palette == nil, workspace.selectedDocument === document { viewer.focus() }
         }
-        container.host(document.imageViewer.scrollView)
+        container.host(viewer.scrollView)
         return container
     }
 
     func updateNSView(_ container: HostingContainerView, context: Context) {
-        container.host(document.imageViewer.scrollView)
+        container.host(viewer.scrollView)
     }
 
     static func dismantleNSView(_ container: HostingContainerView, coordinator: ()) {
@@ -240,7 +243,7 @@ private struct InfoRow: View {
     }
 }
 
-/// The status bar for a picture: its size, format and file size, then the zoom controls.
+/// The status bar for a picture: its size, format and file size, then the zoom and background controls.
 struct ImageStatusItems: View {
     @Environment(Workspace.self) private var workspace
     @Environment(AppSettings.self) private var settings
@@ -260,38 +263,8 @@ struct ImageStatusItems: View {
         Spacer(minLength: 8)
 
         if viewer.state == .loaded {
-            HStack(spacing: 2) {
-                Button { viewer.zoomOut() } label: { Image(systemName: "minus") }
-                    .buttonStyle(StatusButtonStyle())
-                    .help("Zoom Out (⌘−)")
-                Menu {
-                    Button("Zoom to Fit") { viewer.zoomToFit() }
-                    Button("Actual Size") { viewer.actualSize() }
-                    Divider()
-                    ForEach([0.25, 0.5, 1, 2, 4, 8] as [CGFloat], id: \.self) { zoom in
-                        Button("\(Int(zoom * 100))%") { viewer.setZoom(zoom) }
-                    }
-                } label: {
-                    Text("\(Int((viewer.zoom * 100).rounded()))%")
-                        .contentTransition(.numericText())
-                        .frame(minWidth: 38)
-                }
-                .menuStyle(.button)
-                .buttonStyle(StatusButtonStyle())
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("Zoom")
-                Button { viewer.zoomIn() } label: { Image(systemName: "plus") }
-                    .buttonStyle(StatusButtonStyle())
-                    .help("Zoom In (⌘+)")
-            }
-            Button {
-                if viewer.fitsPane { viewer.actualSize() } else { viewer.zoomToFit() }
-            } label: {
-                Image(systemName: viewer.fitsPane ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left")
-            }
-            .buttonStyle(StatusButtonStyle())
-            .help(viewer.fitsPane ? "Fitting the pane: click for Actual Size (⌘0)" : "Zoom to Fit (⌥⌘0)")
+            ImageZoomControls(viewer: viewer)
+            if viewer.details?.hasAlpha != false { ImageBackgroundMenu() }
         }
 
         Button {
@@ -302,5 +275,124 @@ struct ImageStatusItems: View {
         }
         .buttonStyle(StatusButtonStyle())
         .help("Image Info (⌘I)")
+    }
+}
+
+/// Zoom out, the zoom (a menu of zooms), zoom in, and fit / actual size.
+struct ImageZoomControls: View {
+    let viewer: ImageViewerController
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button { viewer.zoomOut() } label: { Image(systemName: "minus") }
+                .buttonStyle(StatusButtonStyle())
+                .help("Zoom Out (⌘−)")
+            Menu {
+                Button("Zoom to Fit") { viewer.zoomToFit() }
+                Button("Actual Size") { viewer.actualSize() }
+                Divider()
+                ForEach([0.25, 0.5, 1, 2, 4, 8] as [CGFloat], id: \.self) { zoom in
+                    Button("\(Int(zoom * 100))%") { viewer.setZoom(zoom) }
+                }
+            } label: {
+                Text("\(Int((viewer.zoom * 100).rounded()))%")
+                    .contentTransition(.numericText())
+                    .frame(minWidth: 38)
+            }
+            .menuStyle(.button)
+            .buttonStyle(StatusButtonStyle())
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Zoom")
+            Button { viewer.zoomIn() } label: { Image(systemName: "plus") }
+                .buttonStyle(StatusButtonStyle())
+                .help("Zoom In (⌘+)")
+            Button {
+                if viewer.fitsPane { viewer.actualSize() } else { viewer.zoomToFit() }
+            } label: {
+                Image(systemName: viewer.fitsPane ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left")
+            }
+            .buttonStyle(StatusButtonStyle())
+            .help(viewer.fitsPane ? "Fitting the pane: click for Actual Size (⌘0)" : "Zoom to Fit (⌥⌘0)")
+        }
+    }
+}
+
+/// What shows behind transparent pictures: a checkerboard, white, black or nothing.
+struct ImageBackgroundMenu: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        @Bindable var settings = settings
+        Menu {
+            Picker("Background", selection: $settings.imageBackground) {
+                ForEach(ImageBackground.allCases, id: \.self) { background in
+                    Label(background.title, systemImage: background.symbol).tag(background)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: settings.imageBackground.symbol)
+        }
+        .menuStyle(.button)
+        .buttonStyle(StatusButtonStyle())
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Background for transparent parts: \(settings.imageBackground.title)")
+    }
+}
+
+/// An SVG's live preview: the picture (zoomable, like an image), its size and zoom controls in a bar
+/// over its corner, and what's wrong with the text while it doesn't render.
+struct SVGPreviewView: View {
+    @Environment(AppSettings.self) private var settings
+    let document: EditorDocument
+    /// See `EditorHost.isInFocusedPane`.
+    let isInFocusedPane: Bool
+
+    var body: some View {
+        let theme = settings.theme
+        let viewer = document.svgPreview.viewer
+        ZStack(alignment: .bottomTrailing) {
+            ImageHost(document: document, viewer: viewer, isInFocusedPane: isInFocusedPane, takesFocus: document.markdownMode == .preview)
+            if viewer.state == .loaded {
+                HStack(spacing: 8) {
+                    if let details = viewer.details {
+                        Text(details.dimensions)
+                            .foregroundStyle(theme.mutedForeground.color)
+                            .padding(.leading, 6)
+                    }
+                    ImageZoomControls(viewer: viewer)
+                    ImageBackgroundMenu()
+                }
+                .font(.system(size: 11).monospacedDigit())
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .glassEffect(.regular, in: .capsule)
+                .padding(12)
+                .transition(.opacity)
+            }
+        }
+        .overlay(alignment: .top) {
+            if let error = viewer.renderError {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(error)
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(theme.foreground.color)
+                        .lineLimit(2)
+                        .textSelection(.enabled)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Color.orange.opacity(0.14))
+                .background(theme.background.color)
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.orange.opacity(0.25)).frame(height: 1) }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy(duration: 0.2), value: viewer.renderError)
     }
 }

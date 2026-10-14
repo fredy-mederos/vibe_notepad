@@ -8,6 +8,17 @@ Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
 
+- [x] **SVG preview and image backgrounds**: SVG files get Editor / Split / Preview like Markdown (⌥⌘1–3, the toolbar
+  switcher), opening in Split. WebKit draws the SVG (as an `<img>`: no scripts, nothing fetched, a page policy
+  that loads nothing else) into a PDF, which the image viewer shows as a vector picture, so it's sharp at any zoom
+  and pans, zooms and fits like an image (fitting may enlarge it: a 24 px icon fills the pane). It follows the
+  text a quarter of a second after typing stops; XML mistakes show libxml2's message ("Line 10: Opening and
+  ending tag mismatch") over the last good picture. A missing `xmlns` (or `xmlns:xlink`) is added for the
+  preview, and the size comes from width/height (px, pt, in, cm…), else the viewBox. ⌘+ / ⌘− / ⌘0 zoom the
+  preview when it shows alone or has the keyboard, and the text size otherwise. Transparent parts of images and
+  SVGs sit on a checkerboard, white, black or nothing (status bar menu, the preview's bar, View → Image
+  Background, the palette), remembered across launches.
+
 - [x] **Open images too** (Fredy's idea): pictures open read-only in a tab of their own, in an image viewer
   (`ImageViewerController`). Any format macOS decodes (PNG, JPEG, GIF with animation, HEIC, WebP, TIFF, ICNS,
   PSD, camera raw…), found by extension or, for a file without one, by its contents; SVG stays text. Zoom with a
@@ -83,9 +94,9 @@ Nothing queued right now; see "Not now" for parked ideas.
 ## Not now
 
 - Images, later: next / previous picture in the same folder (← / →), a pixel inspector (coordinates and the
-  color under the pointer), background choices for transparent pictures, rotate / flip / crop / resize and
-  export to another format, strip metadata, paste an image into a Markdown note (saved next to it, linked),
-  SVG preview beside its code like Markdown.
+  color under the pointer), rotate / flip / crop / resize and export to another format, strip metadata, paste an
+  image into a Markdown note (saved next to it, linked). SVG: images it links to (`<image href>`) and web fonts
+  don't show in the preview (it loads nothing).
 
 - Pinned groups: pin a set of files laid out in panes and reopen them in the same arrangement (Fredy's idea, too
   much for now).

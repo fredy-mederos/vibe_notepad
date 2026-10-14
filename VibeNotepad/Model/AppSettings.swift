@@ -3,7 +3,34 @@ import Observation
 import SwiftUI
 import VibeCore
 
-/// How a Markdown document is shown.
+/// What shows behind the transparent parts of a picture (images and SVG previews).
+nonisolated enum ImageBackground: String, CaseIterable, Codable, Sendable {
+    case checkerboard
+    case white
+    case black
+    /// The editor's background.
+    case none
+
+    var title: String {
+        switch self {
+        case .checkerboard: "Checkerboard"
+        case .white: "White"
+        case .black: "Black"
+        case .none: "None"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .checkerboard: "checkerboard.rectangle"
+        case .white: "square"
+        case .black: "square.fill"
+        case .none: "square.dashed"
+        }
+    }
+}
+
+/// How a document with a preview (Markdown, SVG) is shown.
 nonisolated enum MarkdownMode: String, CaseIterable, Codable, Sendable {
     case editor
     case split
@@ -101,6 +128,7 @@ final class AppSettings {
     var showsSidebar: Bool { didSet { save(showsSidebar, "showsSidebar") } }
     /// The panel beside a picture with its dimensions, format, color, camera and file details.
     var showsImageInfo: Bool { didSet { save(showsImageInfo, "showsImageInfo") } }
+    var imageBackground: ImageBackground { didSet { save(imageBackground.rawValue, "imageBackground") } }
 
     /// Whether the app currently renders dark (system setting or forced appearance).
     private(set) var effectiveIsDark: Bool = false
@@ -135,6 +163,7 @@ final class AppSettings {
         reloadChangedFiles = value("reloadChangedFiles", true)
         showsSidebar = value("showsSidebar", true)
         showsImageInfo = value("showsImageInfo", false)
+        imageBackground = ImageBackground(rawValue: value("imageBackground", "checkerboard")) ?? .checkerboard
     }
 
     private func save(_ value: Any, _ key: String) {

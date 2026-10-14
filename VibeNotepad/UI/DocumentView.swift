@@ -32,7 +32,7 @@ struct DocumentView: View {
 
     private var editorAndPreview: some View {
         GeometryReader { geometry in
-            let mode = document.isMarkdown ? document.markdownMode : .editor
+            let mode = document.hasPreview ? document.markdownMode : .editor
             HStack(spacing: 0) {
                 if mode != .preview {
                     EditorHost(document: document, isInFocusedPane: isInFocusedPane)
@@ -44,8 +44,14 @@ struct DocumentView: View {
                         .transition(.opacity)
                 }
                 if mode != .editor {
-                    PreviewHost(document: document, isInFocusedPane: isInFocusedPane)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                    Group {
+                        if document.isSVG {
+                            SVGPreviewView(document: document, isInFocusedPane: isInFocusedPane)
+                        } else {
+                            PreviewHost(document: document, isInFocusedPane: isInFocusedPane)
+                        }
+                    }
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .coordinateSpace(.named("split"))

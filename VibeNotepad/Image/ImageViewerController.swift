@@ -3,7 +3,8 @@ import Observation
 
 /// Shows an image document: zoom (pinch, ⌘+ / ⌘−, actual size, fit to the pane), scrolling and
 /// dragging the picture around, and what the status bar and info panel say about it. Images open
-/// read-only; the file is reloaded when another app changes it.
+/// read-only; the file is reloaded when another app changes it. SVG previews use it too, fed vector
+/// pictures by `SVGPreviewController` instead of reading the file.
 @Observable
 final class ImageViewerController {
     enum State: Equatable {
@@ -21,8 +22,14 @@ final class ImageViewerController {
     @ObservationIgnored weak var document: EditorDocument?
     @ObservationIgnored let scrollView: ImageScrollView
     @ObservationIgnored let canvas: ImageCanvasView
+    /// Shows the document's file (an image), rather than what it's handed (an SVG preview).
+    @ObservationIgnored private let loadsFile: Bool
     private(set) var state: State = .loading
     private(set) var details: ImageDetails?
+    /// A vector picture (an SVG preview): sharp at any zoom, and fitting the pane may enlarge it.
+    private(set) var isVector = false
+    /// Why the latest version couldn't be shown (an SVG with a mistake); the last good one stays.
+    private(set) var renderError: String?
     /// Screen points per image point (1 is actual size).
     private(set) var zoom: CGFloat = 1
     /// The whole picture shows and follows the pane's size (never enlarged past actual size).
@@ -31,8 +38,9 @@ final class ImageViewerController {
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var boundsObserver: NSObjectProtocol?
 
-    init(document: EditorDocument) {
+    init(document: EditorDocument, loadsFile: Bool = true) {
         self.document = document
+        self.loadsFile = loadsFile
         let scroll = ImageScrollView()
         let clip = CenteringClipView()
         clip.drawsBackground = false
@@ -63,7 +71,7 @@ final class ImageViewerController {
     /// Reads and decodes the file off the main thread, then shows it. Called again when the file
     /// changes on disk: the zoom stays, unless the picture follows the pane's size.
     func load() {
-        guard let url = document?.fileURL else { return }
+        guard loadsFile, let url = document?.fileURL else { return }
         loadTask?.cancel()
         loadTask = Task { [weak self] in
             let result = await Task.detached(priority: .userInitiated) { () -> Result<LoadedImage, ImageLoadError> in
@@ -103,6 +111,24 @@ final class ImageViewerController {
             state = .loaded
             if fitsPane { fitToPane() } else { magnificationDidChange() }
         }
+    }
+
+    /// Shows a vector picture (an SVG preview's latest render). The zoom stays, unless the picture
+    /// follows the pane's size.
+    func showVector(_ picture: NSImage, details: ImageDetails) {
+        image = picture
+        self.details = details
+        isVector = true
+        renderError = nil
+        canvas.showVector(picture)
+        state = .loaded
+        if fitsPane { fitToPane() } else { magnificationDidChange() }
+    }
+
+    /// The latest version can't be shown: says why, over the last good one (if any).
+    func showRenderError(_ message: String) {
+        renderError = message
+        if image == nil { state = .failed(message) }
     }
 
     // MARK: Zoom
@@ -150,12 +176,12 @@ final class ImageViewerController {
         fitsPane = false
     }
 
-    /// Shows the whole picture, at actual size at most.
+    /// Shows the whole picture: at actual size at most, unless it's a vector one.
     func fitToPane() {
         guard fitsPane, let image else { return }
         let viewport = scrollView.contentSize
         guard viewport.width > 1, viewport.height > 1 else { return }
-        let fit = min(1, viewport.width / image.size.width, viewport.height / image.size.height)
+        let fit = min(isVector ? Self.maximumZoom : 1, viewport.width / image.size.width, viewport.height / image.size.height)
         scrollView.minMagnification = min(Self.zoomSteps[0], fit)
         if abs(scrollView.magnification - fit) > 0.0001 { scrollView.magnification = fit }
         magnificationDidChange()
@@ -169,13 +195,15 @@ final class ImageViewerController {
 
     // MARK: Other
 
+    /// Follows the theme and the image background setting.
     func applyTheme() {
-        let theme = AppSettings.shared.theme
+        let settings = AppSettings.shared
+        let theme = settings.theme
         scrollView.backgroundColor = theme.background.nsColor
         scrollView.drawsBackground = true
         scrollView.scrollerKnobStyle = theme.isDark ? .light : .dark
         scrollView.appearance = theme.appearance
-        canvas.isDark = theme.isDark
+        canvas.setBackdrop(settings.imageBackground, isDark: theme.isDark)
     }
 
     func focus() {
@@ -243,24 +271,26 @@ final class CenteringClipView: NSClipView {
     }
 }
 
-/// The picture at its actual size (the scroll view zooms it), on a checkerboard where it's
-/// transparent. Drag it to move around; double-click to zoom in, and again to fit the pane. With the editor split, only the focused pane's picture accepts the keyboard (see
+/// The picture at its actual size (the scroll view zooms it), on a checkerboard (or the background
+/// picked) where it's transparent. Drag it to move around; double-click to zoom in, and again to fit
+/// the pane. With the editor split, only the focused pane's picture accepts the keyboard (see
 /// `EditorHost.isInFocusedPane`).
 final class ImageCanvasView: NSView {
     weak var controller: ImageViewerController?
-    var isDark = false {
-        didSet { checkerboard.isDark = isDark }
-    }
-    private let checkerboard = CheckerboardView()
+    private let backdrop = BackdropView()
     private let pictureView = PictureView()
+    /// Draws vector pictures (SVG previews) instead of `pictureView`, so they stay sharp.
+    private let vectorView = VectorView()
     /// Plays animated pictures (GIF, APNG…) instead of `pictureView`.
     private var animationView: AnimationView?
+    private var hasAlpha = false
     private var dragStart: (point: NSPoint, origin: NSPoint)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        checkerboard.isHidden = true
-        for view in [checkerboard, pictureView] as [NSView] {
+        backdrop.isHidden = true
+        vectorView.isHidden = true
+        for view in [backdrop, pictureView, vectorView] as [NSView] {
             view.autoresizingMask = [.width, .height]
             addSubview(view)
         }
@@ -275,10 +305,10 @@ final class ImageCanvasView: NSView {
     /// Shows `picture` at `size` points (or plays `animation`).
     func show(_ picture: CGImage, size: NSSize, animation: NSImage?, hasAlpha: Bool) {
         setFrameSize(size)
-        checkerboard.frame = bounds
-        checkerboard.isHidden = !hasAlpha
-        checkerboard.needsDisplay = true
-        pictureView.frame = bounds
+        layOut(hasAlpha: hasAlpha)
+        vectorView.isHidden = true
+        vectorView.picture = nil
+        pictureView.isHidden = false
         pictureView.picture = animation == nil ? picture : nil
         if let animation {
             let view = animationView ?? AnimationView()
@@ -297,9 +327,34 @@ final class ImageCanvasView: NSView {
         }
     }
 
+    /// Shows a vector picture at its size in points.
+    func showVector(_ picture: NSImage) {
+        setFrameSize(picture.size)
+        layOut(hasAlpha: true)
+        pictureView.isHidden = true
+        pictureView.picture = nil
+        animationView?.removeFromSuperview()
+        animationView = nil
+        vectorView.isHidden = false
+        vectorView.picture = picture
+    }
+
+    private func layOut(hasAlpha: Bool) {
+        self.hasAlpha = hasAlpha
+        for view in subviews { view.frame = bounds }
+        backdrop.isHidden = !hasAlpha || backdrop.background == .none
+        backdrop.needsDisplay = true
+    }
+
+    func setBackdrop(_ background: ImageBackground, isDark: Bool) {
+        backdrop.background = background
+        backdrop.isDark = isDark
+        backdrop.isHidden = !hasAlpha || background == .none
+    }
+
     func zoomDidChange(_ zoom: CGFloat) {
         pictureView.zoom = zoom
-        checkerboard.zoom = zoom
+        backdrop.zoom = zoom
         window?.invalidateCursorRects(for: self)
     }
 
@@ -479,13 +534,31 @@ private final class PictureView: NSView {
     }
 }
 
-/// Gray squares behind a transparent picture, the same size on screen at any zoom.
-private final class CheckerboardView: NSView {
+/// A vector picture, drawn: the scroll view redraws it at every zoom, so it stays sharp.
+private final class VectorView: NSView {
+    var picture: NSImage? {
+        didSet { needsDisplay = true }
+    }
+
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        picture?.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+    }
+}
+
+/// What shows behind a transparent picture: gray squares (the same size on screen at any zoom),
+/// white or black.
+private final class BackdropView: NSView {
+    var background = ImageBackground.checkerboard {
+        didSet { if oldValue != background { needsDisplay = true } }
+    }
     var isDark = false {
-        didSet { if oldValue != isDark { needsDisplay = true } }
+        didSet { if oldValue != isDark, background == .checkerboard { needsDisplay = true } }
     }
     var zoom: CGFloat = 1 {
-        didSet { if oldValue != zoom, !isHidden { needsDisplay = true } }
+        didSet { if oldValue != zoom, !isHidden, background == .checkerboard { needsDisplay = true } }
     }
 
     override var isFlipped: Bool { true }
@@ -495,6 +568,19 @@ private final class CheckerboardView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let rect = dirtyRect.intersection(bounds)
         guard !rect.isEmpty else { return }
+        switch background {
+        case .white, .none:
+            NSColor.white.setFill()
+            rect.fill()
+        case .black:
+            NSColor.black.setFill()
+            rect.fill()
+        case .checkerboard:
+            drawCheckerboard(in: rect)
+        }
+    }
+
+    private func drawCheckerboard(in rect: NSRect) {
         let square = 8 / max(zoom, 0.001)
         let (light, dark): (NSColor, NSColor) = isDark
             ? (NSColor(white: 0.24, alpha: 1), NSColor(white: 0.19, alpha: 1))
