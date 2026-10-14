@@ -230,7 +230,7 @@ struct MainToolbar: ToolbarContent {
                 Label("Find", systemImage: "magnifyingglass")
             }
             .help("Find (⌘F)")
-            .disabled(workspace.selectedDocument == nil)
+            .disabled(workspace.selectedDocument?.isImage != false)
 
             Button {
                 workspace.showPalette(.files)
@@ -242,9 +242,9 @@ struct MainToolbar: ToolbarContent {
             Menu {
                 Button("Command Palette…", systemImage: "command") { workspace.showPalette(.commands) }
                 Button("Go to Line…", systemImage: "arrow.right.to.line") { workspace.showPalette(.goToLine) }
-                    .disabled(workspace.selectedDocument == nil)
+                    .disabled(workspace.selectedDocument?.isImage != false)
                 Button("Go to Symbol…", systemImage: "list.bullet.indent") { workspace.showPalette(.symbols) }
-                    .disabled(workspace.selectedDocument == nil)
+                    .disabled(workspace.selectedDocument?.isImage != false)
                 Divider()
                 Button("Reveal in Finder", systemImage: "folder") { workspace.revealInFinder() }
                     .disabled(workspace.selectedDocument?.fileURL == nil)

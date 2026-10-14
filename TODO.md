@@ -8,6 +8,19 @@ Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
 
+- [x] **Open images too** (Fredy's idea): pictures open read-only in a tab of their own, in an image viewer
+  (`ImageViewerController`). Any format macOS decodes (PNG, JPEG, GIF with animation, HEIC, WebP, TIFF, ICNS,
+  PSD, camera raw…), found by extension or, for a file without one, by its contents; SVG stays text. Zoom with a
+  pinch, ⌘+ / ⌘− (they zoom the picture when one is selected), ⌘0 actual size, ⌥⌘0 fit (the default, never
+  enlarged), the status bar's zoom menu, or a double-click. Drag or scroll to move around; from 200% on, pixels
+  are sharp squares; transparency shows on a checkerboard. The status bar shows the size, format and file size;
+  Image Info (⌘I) is a panel with dimensions, size at 100% (high-dpi files), resolution, color model and profile,
+  frames, orientation, camera and exposure (EXIF), and the file. ⌘C copies the picture. Pictures reload when
+  they change on disk, come back with the session, show in Quick Open, the sidebar and tabs with a photo badge,
+  and work in split panes; Markdown preview links to images open them in a tab. Save, Find, Go to Line and the
+  text commands are off for them. Pictures are decoded off the main thread (a 6K HEIC took about a second to
+  decode, then about 20 ms to redraw when drawn by hand) and shown as layer contents, so the GPU does the zooming.
+
 - [x] **Split editor** (Fredy's idea): up to four files at once. View → Split Right (⌘\\) / Split Down (⇧⌘\\),
   Close Pane (⌃⌘W), Editor Layout (Single, Two Columns, Two Rows, Three Columns, One Left Two Right, Grid 2 × 2) and
   Focus Pane (⌥⌘ arrows, ⌥⌘\` for the next one), also in the toolbar, the palette, and the tab and sidebar menus
@@ -68,6 +81,11 @@ Nothing queued right now; see "Not now" for parked ideas.
 - [x] Code folding (JSON and brace languages, YAML/Python indentation, Markdown headings).
 
 ## Not now
+
+- Images, later: next / previous picture in the same folder (← / →), a pixel inspector (coordinates and the
+  color under the pointer), background choices for transparent pictures, rotate / flip / crop / resize and
+  export to another format, strip metadata, paste an image into a Markdown note (saved next to it, linked),
+  SVG preview beside its code like Markdown.
 
 - Pinned groups: pin a set of files laid out in panes and reopen them in the same arrangement (Fredy's idea, too
   much for now).

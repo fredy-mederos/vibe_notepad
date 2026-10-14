@@ -195,7 +195,7 @@ struct RecentFileRow: View {
         let openDocument = workspace.documents.first { $0.path == item.path }
 
         HStack(spacing: 9) {
-            FileIcon(language: language, size: 22)
+            FileIcon(language: language, size: 22, isImage: ImageFile.isImage(path: item.path))
                 .opacity(missing ? 0.35 : 1)
                 .saturation(missing ? 0 : 1)
             VStack(alignment: .leading, spacing: 1) {

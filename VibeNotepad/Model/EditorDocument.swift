@@ -21,6 +21,8 @@ final class EditorDocument: Identifiable {
     let id: UUID
     var fileURL: URL?
     var untitledNumber: Int
+    /// A picture: shown in the image viewer, never edited or saved.
+    let isImage: Bool
 
     var language: LanguageID {
         didSet {
@@ -68,6 +70,7 @@ final class EditorDocument: Identifiable {
 
     @ObservationIgnored private var editorStorage: EditorController?
     @ObservationIgnored private var previewStorage: MarkdownPreviewController?
+    @ObservationIgnored private var imageViewerStorage: ImageViewerController?
     @ObservationIgnored private var initialText: String
     @ObservationIgnored var pendingSelection: Int?
     @ObservationIgnored var pendingDirty = false
@@ -75,10 +78,11 @@ final class EditorDocument: Identifiable {
     @ObservationIgnored private var needsInitialScroll = false
     @ObservationIgnored private var statsTask: Task<Void, Never>?
 
-    init(id: UUID = UUID(), fileURL: URL?, text: String, language: LanguageID, untitledNumber: Int = 0) {
+    init(id: UUID = UUID(), fileURL: URL?, text: String, language: LanguageID, untitledNumber: Int = 0, isImage: Bool = false) {
         self.id = id
         self.fileURL = fileURL
         self.untitledNumber = untitledNumber
+        self.isImage = isImage
         self.initialText = text
         self.language = language
         self.markdownMode = AppSettings.shared.markdownMode
@@ -170,6 +174,16 @@ final class EditorDocument: Identifiable {
 
     var loadedPreview: MarkdownPreviewController? { previewStorage }
 
+    /// The image viewer (for images), created on first use.
+    var imageViewer: ImageViewerController {
+        if let imageViewerStorage { return imageViewerStorage }
+        let viewer = ImageViewerController(document: self)
+        imageViewerStorage = viewer
+        return viewer
+    }
+
+    var loadedImageViewer: ImageViewerController? { imageViewerStorage }
+
     var text: String { editorStorage?.text ?? initialText }
 
     var selectionLocation: Int {
@@ -218,6 +232,7 @@ final class EditorDocument: Identifiable {
     func tearDown() {
         statsTask?.cancel()
         previewStorage?.tearDown()
+        imageViewerStorage?.tearDown()
         editorStorage?.endFind()
         editorStorage?.rootView.removeFromSuperview()
     }

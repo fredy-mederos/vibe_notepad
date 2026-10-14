@@ -20,6 +20,8 @@ nonisolated struct SessionDocument: Codable, Sendable {
     var modificationDate: Date?
     /// Opened as a binary file (decoded byte for byte).
     var binary: Bool?
+    /// A picture, shown in the image viewer.
+    var image: Bool?
 }
 
 nonisolated extension SessionDocument {
@@ -41,6 +43,7 @@ nonisolated extension SessionDocument {
         wrapLines = (try? c.decodeIfPresent(Bool.self, forKey: .wrapLines)) ?? nil
         modificationDate = (try? c.decodeIfPresent(Date.self, forKey: .modificationDate)) ?? nil
         binary = (try? c.decodeIfPresent(Bool.self, forKey: .binary)) ?? nil
+        image = (try? c.decodeIfPresent(Bool.self, forKey: .image)) ?? nil
     }
 }
 
@@ -177,7 +180,8 @@ extension Workspace {
                 lineEnding: document.lineEnding,
                 wrapLines: document.wrapLines,
                 modificationDate: document.fileModificationDate,
-                binary: document.isBinary ? true : nil
+                binary: document.isBinary ? true : nil,
+                image: document.isImage ? true : nil
             ))
         }
         var panes: SessionPanes?
@@ -268,7 +272,12 @@ extension Workspace {
                 try? String(contentsOf: AppPaths.buffersDirectory.appendingPathComponent($0), encoding: .utf8)
             }
             var document: EditorDocument?
-            if let path = entry.path {
+            if entry.image == true {
+                // Pictures come back while they're still there (there's nothing unsaved to keep).
+                if let path = entry.path, FileManager.default.fileExists(atPath: path) {
+                    document = imageDocument(URL(fileURLWithPath: path))
+                }
+            } else if let path = entry.path {
                 let url = URL(fileURLWithPath: path)
                 if FileManager.default.fileExists(atPath: path),
                    let loaded = try? FileIO.load(url, encoding: String.Encoding(rawValue: entry.encoding), preserveLineEndings: entry.binary == true) {

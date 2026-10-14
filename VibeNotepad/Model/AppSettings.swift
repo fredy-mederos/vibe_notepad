@@ -99,6 +99,8 @@ final class AppSettings {
     /// Whether the sidebar is open. The tabs, toolbar buttons, status bar and minimap follow
     /// it, so collapsing the sidebar leaves just the title and the text.
     var showsSidebar: Bool { didSet { save(showsSidebar, "showsSidebar") } }
+    /// The panel beside a picture with its dimensions, format, color, camera and file details.
+    var showsImageInfo: Bool { didSet { save(showsImageInfo, "showsImageInfo") } }
 
     /// Whether the app currently renders dark (system setting or forced appearance).
     private(set) var effectiveIsDark: Bool = false
@@ -132,6 +134,7 @@ final class AppSettings {
         hotExit = value("hotExit", true)
         reloadChangedFiles = value("reloadChangedFiles", true)
         showsSidebar = value("showsSidebar", true)
+        showsImageInfo = value("showsImageInfo", false)
     }
 
     private func save(_ value: Any, _ key: String) {

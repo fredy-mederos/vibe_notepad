@@ -245,9 +245,10 @@ nonisolated enum ProjectIndexer {
 nonisolated enum FolderScanner {
     /// Folders that hold dependencies or build output rather than files people edit.
     static let skippedFolders: Set<String> = [".git", ".svn", ".hg", "node_modules", "Pods", "DerivedData", ".build", "build", "dist", ".gradle", ".idea", ".next", "vendor", "__pycache__", ".venv", "venv", "Carthage", ".swiftpm", "target"]
-    static let binaryExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "ico", "icns", "pdf", "zip", "gz", "tar", "dmg", "app", "a", "o", "so", "dylib", "class", "jar", "mp3", "mp4", "mov", "wav", "ttf", "otf", "woff", "woff2", "sqlite", "db", "bin", "exe", "car"]
+    static let binaryExtensions: Set<String> = ["pdf", "zip", "gz", "tar", "dmg", "app", "a", "o", "so", "dylib", "class", "jar", "mp3", "mp4", "mov", "wav", "ttf", "otf", "woff", "woff2", "sqlite", "db", "bin", "exe", "car"]
 
-    /// Images, archives, binaries and Finder metadata: not worth offering in Quick Open.
+    /// Archives, binaries and Finder metadata: not worth offering in Quick Open (images are: they open
+    /// in the image viewer).
     static func isUnlikelyText(_ name: String) -> Bool {
         name == ".DS_Store" || binaryExtensions.contains((name as NSString).pathExtension.lowercased())
     }

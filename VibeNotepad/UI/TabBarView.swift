@@ -87,7 +87,7 @@ struct TabItemView: View {
         let theme = settings.theme
         HStack(spacing: 7) {
             ZStack {
-                FileIcon(language: document.language, size: 15)
+                FileIcon(language: document.language, size: 15, isImage: document.isImage)
                     .opacity(showSavedCheck ? 0 : 1)
                     .scaleEffect(showSavedCheck ? 0.4 : 1)
                 if showSavedCheck {
@@ -135,7 +135,7 @@ struct TabItemView: View {
         .help(document.fileURL?.abbreviatedPath ?? document.displayName)
         .draggable(TabDragItem(id: document.id)) {
             HStack(spacing: 6) {
-                FileIcon(language: document.language, size: 15)
+                FileIcon(language: document.language, size: 15, isImage: document.isImage)
                 Text(document.displayName).font(.system(size: 12, weight: .medium))
             }
             .padding(.horizontal, 10)

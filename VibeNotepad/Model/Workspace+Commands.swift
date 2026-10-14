@@ -22,8 +22,10 @@ extension Workspace {
             list.append(PaletteCommand(id: "\(category).\(title)", title: title, category: category, symbol: symbol, shortcut: shortcut, isEnabled: enabled, action: action))
         }
         let document = selectedDocument
-        let editor = document?.editor
+        let isImage = document?.isImage == true
+        let editor = isImage ? nil : document?.editor
         let hasDocument = document != nil
+        let hasText = hasDocument && !isImage
         let hasFile = document?.fileURL != nil
 
         // File
@@ -38,28 +40,28 @@ extension Workspace {
         }
         if projects.count > 1 { add("Close All Folders", "File", "folder.badge.minus") { self.closeAllProjects() } }
         add("Quick Open…", "File", "magnifyingglass", "⌘P") { self.showPalette(.files) }
-        add("Save", "File", "square.and.arrow.down", "⌘S", enabled: hasDocument) { self.saveSelected() }
-        add("Save As…", "File", "square.and.arrow.down.on.square", "⇧⌘S", enabled: hasDocument) {
+        add("Save", "File", "square.and.arrow.down", "⌘S", enabled: hasText) { self.saveSelected() }
+        add("Save As…", "File", "square.and.arrow.down.on.square", "⇧⌘S", enabled: hasText) {
             if let document { Task { await self.saveAs(document) } }
         }
         add("Save All", "File", "square.and.arrow.down.fill", "⌥⌘S") { self.saveAll() }
         add("Close Tab", "File", "xmark", "⌘W", enabled: hasDocument) { self.closeSelected() }
         add("Reopen Closed Tab", "File", "arrow.uturn.backward", "⇧⌘T") { self.reopenClosedTab() }
-        add("Revert to Saved", "File", "clock.arrow.circlepath", enabled: hasFile) { if let document { self.revert(document) } }
+        add("Revert to Saved", "File", "clock.arrow.circlepath", enabled: hasFile && !isImage) { if let document { self.revert(document) } }
         add("Reveal in Finder", "File", "finder", "⇧⌘R", enabled: hasFile) { self.revealInFinder() }
         add("Copy File Path", "File", "doc.on.clipboard", "⌥⇧⌘C", enabled: hasFile) { self.copyPath() }
         add(isPinned(document) ? "Unpin from Sidebar" : "Pin to Sidebar", "File", "pin", enabled: hasFile) { self.togglePin() }
-        add("Copy All Text", "File", "doc.on.doc", enabled: hasDocument) {
+        add("Copy All Text", "File", "doc.on.doc", enabled: hasText) {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(document?.text ?? "", forType: .string)
             self.toast("Copied to clipboard", symbol: "doc.on.clipboard.fill")
         }
 
         // Navigation
-        add("Go to Line…", "Go", "arrow.right.to.line", "⌃G", enabled: hasDocument) { self.showPalette(.goToLine) }
-        add("Go to Symbol…", "Go", "list.bullet.indent", "⌘R", enabled: hasDocument) { self.showPalette(.symbols) }
-        add("Find…", "Find", "magnifyingglass", "⌘F", enabled: hasDocument) { self.showFindBar() }
-        add("Find and Replace…", "Find", "arrow.left.arrow.right", "⌥⌘F", enabled: hasDocument) { self.showFindBar(replace: true) }
+        add("Go to Line…", "Go", "arrow.right.to.line", "⌃G", enabled: hasText) { self.showPalette(.goToLine) }
+        add("Go to Symbol…", "Go", "list.bullet.indent", "⌘R", enabled: hasText) { self.showPalette(.symbols) }
+        add("Find…", "Find", "magnifyingglass", "⌘F", enabled: hasText) { self.showFindBar() }
+        add("Find and Replace…", "Find", "arrow.left.arrow.right", "⌥⌘F", enabled: hasText) { self.showFindBar(replace: true) }
 
         // Editing
         if let editor {
@@ -113,8 +115,16 @@ extension Workspace {
             add("Minify JSON", "JSON", "curlybraces") { self.runJSON(editor, minify: true) }
         }
 
+        // Images
+        if let viewer = selectedImageViewer, let document {
+            add("Zoom to Fit", "Image", "arrow.down.right.and.arrow.up.left", "⌥⌘0") { viewer.zoomToFit() }
+            add(settings.showsImageInfo ? "Hide Image Info" : "Show Image Info", "Image", "info.circle", "⌘I") { self.toggleImageInfo() }
+            add("Copy Image", "Image", "photo.on.rectangle") { viewer.copyImage() }
+            add("Open in Default App", "Image", "arrow.up.forward.app") { self.openInDefaultApp(document) }
+        }
+
         // View
-        if let document {
+        if let document, !document.isImage {
             if document.isMarkdown {
                 add("Show Editor Only", "Markdown", MarkdownMode.editor.symbol, "⌥⌘1") { self.setMarkdownMode(.editor) }
                 add("Show Editor & Preview", "Markdown", MarkdownMode.split.symbol, "⌥⌘2") { self.setMarkdownMode(.split) }
@@ -164,9 +174,9 @@ extension Workspace {
         add(settings.showInvisibles ? "Hide Invisible Characters" : "Show Invisible Characters", "View", "paragraphsign") { self.settings.showInvisibles.toggle() }
         add(settings.showMinimap ? "Hide Minimap" : "Show Minimap", "View", "sidebar.right") { self.settings.showMinimap.toggle() }
         add(settings.highlightCurrentLine ? "Don’t Highlight Current Line" : "Highlight Current Line", "View", "highlighter") { self.settings.highlightCurrentLine.toggle() }
-        add("Zoom In", "View", "plus.magnifyingglass", "⌘+") { self.settings.zoom(by: 1) }
-        add("Zoom Out", "View", "minus.magnifyingglass", "⌘−") { self.settings.zoom(by: -1) }
-        add("Actual Size", "View", "1.magnifyingglass", "⌘0") { self.settings.resetZoom() }
+        add("Zoom In", "View", "plus.magnifyingglass", "⌘+") { self.zoomIn() }
+        add("Zoom Out", "View", "minus.magnifyingglass", "⌘−") { self.zoomOut() }
+        add("Actual Size", "View", "1.magnifyingglass", "⌘0") { self.resetZoom() }
         add("Change Theme…", "View", "paintpalette") { self.showPalette(.theme) }
         add("Appearance: Match System", "View", "circle.lefthalf.filled") { self.settings.appearance = .system }
         add("Appearance: Light", "View", "sun.max") { self.settings.appearance = .light }

@@ -36,6 +36,9 @@ struct AppCommands: Commands {
 
     private var editor: EditorController? { workspace.activeEditor }
     private var document: EditorDocument? { workspace.selectedDocument }
+    /// The selected document, unless it's a picture (which has no text to edit, find or save).
+    private var textDocument: EditorDocument? { document?.isImage == true ? nil : document }
+    private var isImage: Bool { document?.isImage == true }
     private var updater: AppUpdater { .shared }
 
     var body: some Commands {
@@ -103,16 +106,16 @@ struct AppCommands: Commands {
             Divider()
             Button("Save") { workspace.saveSelected() }
                 .keyboardShortcut("s")
-                .disabled(document == nil)
+                .disabled(textDocument == nil)
             Button("Save As…") {
                 if let document { Task { await workspace.saveAs(document) } }
             }
             .keyboardShortcut("s", modifiers: [.command, .shift])
-            .disabled(document == nil)
+            .disabled(textDocument == nil)
             Button("Save All") { workspace.saveAll() }
                 .keyboardShortcut("s", modifiers: [.command, .option])
             Button("Revert to Saved") { if let document { workspace.revert(document) } }
-                .disabled(document?.fileURL == nil)
+                .disabled(textDocument?.fileURL == nil)
             Divider()
             Button("Reveal in Finder") { workspace.revealInFinder() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
@@ -141,7 +144,7 @@ struct AppCommands: Commands {
                 Button("Use Selection for Find") { workspace.useSelectionForFind() }
                     .keyboardShortcut("e")
             }
-            .disabled(document == nil)
+            .disabled(textDocument == nil)
             Menu("Line") {
                 Button("Indent") { editor?.indent() }
                     .keyboardShortcut("]")
@@ -164,10 +167,10 @@ struct AppCommands: Commands {
                 Button("Sort Lines") { editor?.sortLines() }
                 Button("Trim Trailing Whitespace") { _ = editor?.trimTrailingWhitespace() }
             }
-            .disabled(document == nil)
+            .disabled(textDocument == nil)
             Button("Toggle Comment") { editor?.toggleComment() }
                 .keyboardShortcut("/")
-                .disabled(document == nil)
+                .disabled(textDocument == nil)
             Menu("Code Folding") {
                 Button("Fold") { editor?.foldAtCaret() }
                     .keyboardShortcut("[", modifiers: [.command, .option])
@@ -194,13 +197,13 @@ struct AppCommands: Commands {
                 Button("snake_case") { editor?.transformSelection("snake_case") { TextCase.snake($0) } }
                 Button("kebab-case") { editor?.transformSelection("kebab-case") { TextCase.kebab($0) } }
             }
-            .disabled(document == nil)
+            .disabled(textDocument == nil)
             Menu("JSON") {
                 Button("Format JSON") { if let editor { workspace.runJSON(editor, minify: false) } }
                     .keyboardShortcut("j", modifiers: [.command, .option])
                 Button("Minify JSON") { if let editor { workspace.runJSON(editor, minify: true) } }
             }
-            .disabled(document == nil)
+            .disabled(textDocument == nil)
         }
 
         CommandGroup(before: .sidebar) {
@@ -259,17 +262,24 @@ struct AppCommands: Commands {
                 get: { document?.wrapLines ?? settings.wrapLines },
                 set: { document?.wrapLines = $0 }
             ))
-            .disabled(document == nil)
+            .disabled(textDocument == nil)
             Toggle("Line Numbers", isOn: Binding(get: { settings.showLineNumbers }, set: { settings.showLineNumbers = $0 }))
             Toggle("Invisible Characters", isOn: Binding(get: { settings.showInvisibles }, set: { settings.showInvisibles = $0 }))
             Toggle("Minimap", isOn: Binding(get: { settings.showMinimap }, set: { settings.showMinimap = $0 }))
             Divider()
-            Button("Zoom In") { settings.zoom(by: 1) }
+            // With a picture selected these zoom it; otherwise they change the text size.
+            Button("Zoom In") { workspace.zoomIn() }
                 .keyboardShortcut("=")
-            Button("Zoom Out") { settings.zoom(by: -1) }
+            Button("Zoom Out") { workspace.zoomOut() }
                 .keyboardShortcut("-")
-            Button("Actual Size") { settings.resetZoom() }
+            Button("Actual Size") { workspace.resetZoom() }
                 .keyboardShortcut("0")
+            Button("Zoom to Fit") { workspace.selectedImageViewer?.zoomToFit() }
+                .keyboardShortcut("0", modifiers: [.command, .option])
+                .disabled(!isImage)
+            Button(settings.showsImageInfo ? "Hide Image Info" : "Show Image Info") { workspace.toggleImageInfo() }
+                .keyboardShortcut("i")
+                .disabled(!isImage)
             Divider()
             Menu("Theme") {
                 Section("Dark") {
@@ -289,10 +299,10 @@ struct AppCommands: Commands {
         CommandMenu("Go") {
             Button("Go to Line…") { workspace.showPalette(.goToLine) }
                 .keyboardShortcut("g", modifiers: .control)
-                .disabled(document == nil)
+                .disabled(textDocument == nil)
             Button("Go to Symbol…") { workspace.showPalette(.symbols) }
                 .keyboardShortcut("r")
-                .disabled(document == nil)
+                .disabled(textDocument == nil)
             Button("Go to File…") { workspace.showPalette(.files) }
             Divider()
             Button("Next Tab") { workspace.selectNextTab(true) }

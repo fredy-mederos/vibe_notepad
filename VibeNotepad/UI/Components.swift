@@ -2,16 +2,21 @@ import AppKit
 import SwiftUI
 import VibeCore
 
-/// A small colored badge identifying a file's language.
+/// A small colored badge identifying a file's language (or a picture).
 struct FileIcon: View {
+    static let imageTint = RGBA("#EC5F8E").color
+
     let language: LanguageID
     var size: CGFloat = 18
+    /// Pictures have a badge of their own.
+    var isImage = false
 
     var body: some View {
+        let tint = isImage ? Self.imageTint : language.tint
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
-                .fill(language.tint.gradient)
-            switch language.icon {
+                .fill(tint.gradient)
+            switch isImage ? LanguageID.Icon.symbol("photo") : language.icon {
             case .symbol(let name):
                 Image(systemName: name)
                     .font(.system(size: size * 0.5, weight: .semibold))
@@ -24,8 +29,8 @@ struct FileIcon: View {
             }
         }
         .frame(width: size, height: size)
-        .shadow(color: language.tint.opacity(0.3), radius: 1.5, y: 0.5)
-        .accessibilityLabel(language.displayName)
+        .shadow(color: tint.opacity(0.3), radius: 1.5, y: 0.5)
+        .accessibilityLabel(isImage ? "Image" : language.displayName)
     }
 }
 

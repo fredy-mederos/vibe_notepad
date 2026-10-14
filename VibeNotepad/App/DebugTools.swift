@@ -194,6 +194,66 @@ enum DebugTools {
         return nil
     }
 
+    /// Drives the selected picture's viewer (`in`, `out`, `actual`, `fit`, `zoom` to `value`, `info`,
+    /// `copy`, `focus`, `scroll` by `value` "dx,dy" points, `layers` to render what the window shows to `path`.png) and
+    /// writes what it shows to `path`.
+    static func image(_ op: String, value: String?, report path: String) {
+        let workspace = Workspace.shared
+        guard let viewer = workspace.selectedImageViewer else {
+            try? "no image selected (\(workspace.selectedDocument?.displayName ?? "-"))\n".write(toFile: path, atomically: true, encoding: .utf8)
+            return
+        }
+        switch op {
+        case "in": viewer.zoomIn()
+        case "out": viewer.zoomOut()
+        case "actual": viewer.actualSize()
+        case "fit": viewer.zoomToFit()
+        case "zoom": if let zoom = value.flatMap(Double.init) { viewer.setZoom(CGFloat(zoom)) }
+        case "info": workspace.toggleImageInfo()
+        case "copy": viewer.copyImage()
+        case "focus": viewer.focus()
+        case "layers":
+            // Renders the viewer's layer tree (what the window shows, unlike a snapshot, which draws).
+            let view = viewer.scrollView
+            if let layer = view.layer, let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(view.bounds.width), pixelsHigh: Int(view.bounds.height),
+                                                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+               let context = NSGraphicsContext(bitmapImageRep: rep) {
+                // A flipped layer's y axis goes down; the bitmap's goes up.
+                if layer.isGeometryFlipped {
+                    context.cgContext.translateBy(x: 0, y: view.bounds.height)
+                    context.cgContext.scaleBy(x: 1, y: -1)
+                }
+                layer.render(in: context.cgContext)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path + ".png"))
+            }
+        case "scroll":
+            let parts = (value ?? "").split(separator: ",").compactMap { Double($0) }
+            if parts.count == 2 {
+                let clip = viewer.scrollView.contentView
+                var bounds = clip.bounds
+                bounds.origin.x += parts[0]
+                bounds.origin.y += parts[1]
+                clip.scroll(to: clip.constrainBoundsRect(bounds).origin)
+                viewer.scrollView.reflectScrolledClipView(clip)
+            }
+        default: break
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            let window = workspace.windowReference
+            let clip = viewer.scrollView.contentView
+            let responder = window?.firstResponder.map { String(describing: type(of: $0)) } ?? "-"
+            var lines = ["state \(viewer.state), zoom \(String(format: "%.4f", viewer.zoom)), fits \(viewer.fitsPane), magnification \(String(format: "%.4f", viewer.scrollView.magnification))",
+                         "scroll view \(NSStringFromRect(viewer.scrollView.frame)) in window \(viewer.scrollView.window != nil), clip bounds \(NSStringFromRect(clip.bounds)), canvas \(NSStringFromRect(viewer.canvas.frame))",
+                         "image size \(viewer.image.map { NSStringFromSize($0.size) } ?? "-"), first responder \(responder), info panel \(workspace.settings.showsImageInfo)",
+                         "pasteboard \(NSPasteboard.general.types?.map(\.rawValue).joined(separator: " ") ?? "-")"]
+            if let details = viewer.details {
+                lines.append("details \(details.dimensions) \(details.format ?? "-") (\(details.shortFormat ?? "-")), \(details.fileSize ?? 0) bytes, dpi \(details.dpi.map { String($0) } ?? "-"), color \(details.colorSummary ?? "-"), profile \(details.colorProfile ?? "-"), frames \(details.frameCount), orientation \(details.orientation), camera \(details.camera ?? "-"), exposure \(details.exposure ?? "-"), taken \(details.dateTaken ?? "-")")
+            }
+            lines.append("tabs \(workspace.documents.map { "\($0.displayName)\($0.isImage ? "[image]" : "")" }.joined(separator: " ")), selected \(workspace.selectedDocument?.displayName ?? "-")")
+            try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
     /// Renders the main window into a PNG without activating the app.
     static func snapshot(to path: String, windowTitle: String? = nil) {
         let titled = windowTitle.flatMap { title in NSApp.windows.first { $0.title.localizedCaseInsensitiveContains(title) } }

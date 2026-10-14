@@ -93,7 +93,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let entry = NSMenuItem(title: item.name, action: #selector(openFromDock(_:)), keyEquivalent: "")
                 entry.target = self
                 entry.representedObject = item.url
-                entry.image = NSImage(systemSymbolName: item.pinned ? "pin.fill" : "doc.text", accessibilityDescription: nil)
+                let symbol = item.pinned ? "pin.fill" : ImageFile.isImage(path: item.path) ? "photo" : "doc.text"
+                entry.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
                 entry.toolTip = item.path
                 menu.addItem(entry)
             }

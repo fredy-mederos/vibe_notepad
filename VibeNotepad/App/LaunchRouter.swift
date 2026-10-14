@@ -307,6 +307,8 @@ enum LaunchRouter {
             }
         case "debug-runloop":
             DebugTools.measureRunLoop(seconds: value("seconds").flatMap(Double.init) ?? 2, to: value("path") ?? "/tmp/vibe-runloop.txt")
+        case "debug-image":
+            DebugTools.image(value("op") ?? "report", value: value("value"), report: value("path") ?? "/tmp/vibe-image.txt")
         case "debug-panes":
             DebugTools.panes(value("op") ?? "report", value: value("value"), pane: value("pane").flatMap(Int.init), report: value("path") ?? "/tmp/vibe-panes.txt")
         case "debug-sidebar":

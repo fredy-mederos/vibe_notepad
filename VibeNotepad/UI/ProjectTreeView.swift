@@ -233,7 +233,7 @@ struct ProjectFileRow: View {
     var body: some View {
         let document = workspace.documents.first { $0.path == node.id }
         HStack(spacing: 7) {
-            FileIcon(language: document?.language ?? LanguageRegistry.detect(path: node.id), size: 16)
+            FileIcon(language: document?.language ?? LanguageRegistry.detect(path: node.id), size: 16, isImage: document?.isImage ?? ImageFile.isImage(path: node.id))
             Text(node.name)
                 .font(.system(size: 12.5, weight: document != nil ? .semibold : .regular))
                 .lineLimit(1)
@@ -273,7 +273,7 @@ struct ProjectMatchRow: View {
     var body: some View {
         let document = workspace.documents.first { $0.path == file.url.path }
         HStack(spacing: 9) {
-            FileIcon(language: document?.language ?? LanguageRegistry.detect(path: file.relativePath), size: 22)
+            FileIcon(language: document?.language ?? LanguageRegistry.detect(path: file.relativePath), size: 22, isImage: document?.isImage ?? ImageFile.isImage(path: file.relativePath))
             VStack(alignment: .leading, spacing: 1) {
                 HighlightedText(text: file.name, positions: positions, font: .system(size: 12.5, weight: document != nil ? .semibold : .regular))
                     .lineLimit(1)

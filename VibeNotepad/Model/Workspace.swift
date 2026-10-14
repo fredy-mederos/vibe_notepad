@@ -176,6 +176,7 @@ final class Workspace {
         for document in documents {
             document.loadedEditor?.applySettings(settings, theme: theme)
             document.loadedPreview?.applyTheme()
+            document.loadedImageViewer?.applyTheme()
         }
     }
 
@@ -262,7 +263,7 @@ final class Workspace {
         NSApp.activate()
     }
 
-    /// Opens `url` (or selects its tab if already open).
+    /// Opens `url` (or selects its tab if already open). Pictures open in the image viewer.
     @discardableResult
     func open(url rawURL: URL, select shouldSelect: Bool = true, encoding: String.Encoding? = nil) -> EditorDocument? {
         let url = rawURL.canonicalFileURL
@@ -273,11 +274,37 @@ final class Workspace {
             if shouldSelect { select(existing) }
             return existing
         }
+        let document: EditorDocument
+        if ImageFile.isImage(url), !url.isFolder, FileManager.default.fileExists(atPath: url.path) {
+            document = imageDocument(url)
+        } else {
+            guard let text = textDocument(url, encoding: encoding) else { return nil }
+            document = text
+        }
+
+        // Replace an empty untitled tab, like TextEdit does (after the file has taken its place, so its
+        // pane shows the file).
+        let replaced = selectedDocument.flatMap { $0.isPristineUntitled && (documents.count == 1 || shouldSelect) ? $0 : nil }
+        if shouldSelect {
+            insert(document)
+        } else {
+            withAnimation(.snappy(duration: 0.3)) { documents.append(document) }
+        }
+        if let replaced { remove(replaced, remember: false) }
+        recents.noteOpened(url)
+        scheduleSessionSave()
+        return document
+    }
+
+    /// Reads the file at `url` into a new text tab (or an image tab, for a picture without a picture's
+    /// name). Errors are reported; nil means nothing opens.
+    private func textDocument(_ url: URL, encoding: String.Encoding?) -> EditorDocument? {
         let loaded: FileIO.Loaded
         var isBinary = false
         do {
             loaded = try FileIO.load(url, encoding: encoding)
         } catch TextFileCodec.CodecError.binary {
+            if encoding == nil, ImageFile.decodes(url) { return imageDocument(url) }
             guard confirmOpenBinary(url) else { return nil }
             guard let latin = try? FileIO.load(url, encoding: .isoLatin1, preserveLineEndings: true) else { return nil }
             loaded = latin
@@ -303,18 +330,6 @@ final class Workspace {
         document.isBinary = isBinary
         if let mode = remembered?.markdownMode { document.markdownMode = mode }
         document.pendingSelection = remembered?.selection
-
-        // Replace an empty untitled tab, like TextEdit does (after the file has taken its place, so its
-        // pane shows the file).
-        let replaced = selectedDocument.flatMap { $0.isPristineUntitled && (documents.count == 1 || shouldSelect) ? $0 : nil }
-        if shouldSelect {
-            insert(document)
-        } else {
-            withAnimation(.snappy(duration: 0.3)) { documents.append(document) }
-        }
-        if let replaced { remove(replaced, remember: false) }
-        recents.noteOpened(url)
-        scheduleSessionSave()
         return document
     }
 
@@ -335,7 +350,7 @@ final class Workspace {
         panel.allowsMultipleSelection = true
         panel.showsHiddenFiles = true
         panel.treatsFilePackagesAsDirectories = true
-        panel.message = "Open any text file, or a folder as a project"
+        panel.message = "Open any text file or image, or a folder as a project"
         if let directory = selectedDocument?.fileURL?.deletingLastPathComponent() { panel.directoryURL = directory }
         let handler: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK else { return }
@@ -457,6 +472,8 @@ final class Workspace {
 
     @discardableResult
     func save(_ document: EditorDocument) async -> Bool {
+        // Pictures are read-only: there's never anything to save.
+        guard !document.isImage else { return true }
         guard let url = document.fileURL else { return await saveAs(document) }
         // Another app changed the file since we read it: don't silently overwrite its changes.
         if let known = document.fileModificationDate, let current = FileIO.modificationDate(of: url),
@@ -478,6 +495,7 @@ final class Workspace {
 
     @discardableResult
     func saveAs(_ document: EditorDocument) async -> Bool {
+        guard !document.isImage else { return false }
         let panel = NSSavePanel()
         panel.nameFieldStringValue = document.fileURL?.lastPathComponent ?? (document.isMarkdown ? "Untitled.md" : "Untitled.txt")
         panel.showsHiddenFiles = true
@@ -556,11 +574,13 @@ final class Workspace {
     // MARK: Reloading
 
     func revert(_ document: EditorDocument) {
+        guard !document.isImage else { return }
         guard let url = document.fileURL, confirmDiscardingChanges(document, action: "Revert") else { return }
         reload(document, from: url, encoding: document.isBinary ? .isoLatin1 : nil, announce: "Reverted to saved")
     }
 
     func reopen(_ document: EditorDocument, encoding: String.Encoding) {
+        guard !document.isImage else { return }
         guard let url = document.fileURL, confirmDiscardingChanges(document, action: "Reopen") else { return }
         document.isBinary = false
         reload(document, from: url, encoding: encoding, announce: "Reopened as \(TextFileCodec.name(of: encoding))")
@@ -614,7 +634,15 @@ final class Workspace {
             if document.externalChange == .deleted { document.externalChange = nil }
             guard let date = FileIO.modificationDate(of: url), let known = document.fileModificationDate,
                   abs(date.timeIntervalSince(known)) > 0.0005 else { continue }
-            if !document.isDirty, settings.reloadChangedFiles {
+            if document.isImage {
+                // A picture that keeps changing (a chart a script redraws) reloads quietly.
+                let quiet = document.lastAutoReload.map { Date().timeIntervalSince($0) < 60 } ?? false
+                reloadImage(document)
+                document.lastAutoReload = Date()
+                if !quiet {
+                    toast("“\(document.displayName)” changed on disk — reloaded", symbol: "arrow.triangle.2.circlepath", tint: .blue)
+                }
+            } else if !document.isDirty, settings.reloadChangedFiles {
                 // Files that change all the time (logs) reload quietly, and keep following the end.
                 let quiet = document.language == .log || document.lastAutoReload.map { Date().timeIntervalSince($0) < 60 } ?? false
                 reload(document, from: url, encoding: document.encoding, announce: nil, followTail: true)
@@ -634,6 +662,10 @@ final class Workspace {
     }
 
     func reloadFromDisk(_ document: EditorDocument) {
+        if document.isImage {
+            reloadImage(document)
+            return
+        }
         guard let url = document.fileURL else { return }
         reload(document, from: url, encoding: document.encoding, announce: "Reloaded from disk")
     }
@@ -671,6 +703,10 @@ final class Workspace {
     // MARK: Find
 
     func showFindBar(replace: Bool = false) {
+        guard selectedDocument?.isImage != true else {
+            NSSound.beep()
+            return
+        }
         if let editor = activeEditor {
             let selection = editor.textView.selectedRange()
             if selection.length > 0, selection.length < 300 {
@@ -693,7 +729,7 @@ final class Workspace {
         for document in documents { document.loadedEditor?.endFind() }
         findMatchCount = 0
         findCurrentIndex = nil
-        activeEditor?.focus()
+        focusSelectedDocument()
     }
 
     /// In Markdown "Preview only" mode, find searches the rendered page.
@@ -785,9 +821,18 @@ final class Workspace {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { palette = mode }
     }
 
+    /// Gives the keyboard to the selected tab's editor, or its picture.
+    func focusSelectedDocument() {
+        if let editor = activeEditor {
+            editor.focus()
+        } else {
+            selectedDocument?.loadedImageViewer?.focus()
+        }
+    }
+
     func hidePalette(refocus: Bool = true) {
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { palette = nil }
-        if refocus { activeEditor?.focus() }
+        if refocus { focusSelectedDocument() }
     }
 
     // MARK: Toasts

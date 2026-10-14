@@ -29,6 +29,13 @@ any time.
 
 - **Opens any text file** with encoding detection (UTF-8/16/32 with or without BOM, Latin-1, Windows-1252,
   Shift-JIS, …). Line endings (LF/CRLF/CR) and the encoding are kept when saving. Binary files trigger a warning.
+- **Opens images too** (read-only): PNG, JPEG, GIF (animated), HEIC, WebP, TIFF, BMP, ICO, ICNS, PSD, camera raw and
+  anything else macOS can decode, even without an extension. Zoom with a pinch, ⌘+ / ⌘−, the status bar or a
+  double-click; ⌘0 is actual size and ⌥⌘0 fits the picture to the pane (the default, never enlarged). Drag it
+  around or scroll; from 200% on, pixels show as sharp squares, and transparent areas sit on a checkerboard.
+  The status bar shows the size, format and file size; **Image Info (⌘I)** adds dimensions, resolution, color
+  model and profile, frames, orientation, camera and exposure, and the file's details. ⌘C copies the picture,
+  and a picture that changes on disk reloads by itself. SVG still opens as text.
 - **Recent and pinned files in the sidebar**, with fuzzy filtering, relative times, and missing-file detection.
   Pin the config files you edit all the time (`~/.zshrc`, `.env`, `~/.ssh/config`).
 - **Sublime-style syntax highlighting** for 50+ languages, done incrementally: only the lines that change or scroll
@@ -86,7 +93,7 @@ any time.
 
 | How | Example |
 | --- | --- |
-| Finder | Right-click any text file or folder → **Open With → Vibe Notepad** |
+| Finder | Right-click any text file, image or folder → **Open With → Vibe Notepad** |
 | Terminal | `vibeNotePad README.md`, `vibeNotePad src/app.swift:42:7`, `vibeNotePad .`, `cat log.txt \| vibeNotePad -` |
 | Deep link (scripts, agents) | `open "vibeNotePad://open?path=/abs/path/file.md&line=42&column=7"` |
 | New buffer | `open "vibeNotePad://new?text=Hello&language=markdown"` |
@@ -161,7 +168,8 @@ the project), builds the disk image, tags `vX.Y.Z` and publishes the GitHub rele
 | Focus the Pane Left / Right / Above / Below | ⌥⌘← / ⌥⌘→ / ⌥⌘↑ / ⌥⌘↓ |
 | Next / Previous Pane | ⌥⌘\` / ⇧⌥⌘\` |
 | Open a Quick Open result beside the current file | ⌥↩ |
-| Zoom In / Out / Reset | ⌘= / ⌘- / ⌘0 (or pinch) |
+| Zoom In / Out / Reset (the picture's zoom, for an image) | ⌘= / ⌘- / ⌘0 (or pinch) |
+| Image: Zoom to Fit / Image Info | ⌥⌘0 / ⌘I |
 
 ## Architecture
 
@@ -180,6 +188,8 @@ VibeNotepad                macOS app
                            index, FSEvents watcher), documents, settings, file I/O
   Editor/                  TextKit 1 editor: NSTextView subclass, gutter, minimap, syntax styling, line height
   Preview/                 WKWebView Markdown preview (page scripts disabled, app talks via an isolated world)
+  Image/                   Image viewer: zoomable scroll view, pictures decoded off the main thread and shown as
+                           layer contents (the GPU scales them), animations, checkerboard, panning
   UI/                      SwiftUI: sidebar, tabs, panes, status bar, find bar, palette, welcome, settings
 ```
 

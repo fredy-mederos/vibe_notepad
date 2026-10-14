@@ -133,7 +133,7 @@ private struct RecentCard: View {
             workspace.open(url: item.url)
         } label: {
             HStack(spacing: 11) {
-                FileIcon(language: language, size: 30)
+                FileIcon(language: language, size: 30, isImage: ImageFile.isImage(path: item.path))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
                         .font(.system(size: 13, weight: .semibold))

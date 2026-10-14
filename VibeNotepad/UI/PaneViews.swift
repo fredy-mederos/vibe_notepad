@@ -120,7 +120,7 @@ struct PaneView: View {
                     WelcomeView()
                         .transition(.opacity.combined(with: .scale(scale: 0.985)))
                 }
-                if isFocused, workspace.findBarVisible, document != nil {
+                if isFocused, workspace.findBarVisible, let document, !document.isImage {
                     FindBarView()
                         .padding(.top, 10)
                         .padding(.trailing, 18)
@@ -166,7 +166,7 @@ struct PaneHeader: View {
         let theme = settings.theme
         HStack(spacing: 6) {
             if let document {
-                FileIcon(language: document.language, size: 13)
+                FileIcon(language: document.language, size: 13, isImage: document.isImage)
                 Text(document.displayName)
                     .font(.system(size: 11.5, weight: isFocused ? .semibold : .regular))
                     .italic(document.isUntitled)
@@ -234,7 +234,7 @@ private struct PaneHeaderDrag: ViewModifier {
         if let document {
             content.draggable(TabDragItem(id: document.id)) {
                 HStack(spacing: 6) {
-                    FileIcon(language: document.language, size: 15)
+                    FileIcon(language: document.language, size: 15, isImage: document.isImage)
                     Text(document.displayName).font(.system(size: 12, weight: .medium))
                 }
                 .padding(.horizontal, 10)

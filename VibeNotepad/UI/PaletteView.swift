@@ -6,6 +6,7 @@ import VibeCore
 struct PaletteItem: Identifiable {
     enum Icon {
         case language(LanguageID)
+        case image
         case symbol(String)
         case theme(Theme)
     }
@@ -307,7 +308,7 @@ struct PaletteView: View {
             id: url?.path ?? document?.id.uuidString ?? candidate.name,
             title: candidate.name,
             subtitle: subtitle,
-            icon: .language(language),
+            icon: document?.isImage ?? ImageFile.isImage(path: url?.path ?? candidate.name) ? .image : .language(language),
             matches: matches,
             trailing: candidate.date.map { RelativeTime.short($0) },
             badge: candidate.badge
@@ -632,6 +633,8 @@ private struct PaletteRow: View {
         switch item.icon {
         case .language(let language):
             FileIcon(language: language, size: 24)
+        case .image:
+            FileIcon(language: .plainText, size: 24, isImage: true)
         case .symbol(let name):
             Image(systemName: name)
                 .font(.system(size: 12, weight: .medium))

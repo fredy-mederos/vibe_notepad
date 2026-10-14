@@ -233,7 +233,7 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
         }
         let fileURL = URL(fileURLWithPath: url.path)
         let isText = UTType(filenameExtension: fileURL.pathExtension)?.conforms(to: .text) ?? true
-        if isText || LanguageRegistry.detect(path: fileURL.path) != .plainText || fileURL.pathExtension.isEmpty {
+        if isText || ImageFile.isImage(fileURL) || LanguageRegistry.detect(path: fileURL.path) != .plainText || fileURL.pathExtension.isEmpty {
             Workspace.shared.open(url: fileURL)
         } else {
             NSWorkspace.shared.open(fileURL)

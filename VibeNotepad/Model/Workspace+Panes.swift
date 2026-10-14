@@ -61,6 +61,8 @@ extension Workspace {
         guard focusEditor, palette == nil else { return }
         if let editor = selectedDocument?.loadedEditor, !findBarVisible {
             editor.focus()
+        } else if let viewer = selectedDocument?.loadedImageViewer {
+            viewer.focus()
         } else if selectedDocument == nil {
             // An empty pane: typing must not go on in the pane that had the focus.
             mainWindow?.makeFirstResponder(nil)

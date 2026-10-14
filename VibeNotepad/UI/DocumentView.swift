@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import VibeCore
 
-/// The editor and/or Markdown preview for one document.
+/// The editor and/or Markdown preview for one document (or the image viewer, for a picture).
 struct DocumentView: View {
     @Environment(Workspace.self) private var workspace
     @Bindable var document: EditorDocument
@@ -20,28 +20,36 @@ struct DocumentView: View {
                 MinifiedJSONBanner(document: document)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
-            GeometryReader { geometry in
-                let mode = document.isMarkdown ? document.markdownMode : .editor
-                HStack(spacing: 0) {
-                    if mode != .preview {
-                        EditorHost(document: document, isInFocusedPane: isInFocusedPane)
-                            .frame(width: mode == .split ? max(220, geometry.size.width * splitFraction) : geometry.size.width)
-                            .transition(.move(edge: .leading).combined(with: .opacity))
-                    }
-                    if mode == .split {
-                        SplitDivider(fraction: $splitFraction, totalWidth: geometry.size.width)
-                            .transition(.opacity)
-                    }
-                    if mode != .editor {
-                        PreviewHost(document: document, isInFocusedPane: isInFocusedPane)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
-                    }
-                }
-                .coordinateSpace(.named("split"))
+            if document.isImage {
+                ImageDocumentView(document: document, isInFocusedPane: isInFocusedPane)
+            } else {
+                editorAndPreview
             }
         }
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.externalChange)
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.showsMinifiedJSONNotice)
+    }
+
+    private var editorAndPreview: some View {
+        GeometryReader { geometry in
+            let mode = document.isMarkdown ? document.markdownMode : .editor
+            HStack(spacing: 0) {
+                if mode != .preview {
+                    EditorHost(document: document, isInFocusedPane: isInFocusedPane)
+                        .frame(width: mode == .split ? max(220, geometry.size.width * splitFraction) : geometry.size.width)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                }
+                if mode == .split {
+                    SplitDivider(fraction: $splitFraction, totalWidth: geometry.size.width)
+                        .transition(.opacity)
+                }
+                if mode != .editor {
+                    PreviewHost(document: document, isInFocusedPane: isInFocusedPane)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .coordinateSpace(.named("split"))
+        }
     }
 }
 
@@ -158,7 +166,9 @@ struct ExternalChangeBanner: View {
                 Button("Keep My Version") { workspace.keepLocalVersion(document) }
                     .keyboardShortcut(.defaultAction)
             } else {
-                Button("Save Here Again") { Task { await workspace.save(document) } }
+                if !document.isImage {
+                    Button("Save Here Again") { Task { await workspace.save(document) } }
+                }
                 Button("Dismiss") {
                     document.deletionDismissed = true
                     document.externalChange = nil
