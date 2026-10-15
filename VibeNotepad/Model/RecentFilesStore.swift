@@ -38,7 +38,8 @@ final class RecentFilesStore {
     /// Paths found missing on disk the last time we looked.
     private(set) var missing: Set<String> = []
 
-    private let maxRecent = 80
+    /// The most the sidebar can be set to show (`AppSettings.recentFileCounts`).
+    private let maxRecent = 100
     private let fileURL: URL
 
     init(directory: URL = AppPaths.supportDirectory) {

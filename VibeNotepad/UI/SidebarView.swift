@@ -5,6 +5,7 @@ import VibeCore
 /// Pinned files, the open projects' file trees, then recent files, always one click away.
 struct SidebarView: View {
     @Environment(Workspace.self) private var workspace
+    @Environment(AppSettings.self) private var settings
     @AppStorage("sidebarPinnedExpanded") private var pinnedExpanded = true
     @AppStorage("sidebarRecentExpanded") private var recentExpanded = true
 
@@ -13,7 +14,8 @@ struct SidebarView: View {
         let recents = workspace.recents
         let filter = workspace.sidebarFilter.trimmingCharacters(in: .whitespaces)
         let pinned = filtered(recents.pinned, filter)
-        let recent = filtered(recents.recent, filter)
+        // The filter searches every recent file kept, not only the ones shown.
+        let recent = filter.isEmpty ? Array(recents.recent.prefix(settings.recentFilesShown)) : filtered(recents.recent, filter)
 
         ScrollViewReader { proxy in
             List(selection: selection) {
@@ -70,6 +72,15 @@ struct SidebarView: View {
                         Spacer()
                         if !recents.recent.isEmpty {
                             Menu {
+                                Picker("Show", selection: Binding(get: { settings.recentFilesShown }, set: { count in
+                                    withAnimation(.snappy) { settings.recentFilesShown = count }
+                                })) {
+                                    ForEach(AppSettings.recentFileCounts, id: \.self) { count in
+                                        Text("\(count) Recent Files").tag(count)
+                                    }
+                                }
+                                .pickerStyle(.inline)
+                                Divider()
                                 Button("Clear Recent Files", role: .destructive) {
                                     withAnimation(.snappy) { recents.clearRecent() }
                                 }

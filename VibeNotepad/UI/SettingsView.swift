@@ -42,6 +42,17 @@ private struct GeneralSettings: View {
                 Toggle("Reload files changed by other apps", isOn: $settings.reloadChangedFiles)
             }
 
+            Section("Sidebar") {
+                Picker("Recent files shown", selection: $settings.recentFilesShown) {
+                    ForEach(AppSettings.recentFileCounts, id: \.self) { count in
+                        Text("\(count)").tag(count)
+                    }
+                }
+                Text("Also the length of File → Open Recent. Filtering the sidebar searches the last 100 files.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Command line") {
                 CommandLineToolRow()
             }

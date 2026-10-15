@@ -64,7 +64,7 @@ struct AppCommands: Commands {
             Button("Open Enclosing Folder…") { if let url = document?.fileURL { workspace.showOpenFolderPanel(revealing: url) } }
                 .disabled(document?.fileURL == nil)
             Menu("Open Recent") {
-                ForEach(workspace.recents.all.prefix(20)) { item in
+                ForEach(workspace.recents.all.prefix(settings.recentFilesShown)) { item in
                     Button(item.name) { workspace.open(url: item.url) }
                         .disabled(workspace.recents.isMissing(item.path))
                 }

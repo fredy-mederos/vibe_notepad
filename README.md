@@ -43,6 +43,8 @@ any time.
   zooms and pans like an image, with its size, zoom and background in a bar in its corner. SVGs are drawn as
   pictures, so their scripts never run and they can't load anything.
 - **Recent and pinned files in the sidebar**, with fuzzy filtering, relative times, and missing-file detection.
+  Choose how many recent files show (10, 20, 50 or 100) from the Recent header's ⋯ menu or Settings → General;
+  File → Open Recent follows it, and the filter searches the last 100.
   Pin the config files you edit all the time (`~/.zshrc`, `.env`, `~/.ssh/config`).
 - **Sublime-style syntax highlighting** for 50+ languages, done incrementally: only the lines that change or scroll
   into view are re-colored, so large files stay smooth. `.env` files get keys, values, `${VAR}` interpolation,

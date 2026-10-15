@@ -129,6 +129,9 @@ final class AppSettings {
     /// The panel beside a picture with its dimensions, format, color, camera and file details.
     var showsImageInfo: Bool { didSet { save(showsImageInfo, "showsImageInfo") } }
     var imageBackground: ImageBackground { didSet { save(imageBackground.rawValue, "imageBackground") } }
+    /// How many recent files the sidebar and File → Open Recent list (one of `recentFileCounts`).
+    var recentFilesShown: Int { didSet { save(recentFilesShown, "recentFilesShown") } }
+    static let recentFileCounts = [10, 20, 50, 100]
 
     /// Whether the app currently renders dark (system setting or forced appearance).
     private(set) var effectiveIsDark: Bool = false
@@ -164,6 +167,7 @@ final class AppSettings {
         showsSidebar = value("showsSidebar", true)
         showsImageInfo = value("showsImageInfo", false)
         imageBackground = ImageBackground(rawValue: value("imageBackground", "checkerboard")) ?? .checkerboard
+        recentFilesShown = value("recentFilesShown", 20)
     }
 
     private func save(_ value: Any, _ key: String) {

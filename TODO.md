@@ -8,6 +8,11 @@ Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
 
+- [x] **How many recent files** (Fredy's idea): 10, 20 (the default), 50 or 100, from the sidebar's Recent
+  header menu (⋯ → Show) or Settings → General → Sidebar. The sidebar's Recent section and File → Open Recent
+  show that many; the store keeps 100 (it kept 80), so a larger number brings older files back, and the
+  sidebar filter searches all of them.
+
 - [x] **XML element path and Copy XPath** (Fredy's pick): in XML documents the status bar shows the elements
   around the caret (last four steps, `… › dependency[2] › version › @scheme`), with `[n]` only where a parent
   has several children of that name, and the attribute when the caret is on one. Click to copy the XPath
