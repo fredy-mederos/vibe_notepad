@@ -73,6 +73,10 @@ any time.
   text inside elements stay as written, and attributes on lines of their own stay that way. Invalid XML names the line
   ("</c> doesn’t match <b> on line 2"). Minified files (lines too long to highlight) show a banner offering
   to format them.
+- **Where you are in XML**: the status bar shows the elements around the caret
+  (`… › dependencies › dependency[2] › version › @scheme`). Click it to copy the XPath
+  (`/project/dependencies/dependency[2]/version/@scheme`, also ⌃⇧⌘C); hold it to select the element (again
+  for its parent) or go to one of the elements around it.
 - **Find & Replace** with regex (`$1` groups, `\n`), match case, whole word, a live match counter, and
   highlighted matches.
 - **Code folding**: collapse `{ }` and `[ ]` sections in JSON and brace languages, elements, long tags and
@@ -172,6 +176,7 @@ the project), builds the disk image, tags `vX.Y.Z` and publishes the GitHub rele
 | Fold / Unfold | ⌥⌘[ / ⌥⌘] |
 | Fold All / Unfold All | ⇧⌥⌘[ / ⇧⌥⌘] |
 | Format JSON / XML | ⌥⌘J |
+| Copy XPath (XML) | ⌃⇧⌘C |
 | Next / Previous Tab | ⌃Tab / ⌃⇧Tab, ⇧⌘] / ⇧⌘[ |
 | Go to Tab 1…9 | ⌘1…⌘9 |
 | Reopen Closed Tab | ⇧⌘T |

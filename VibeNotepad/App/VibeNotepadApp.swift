@@ -206,6 +206,14 @@ struct AppCommands: Commands {
                     Button("Format \(format.name)") { if let editor { workspace.reformat(editor, as: format, minify: false) } }
                         .keyboardShortcut(format == workspace.shortcutFormat ? KeyboardShortcut("j", modifiers: [.command, .option]) : nil)
                     Button("Minify \(format.name)") { if let editor { workspace.reformat(editor, as: format, minify: true) } }
+                    if format == .xml {
+                        Divider()
+                        Button("Copy XPath") { workspace.copyXPath(editor?.xmlPathAtCaret()) }
+                            .keyboardShortcut("c", modifiers: [.command, .control, .shift])
+                            .disabled(textDocument?.language != .xml)
+                        Button("Select Element") { if let editor { workspace.selectXMLElement(in: editor) } }
+                            .disabled(textDocument?.language != .xml)
+                    }
                 }
                 .disabled(textDocument == nil)
             }

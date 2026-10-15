@@ -58,6 +58,10 @@ struct StatusBarView: View {
         Text("\(cursor.lineCount) lines")
             .contentTransition(.numericText())
             .animation(.snappy, value: cursor.lineCount)
+        if let path = document.xmlPath {
+            XMLPathMenu(document: document, path: path)
+                .layoutPriority(-1)
+        }
 
         Spacer(minLength: 8)
 
@@ -139,6 +143,47 @@ struct StatusBarView: View {
         }
         .buttonStyle(StatusButtonStyle())
         .help("Change syntax highlighting")
+    }
+}
+
+/// The elements around the caret in an XML document, `project › dependencies › dependency[2]`.
+/// A click copies the XPath; holding it opens a menu that also selects the element or goes to one
+/// of its parents.
+struct XMLPathMenu: View {
+    @Environment(Workspace.self) private var workspace
+    let document: EditorDocument
+    let path: XMLPath
+
+    var body: some View {
+        Menu {
+            Button("Copy XPath", systemImage: "doc.on.clipboard") { workspace.copyXPath(path) }
+            Button("Select Element", systemImage: "selection.pin.in.out") { workspace.selectXMLElement(in: document.editor) }
+            Section("Go to") {
+                ForEach(Array(path.elements.enumerated()), id: \.offset) { depth, element in
+                    Button(String(repeating: "    ", count: depth) + "<\(element.step)>") {
+                        workspace.goToXMLElement(element, in: document.editor)
+                    }
+                }
+            }
+        } label: {
+            Text(breadcrumb)
+                .lineLimit(1)
+                .truncationMode(.head)
+        } primaryAction: {
+            workspace.copyXPath(path)
+        }
+        .menuStyle(.button)
+        .buttonStyle(StatusButtonStyle())
+        .menuIndicator(.hidden)
+        .help("\(path.xpath)\nClick to copy the XPath, hold for more")
+    }
+
+    /// The last few steps: `… › dependency[2] › version › @scope`.
+    private var breadcrumb: String {
+        var steps = path.elements.map(\.step)
+        if let attribute = path.attribute { steps.append("@" + attribute) }
+        let shown = steps.suffix(4)
+        return (steps.count > shown.count ? "… › " : "") + shown.joined(separator: " › ")
     }
 }
 

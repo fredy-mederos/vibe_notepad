@@ -54,6 +54,8 @@ final class EditorDocument: Identifiable {
         didSet { loadedEditor?.setWrap(wrapLines ?? AppSettings.shared.wrapLines) }
     }
     var cursor = Cursor()
+    /// In an XML document, the elements around the caret (shown in the status bar).
+    var xmlPath: XMLPath?
     var wordCount: Int?
     var characterCount = 0
     var externalChange: ExternalChange?

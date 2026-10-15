@@ -8,6 +8,16 @@ Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
 
+- [x] **XML element path and Copy XPath** (Fredy's pick): in XML documents the status bar shows the elements
+  around the caret (last four steps, `… › dependency[2] › version › @scheme`), with `[n]` only where a parent
+  has several children of that name, and the attribute when the caret is on one. Click to copy the XPath
+  (also ⌃⇧⌘C, Edit → XML, the palette); hold for Select Element (again: the parent) and Go to any element
+  around the caret. `XMLPath` (VibeCore, tested) reads the text with `XMLTagScanner`, which XML folding now
+  shares: it finds the open elements up to the caret, counts same-named siblings before them, then reads on
+  only until the siblings after them and the element's end are known. Looked up 100 ms after the caret
+  stops, off the main thread past 200,000 characters (Release: 18 ms in the middle of a 5.6M-character file,
+  100 ms near its end).
+
 - [x] **XML like JSON** (Fredy's idea): Format XML / Minify XML (Edit → XML, the palette, ⌥⌘J in an XML file,
   where it still means Format JSON elsewhere). JSON and XML files get a Format button in the toolbar (click to
   format the whole document, even one that already looks formatted; the arrow offers Minify), and formatting

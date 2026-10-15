@@ -117,6 +117,10 @@ extension Workspace {
                 }
                 add("Minify \(format.name)", format.name, format.minifySymbol) { self.reformat(editor, as: format, minify: true) }
             }
+            if document?.language == .xml {
+                add("Copy XPath", "XML", "doc.on.clipboard", "⌃⇧⌘C") { self.copyXPath(editor.xmlPathAtCaret()) }
+                add("Select Element", "XML", "selection.pin.in.out") { self.selectXMLElement(in: editor) }
+            }
         }
 
         // Images (and SVG previews)
@@ -200,6 +204,46 @@ extension Workspace {
     private func isPinned(_ document: EditorDocument?) -> Bool {
         guard let path = document?.path else { return false }
         return recents.item(for: path)?.pinned == true
+    }
+
+    // MARK: XML element path
+
+    /// Copies the XPath of the element at the caret (`/project/dependencies/dependency[3]/version`).
+    func copyXPath(_ path: XMLPath?) {
+        guard let path else {
+            NSSound.beep()
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(path.xpath, forType: .string)
+        toast("Copied \(path.xpath)", symbol: "doc.on.clipboard.fill")
+    }
+
+    /// Selects the element around the caret or the selection, from its start tag through its end
+    /// tag; again, its parent.
+    func selectXMLElement(in editor: EditorController) {
+        let selection = editor.textView.selectedRange()
+        let text = editor.nsText
+        var path = XMLPath.at(selection.location, in: text)
+        // Before a "<" is its parent's content, so starting at the element's start goes up a level.
+        while let range = path?.elementRange,
+              range == selection || range.location > selection.location || NSMaxRange(range) < NSMaxRange(selection) {
+            path = XMLPath.at(range.location, in: text)
+        }
+        guard let range = path?.elementRange else {
+            NSSound.beep()
+            return
+        }
+        editor.unfoldIfNeeded(range)
+        editor.textView.setSelectedRange(range)
+        editor.textView.scrollRangeToVisible(NSRange(location: range.location, length: 0))
+        editor.focus()
+    }
+
+    /// Selects the name in an element's start tag.
+    func goToXMLElement(_ element: XMLPath.Element, in editor: EditorController) {
+        editor.reveal(range: NSRange(location: element.start + 1, length: (element.name as NSString).length))
+        editor.focus()
     }
 
     /// The toolbar's Format button: the whole selected document, then back to typing.

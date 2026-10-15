@@ -53,6 +53,9 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     private var foldRegionsVersion = -1
     private var foldsToRelayout: [NSRange] = []
 
+    /// Finds the element path at the caret in XML documents.
+    private var xmlPathTask: Task<Void, Never>?
+
     // Git changes
     /// Lines that differ from the file's version staged in git, marked next to the line numbers.
     private(set) var gitChanges: [LineChange] = []
@@ -624,6 +627,38 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
         status.lineCount = engine.lineCount
         if document.cursor != status { document.cursor = status }
+        scheduleXMLPath()
+    }
+
+    /// The element path at the caret in an XML document (for the status bar), a moment after the
+    /// caret stops: a long document is read off the main thread.
+    private func scheduleXMLPath() {
+        xmlPathTask?.cancel()
+        guard document.language == .xml else {
+            if document.xmlPath != nil { document.xmlPath = nil }
+            return
+        }
+        let location = textView.selectedRange().location
+        xmlPathTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(100))
+            guard let self, !Task.isCancelled else { return }
+            let path: XMLPath?
+            if self.textStorage.length < 200_000 {
+                path = XMLPath.at(location, in: self.nsText)
+            } else {
+                let snapshot = self.textStorage.string
+                let version = self.textVersion
+                path = await Task.detached(priority: .userInitiated) { XMLPath.at(location, in: snapshot as NSString) }.value
+                guard !Task.isCancelled, version == self.textVersion else { return }
+            }
+            if self.document.xmlPath != path { self.document.xmlPath = path }
+        }
+    }
+
+    /// The element path at the caret, read now (for commands, which can't wait for the status bar).
+    func xmlPathAtCaret() -> XMLPath? {
+        guard document.language == .xml else { return nil }
+        return XMLPath.at(textView.selectedRange().location, in: nsText)
     }
 
     // MARK: Editing

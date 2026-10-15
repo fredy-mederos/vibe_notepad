@@ -278,6 +278,7 @@ enum DebugTools {
                 "document \(document.displayName), language \(document.language), format \(document.dataFormat?.name ?? "-"), dirty \(document.isDirty), minified banner \(document.showsMinifiedNotice)",
                 "fold regions \(regions.count) depths \(regions.prefix(20).map(\.depth)), folded spans \(editor?.layoutManager.foldSpans.count ?? 0), undo \(editor?.undoManager.undoActionName ?? "-")",
                 "foldable lines \((0..<min(editor?.engine.lineCount ?? 0, 40)).filter { editor?.foldRegion(startingOnLine: $0) != nil }.map { $0 + 1 })",
+                "xml path \(document.xmlPath?.xpath ?? "-"), element \(document.xmlPath?.elementRange.map(NSStringFromRange) ?? "-"), selection \(editor.map { NSStringFromRange($0.textView.selectedRange()) } ?? "-")",
                 "toasts \(workspace.toasts.map(\.message))",
                 "palette \(workspace.commands.filter { ["JSON", "XML"].contains($0.category) }.map { "\($0.title)\($0.shortcut.map { " " + $0 } ?? "")" })",
                 "----",
