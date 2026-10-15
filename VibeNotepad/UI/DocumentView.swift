@@ -16,8 +16,8 @@ struct DocumentView: View {
                 ExternalChangeBanner(document: document, change: change)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
-            if document.showsMinifiedJSONNotice {
-                MinifiedJSONBanner(document: document)
+            if document.showsMinifiedNotice, let format = document.dataFormat {
+                MinifiedBanner(document: document, format: format)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
             if document.isImage {
@@ -27,7 +27,7 @@ struct DocumentView: View {
             }
         }
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.externalChange)
-        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.showsMinifiedJSONNotice)
+        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: document.showsMinifiedNotice)
     }
 
     private var editorAndPreview: some View {
@@ -190,27 +190,28 @@ struct ExternalChangeBanner: View {
     }
 }
 
-/// Offers to format JSON whose lines are too long to highlight (minified files).
-struct MinifiedJSONBanner: View {
+/// Offers to format JSON or XML whose lines are too long to highlight (minified files).
+struct MinifiedBanner: View {
     @Environment(Workspace.self) private var workspace
     let document: EditorDocument
+    let format: DataFormat
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "curlybraces.square")
+            Image(systemName: format.symbol)
                 .foregroundStyle(Color.accentColor)
-            Text("This JSON is minified, so it isn’t highlighted.")
+            Text("This \(format.name) is minified, so it isn’t highlighted.")
                 .font(.system(size: 12, weight: .medium))
             Spacer()
             KeyHint(keys: "⌥⌘J")
-            Button("Format JSON") {
+            Button("Format \(format.name)") {
                 guard let editor = document.loadedEditor else { return }
-                workspace.runJSON(editor, minify: false, wholeDocument: true)
+                workspace.reformat(editor, as: format, minify: false, wholeDocument: true)
                 editor.focus()
             }
             Button("Dismiss") {
-                document.minifiedJSONNoticeDismissed = true
-                document.showsMinifiedJSONNotice = false
+                document.minifiedNoticeDismissed = true
+                document.showsMinifiedNotice = false
             }
         }
         .controlSize(.small)

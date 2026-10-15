@@ -45,6 +45,42 @@ import Testing
         #expect(regions.count == 1)
     }
 
+    @Test func xmlElementsCommentsAndLongTags() {
+        let xml = """
+        <?xml version="1.0"?>
+        <!--
+          License
+        -->
+        <project>
+          <name>vibe</name>
+          <deps>
+            <dep id="a"/>
+            <dep id="b" note="a > b"></dep>
+          </deps>
+          <TextView
+              android:id="@+id/x" />
+          <text><![CDATA[
+            <not> a tag
+          ]]></text>
+        </project>
+        """
+        let text = xml as NSString
+        let regions = FoldingAnalyzer.regions(in: text, language: .xml)
+        // comment, project, deps, TextView, text (its CDATA starts on the same line: the outer one wins)
+        #expect(regions.count == 5)
+        #expect(regions.map(\.depth) == [0, 0, 1, 1, 1])
+        func rest(_ region: FoldRegion) -> String { text.substring(from: region.hiddenEnd) }
+        #expect(rest(regions[0]).hasPrefix("-->"))
+        #expect(rest(regions[1]).hasPrefix("</project>"))
+        #expect(rest(regions[2]).hasPrefix("</deps>"))
+        #expect(hidden(xml, regions[2]).hasPrefix("\n    <dep id=\"a\"/>"))
+        #expect(rest(regions[3]).hasPrefix("/>"))
+        #expect(rest(regions[4]).hasPrefix("</text>"))
+        // A missing end tag doesn't stop its parent from folding.
+        let broken = FoldingAnalyzer.regions(in: "<a>\n  <b>\n</a>\n" as NSString, language: .xml)
+        #expect(broken.count == 1)
+    }
+
     @Test func yamlIndentation() {
         let yaml = """
         services:

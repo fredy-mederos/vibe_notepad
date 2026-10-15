@@ -22,11 +22,12 @@ public struct FoldRegion: Hashable, Sendable {
     public var hiddenRange: NSRange { NSRange(location: hiddenStart, length: max(0, hiddenEnd - hiddenStart)) }
 }
 
-/// Finds foldable regions: bracket pairs for JSON and C-like languages, indentation blocks for
-/// YAML and Python, and heading sections for Markdown.
+/// Finds foldable regions: bracket pairs for JSON and C-like languages, elements for XML,
+/// indentation blocks for YAML and Python, and heading sections for Markdown.
 public enum FoldingAnalyzer {
     enum Strategy {
         case brackets(BracketSyntax)
+        case tags
         case indentation
         case headings
     }
@@ -61,6 +62,8 @@ public enum FoldingAnalyzer {
             return .brackets(BracketSyntax())
         case .hcl:
             return .brackets(BracketSyntax(lineComments: [u16("#"), u16("//")]))
+        case .xml:
+            return .tags
         case .yaml, .python:
             return .indentation
         case .markdown:
@@ -81,6 +84,7 @@ public enum FoldingAnalyzer {
         var result: [FoldRegion]
         switch strategy {
         case .brackets(let syntax): result = bracketRegions(units, syntax)
+        case .tags: result = tagRegions(units)
         case .indentation: result = indentationRegions(units, isYAML: language == .yaml)
         case .headings: result = headingRegions(units)
         }
@@ -192,6 +196,141 @@ public enum FoldingAnalyzer {
         }
         return regions
     }
+
+    // MARK: XML tags
+
+    /// Elements whose end tag is on a later line than their start tag, folded from the end of the
+    /// first line to the `</name>`, which stays visible. Multi-line comments, CDATA sections, DOCTYPE
+    /// subsets and self-closing tags fold too, up to their `-->`, `]]>`, `]>` or `/>`.
+    private static func tagRegions(_ s: [UInt16]) -> [FoldRegion] {
+        let n = s.count
+        var lineEnds: [Int] = []
+        for i in 0..<n where s[i] == Ch.newline { lineEnds.append(i) }
+        var regions: [FoldRegion] = []
+        // Open elements: where the tag starts, and its name.
+        var stack: [(start: Int, name: Range<Int>)] = []
+
+        @inline(__always) func matches(_ lit: [UInt16], _ at: Int) -> Bool {
+            guard at + lit.count <= n else { return false }
+            for k in 0..<lit.count where s[at + k] != lit[k] { return false }
+            return true
+        }
+        func find(_ lit: [UInt16], from start: Int) -> Int? {
+            var j = start
+            while j < n {
+                if s[j] == lit[0], matches(lit, j) { return j }
+                j += 1
+            }
+            return nil
+        }
+        /// A region from the end of the line holding `start` to `end`, if they're on different lines.
+        func add(_ start: Int, _ end: Int, depth: Int) {
+            // The first line feed at or after `start` ends its line.
+            var lo = 0, hi = lineEnds.count
+            while lo < hi {
+                let mid = (lo + hi) / 2
+                if lineEnds[mid] < start { lo = mid + 1 } else { hi = mid }
+            }
+            guard lo < lineEnds.count, lineEnds[lo] < end else { return }
+            regions.append(FoldRegion(hiddenStart: lineEnds[lo], hiddenEnd: end, depth: depth))
+        }
+        func name(at start: Int) -> Range<Int> {
+            var j = start
+            while j < n, s[j] != Ch.space, s[j] != Ch.newline, s[j] != Ch.tab, s[j] != Ch.cr, s[j] != Ch.gt, s[j] != Ch.slash { j += 1 }
+            return start..<j
+        }
+        /// The `>` ending the tag that starts at `start`, skipping quoted attribute values.
+        func tagEnd(from start: Int) -> Int {
+            var j = start
+            var quote: UInt16 = 0
+            while j < n {
+                let c = s[j]
+                if quote != 0 {
+                    if c == quote { quote = 0 }
+                } else if c == Ch.quote || c == Ch.apostrophe {
+                    quote = c
+                } else if c == Ch.gt {
+                    return j
+                }
+                j += 1
+            }
+            return n
+        }
+
+        var i = 0
+        while i < n {
+            guard s[i] == Ch.lt, i + 1 < n else {
+                i += 1
+                continue
+            }
+            let next = s[i + 1]
+            if matches(xmlCommentStart, i) {
+                guard let end = find(xmlCommentEnd, from: i + 4) else { break }
+                add(i, end, depth: stack.count)
+                i = end + 3
+            } else if matches(cdataStart, i) {
+                guard let end = find(cdataEnd, from: i + 9) else { break }
+                add(i, end, depth: stack.count)
+                i = end + 3
+            } else if next == Ch.question {
+                guard let end = find(piEnd, from: i + 2) else { break }
+                i = end + 2
+            } else if next == Ch.bang {
+                // DOCTYPE: its internal subset (in brackets) folds up to the `]`.
+                var j = i + 2, depth = 0, quote: UInt16 = 0
+                var subsetEnd: Int?
+                while j < n {
+                    let c = s[j]
+                    if quote != 0 {
+                        if c == quote { quote = 0 }
+                    } else if c == Ch.lt, matches(xmlCommentStart, j) {
+                        j = (find(xmlCommentEnd, from: j + 4) ?? n) + 3
+                        continue
+                    } else if c == Ch.quote || c == Ch.apostrophe {
+                        quote = c
+                    } else if c == Ch.lbracket {
+                        depth += 1
+                    } else if c == Ch.rbracket {
+                        depth -= 1
+                        if depth == 0 { subsetEnd = j }
+                    } else if c == Ch.gt, depth <= 0 {
+                        break
+                    }
+                    j += 1
+                }
+                add(i, subsetEnd ?? j, depth: stack.count)
+                i = j + 1
+            } else if next == Ch.slash {
+                let closing = name(at: i + 2)
+                let length = closing.count
+                if let index = stack.lastIndex(where: { open in
+                    open.name.count == length && !zip(open.name, closing).contains { s[$0] != s[$1] }
+                }) {
+                    let start = stack[index].start
+                    stack.removeSubrange(index...)
+                    add(start, i, depth: index)
+                }
+                i = tagEnd(from: closing.upperBound) + 1
+            } else if Ch.isAlpha(next) || next == Ch.underscore || next == Ch.colon || next >= 0x80 {
+                let end = tagEnd(from: i + 1)
+                if end < n, s[end - 1] == Ch.slash {
+                    add(i, end - 1, depth: stack.count) // a self-closing tag written over several lines
+                } else {
+                    stack.append((i, name(at: i + 1)))
+                }
+                i = end + 1
+            } else {
+                i += 1
+            }
+        }
+        return regions
+    }
+
+    private static let xmlCommentStart = u16("<!--")
+    private static let xmlCommentEnd = u16("-->")
+    private static let cdataStart = u16("<![CDATA[")
+    private static let cdataEnd = u16("]]>")
+    private static let piEnd = u16("?>")
 
     // MARK: Indentation
 

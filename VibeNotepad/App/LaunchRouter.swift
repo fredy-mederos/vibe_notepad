@@ -313,6 +313,8 @@ enum LaunchRouter {
             DebugTools.panes(value("op") ?? "report", value: value("value"), pane: value("pane").flatMap(Int.init), report: value("path") ?? "/tmp/vibe-panes.txt")
         case "debug-sidebar":
             DebugTools.measureSidebarToggle(to: value("path") ?? "/tmp/vibe-sidebar.txt")
+        case "debug-command":
+            DebugTools.command(value("title"), report: value("path") ?? "/tmp/vibe-command.txt")
         case "debug-undo":
             Workspace.shared.activeEditor?.undoManager.undo()
         case "debug-save":

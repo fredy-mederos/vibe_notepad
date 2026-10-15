@@ -28,7 +28,7 @@ final class EditorDocument: Identifiable {
         didSet {
             guard oldValue != language else { return }
             loadedEditor?.setLanguage(language)
-            updateMinifiedJSONNotice()
+            updateMinifiedNotice()
             if language == .markdown, oldValue != .markdown { markdownMode = AppSettings.shared.markdownMode }
             Workspace.shared.scheduleSessionSave()
         }
@@ -59,9 +59,9 @@ final class EditorDocument: Identifiable {
     var externalChange: ExternalChange?
     /// The "deleted on disk" banner was dismissed: don't show it again until the file reappears.
     @ObservationIgnored var deletionDismissed = false
-    /// JSON with lines too long to highlight (a minified file): offer to format it.
-    var showsMinifiedJSONNotice = false
-    @ObservationIgnored var minifiedJSONNoticeDismissed = false
+    /// JSON or XML with lines too long to highlight (a minified file): offer to format it.
+    var showsMinifiedNotice = false
+    @ObservationIgnored var minifiedNoticeDismissed = false
     /// When the file was last reloaded because another app changed it.
     @ObservationIgnored var lastAutoReload: Date?
     /// Bumped on every save so views can animate a confirmation.
@@ -106,6 +106,12 @@ final class EditorDocument: Identifiable {
     var isUntitled: Bool { fileURL == nil }
     var isMarkdown: Bool { language == .markdown }
     var isSVG: Bool { language == .xml && fileURL?.pathExtension.lowercased() == "svg" }
+    /// JSON or XML: the document can be formatted and minified as a whole. JSON Lines files hold one
+    /// value per line, so they can't be.
+    var dataFormat: DataFormat? {
+        guard !isImage, !["jsonl", "ndjson"].contains(fileURL?.pathExtension.lowercased() ?? "") else { return nil }
+        return DataFormat(language: language)
+    }
     /// Markdown and SVG can show a preview beside (or instead of) the text.
     var hasPreview: Bool { isMarkdown || isSVG }
     var path: String? { fileURL?.canonicalPath }
@@ -157,17 +163,14 @@ final class EditorDocument: Identifiable {
             editor.scrollToCenter(editor.textView.selectedRange())
         }
         editor.styleVisible()
-        updateMinifiedJSONNotice()
+        updateMinifiedNotice()
     }
 
-    /// Shows the "format this JSON" banner while the text has lines too long to highlight.
-    func updateMinifiedJSONNotice() {
+    /// Shows the "format this JSON / XML" banner while the text has lines too long to highlight.
+    func updateMinifiedNotice() {
         guard let engine = editorStorage?.engine else { return }
-        // JSON Lines files hold one value per line, so they can't be formatted as a whole.
-        let isJSONLines = ["jsonl", "ndjson"].contains(fileURL?.pathExtension.lowercased() ?? "")
-        let shows = !minifiedJSONNoticeDismissed && language == .json && !isJSONLines
-            && engine.isHighlightingEnabled && engine.hasOverlongLines
-        if showsMinifiedJSONNotice != shows { showsMinifiedJSONNotice = shows }
+        let shows = !minifiedNoticeDismissed && dataFormat != nil && engine.isHighlightingEnabled && engine.hasOverlongLines
+        if showsMinifiedNotice != shows { showsMinifiedNotice = shows }
     }
 
     var preview: MarkdownPreviewController {
@@ -216,13 +219,13 @@ final class EditorDocument: Identifiable {
         guard let editor = editorStorage else { return }
         characterCount = editor.textStorage.length
         // Hide the banner as soon as the text is formatted; showing it again can wait for a pause.
-        if showsMinifiedJSONNotice { updateMinifiedJSONNotice() }
+        if showsMinifiedNotice { updateMinifiedNotice() }
         statsTask?.cancel()
         statsTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled, let self else { return }
             self.scheduleStats(text: self.text)
-            self.updateMinifiedJSONNotice()
+            self.updateMinifiedNotice()
         }
         loadedPreview?.textDidChange()
         loadedSVGPreview?.textDidChange()

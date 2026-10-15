@@ -189,6 +189,122 @@ private func apply(_ edit: TextEdit, to text: String) -> String {
         #expect(try TextTransforms.minifyJSON(source) == #"{"tabSize":2,"theme":"dark","list":[1,2]}"#)
     }
 
+    @Test func formatXMLIndentsElementsAndKeepsContent() throws {
+        let source = #"""
+        <?xml version="1.0" encoding="UTF-8"?><!-- top --><project a="1"   b = 'two'><name>Vibe &amp; co</name><deps><dep id="x"/><dep id="y"></dep><!-- why --><dep>
+        </dep></deps><p>Hello <b>world</b>!</p><code xml:space="preserve">  a
+          b</code><s> </s><script><![CDATA[x < y]]></script></project>
+        """#
+        let pretty = try TextTransforms.formatXML(source)
+        // Mixed content, xml:space="preserve", a lone space and CDATA are kept as written.
+        #expect(pretty == #"""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!-- top -->
+        <project a="1" b='two'>
+          <name>Vibe &amp; co</name>
+          <deps>
+            <dep id="x"/>
+            <dep id="y"></dep>
+            <!-- why -->
+            <dep></dep>
+          </deps>
+          <p>Hello <b>world</b>!</p>
+          <code xml:space="preserve">  a
+          b</code>
+          <s> </s>
+          <script><![CDATA[x < y]]></script>
+        </project>
+        """#)
+        // Formatting is stable, and minifying only drops the whitespace between tags.
+        #expect(try TextTransforms.formatXML(pretty) == pretty)
+        #expect(try TextTransforms.minifyXML(pretty) == #"""
+        <?xml version="1.0" encoding="UTF-8"?><!-- top --><project a="1" b='two'><name>Vibe &amp; co</name><deps><dep id="x"/><dep id="y"></dep><!-- why --><dep></dep></deps><p>Hello <b>world</b>!</p><code xml:space="preserve">  a
+          b</code><s> </s><script><![CDATA[x < y]]></script></project>
+        """#)
+    }
+
+    @Test func formatXMLKeepsAttributeLayout() throws {
+        let source = #"""
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                  android:layout_width="match_parent"
+                android:orientation="vertical">
+          <TextView
+                   android:id="@+id/title"
+             android:text="Hi" />   <!-- the title -->
+
+
+            <Button android:id="@+id/ok"
+              />
+        </LinearLayout>
+        """#
+        // Attributes on lines of their own line up under the first one, or sit a level deeper than a
+        // tag whose name is alone; a comment stays after its tag; blank lines shrink to one.
+        #expect(try TextTransforms.formatXML(source, indent: "    ") == #"""
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                      android:layout_width="match_parent"
+                      android:orientation="vertical">
+            <TextView
+                android:id="@+id/title"
+                android:text="Hi" /> <!-- the title -->
+
+            <Button android:id="@+id/ok"
+            />
+        </LinearLayout>
+        """#)
+        #expect(try TextTransforms.minifyXML(source) == #"""
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:orientation="vertical"><TextView android:id="@+id/title" android:text="Hi"/><!-- the title --><Button android:id="@+id/ok"/></LinearLayout>
+        """#)
+    }
+
+    @Test func formatXMLMovesMultilineComments() throws {
+        let source = "<a>\n<!--\n  Header\n\n-->\n\t<b/>\n\t<!-- one\n\t     two -->\n</a>"
+        let pretty = try TextTransforms.formatXML(source)
+        #expect(pretty == "<a>\n  <!--\n    Header\n\n  -->\n  <b/>\n  <!-- one\n       two -->\n</a>")
+        #expect(try TextTransforms.formatXML(pretty) == pretty)
+    }
+
+    @Test func formatXMLFragmentsAndDoctype() throws {
+        // A selection of several elements formats too.
+        #expect(try TextTransforms.formatXML("<a/><b>text</b>\n<c/>") == "<a/>\n<b>text</b>\n<c/>")
+        let plist = #"<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>A</key><true/></dict></plist>"#
+        #expect(try TextTransforms.formatXML(plist, indent: "\t") == """
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        \t<dict>
+        \t\t<key>A</key>
+        \t\t<true/>
+        \t</dict>
+        </plist>
+        """)
+        // The declaration's encoding doesn't matter (the text is UTF-8 by now).
+        #expect(try TextTransforms.formatXML(#"<?xml version="1.0" encoding="UTF-16"?><a><b/></a>"#) == #"""
+        <?xml version="1.0" encoding="UTF-16"?>
+        <a>
+          <b/>
+        </a>
+        """#)
+    }
+
+    @Test func invalidXMLNamesTheLine() {
+        func error(_ source: String) -> TextTransforms.XMLFormatError? {
+            do {
+                _ = try TextTransforms.formatXML(source)
+                return nil
+            } catch {
+                return error as? TextTransforms.XMLFormatError
+            }
+        }
+        #expect(error("<a>\n<b></c>\n</a>") == .invalid(line: 2, message: "</c> doesn’t match <b> on line 2"))
+        #expect(error("<a>\n<b>\n</a>") == .invalid(line: 3, message: "</a> doesn’t match <b> on line 2"))
+        #expect(error("<a/>\n</b>") == .invalid(line: 2, message: "</b> has no start tag"))
+        #expect(error("<a>\n  <b>") == .invalid(line: 2, message: "<b> is never closed"))
+        #expect(error("<a>\n<!-- never") == .invalid(line: 2, message: "the comment never ends (-->)"))
+        // Everything else comes from the system parser (libxml2), also in fragments.
+        #expect(error("<a>\n  <b x='1' x='2'/>\n</a>") == .invalid(line: 2, message: "Attribute x redefined"))
+        #expect(error("<a/>\n<b>&nbsp;</b>") == .invalid(line: 2, message: "Entity 'nbsp' not defined"))
+        #expect(TextTransforms.XMLFormatError.invalid(line: 4, message: "Oops").localizedDescription == "Invalid XML (line 4): Oops")
+    }
+
     @Test func caseTransformOnWord() throws {
         let edit = try #require(TextTransforms.transform("hello world" as NSString, selection: NSRange(location: 8, length: 0)) { $0.uppercased() })
         #expect(apply(edit, to: "hello world") == "hello WORLD")

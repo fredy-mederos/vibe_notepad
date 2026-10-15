@@ -255,6 +255,38 @@ enum DebugTools {
         }
     }
 
+    /// Runs the palette command titled `title` (`toolbar-format` / `toolbar-minify`: the toolbar's
+    /// Format button) and writes the selected document's state, folds, toasts and text to `path`.
+    static func command(_ title: String?, report path: String) {
+        let workspace = Workspace.shared
+        switch title {
+        case "toolbar-format": workspace.reformatSelectedDocument(minify: false)
+        case "toolbar-minify": workspace.reformatSelectedDocument(minify: true)
+        case nil: break
+        case let title?:
+            guard let command = workspace.commands.first(where: { $0.title == title }) else {
+                try? "no command \(title)\n".write(toFile: path, atomically: true, encoding: .utf8)
+                return
+            }
+            command.action()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            guard let document = workspace.selectedDocument else { return }
+            let editor = document.loadedEditor
+            let regions = editor?.foldRegions ?? []
+            let lines = [
+                "document \(document.displayName), language \(document.language), format \(document.dataFormat?.name ?? "-"), dirty \(document.isDirty), minified banner \(document.showsMinifiedNotice)",
+                "fold regions \(regions.count) depths \(regions.prefix(20).map(\.depth)), folded spans \(editor?.layoutManager.foldSpans.count ?? 0), undo \(editor?.undoManager.undoActionName ?? "-")",
+                "foldable lines \((0..<min(editor?.engine.lineCount ?? 0, 40)).filter { editor?.foldRegion(startingOnLine: $0) != nil }.map { $0 + 1 })",
+                "toasts \(workspace.toasts.map(\.message))",
+                "palette \(workspace.commands.filter { ["JSON", "XML"].contains($0.category) }.map { "\($0.title)\($0.shortcut.map { " " + $0 } ?? "")" })",
+                "----",
+                document.characterCount < 20_000 ? document.text : "(\(document.characterCount) characters)",
+            ]
+            try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
     /// Renders the main window into a PNG without activating the app.
     static func snapshot(to path: String, windowTitle: String? = nil) {
         let titled = windowTitle.flatMap { title in NSApp.windows.first { $0.title.localizedCaseInsensitiveContains(title) } }

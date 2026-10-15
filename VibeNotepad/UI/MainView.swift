@@ -191,6 +191,19 @@ struct MainToolbar: ToolbarContent {
     @ToolbarContentBuilder
     private var actions: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
+            if let format = workspace.selectedDocument?.dataFormat {
+                // Click to format the whole document (even one that looks formatted already); the
+                // arrow offers Minify.
+                Menu {
+                    Button("Format \(format.name)", systemImage: format.symbol) { workspace.reformatSelectedDocument(minify: false) }
+                    Button("Minify \(format.name)", systemImage: format.minifySymbol) { workspace.reformatSelectedDocument(minify: true) }
+                } label: {
+                    Label("Format \(format.name)", systemImage: format.symbol)
+                } primaryAction: {
+                    workspace.reformatSelectedDocument(minify: false)
+                }
+                .help("Format \(format.name) (⌥⌘J) · Minify from the arrow")
+            }
             if let document = workspace.selectedDocument, document.hasPreview {
                 Picker("View", selection: Binding(get: { document.markdownMode }, set: { workspace.setMarkdownMode($0) })) {
                     ForEach(MarkdownMode.allCases, id: \.self) { mode in

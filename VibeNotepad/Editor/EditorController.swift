@@ -733,18 +733,28 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
     }
 
-    /// Reformats the selection (or the whole document) as JSON.
-    func reformatJSON(minify: Bool, wholeDocument: Bool = false) throws {
+    /// Reformats the selection (or the whole document) as JSON or XML.
+    /// - Returns: false when the text already was formatted that way (nothing changes).
+    @discardableResult
+    func reformat(as format: DataFormat, minify: Bool, wholeDocument: Bool = false) throws -> Bool {
         let selection = wholeDocument ? NSRange(location: 0, length: 0) : textView.selectedRange()
         let target = selection.length > 0 ? selection : NSRange(location: 0, length: textStorage.length)
         let source = nsText.substring(with: target)
         let indent = document.indentation.usesTabs ? "\t" : String(repeating: " ", count: document.indentation.width)
-        let formatted = minify ? try TextTransforms.minifyJSON(source) : try TextTransforms.formatJSON(source, indent: indent)
+        let formatted = minify ? try format.minify(source) : try format.format(source, indent: indent)
         let trailing = selection.length == 0 && source.hasSuffix("\n") && !minify ? "\n" : ""
         let replacement = formatted + trailing
+        if selection.length == 0 {
+            // The "minified" banner has done its job: a long string or SVG path can keep a line too
+            // long to highlight, and minifying on purpose shouldn't bring it up.
+            document.minifiedNoticeDismissed = true
+            document.updateMinifiedNotice()
+        }
+        guard replacement != source else { return false }
         apply(TextEdit(range: target, replacement: replacement,
                        selection: selection.length > 0 ? NSRange(location: target.location, length: (replacement as NSString).length) : NSRange(location: 0, length: 0)),
-              actionName: minify ? "Minify JSON" : "Format JSON")
+              actionName: "\(minify ? "Minify" : "Format") \(format.name)")
+        return true
     }
 
     // MARK: Navigation

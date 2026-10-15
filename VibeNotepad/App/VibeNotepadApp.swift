@@ -200,12 +200,15 @@ struct AppCommands: Commands {
                 Button("kebab-case") { editor?.transformSelection("kebab-case") { TextCase.kebab($0) } }
             }
             .disabled(textDocument == nil)
-            Menu("JSON") {
-                Button("Format JSON") { if let editor { workspace.runJSON(editor, minify: false) } }
-                    .keyboardShortcut("j", modifiers: [.command, .option])
-                Button("Minify JSON") { if let editor { workspace.runJSON(editor, minify: true) } }
+            // ⌥⌘J formats the document in its own format (JSON outside XML documents).
+            ForEach([DataFormat.json, .xml], id: \.self) { format in
+                Menu(format.name) {
+                    Button("Format \(format.name)") { if let editor { workspace.reformat(editor, as: format, minify: false) } }
+                        .keyboardShortcut(format == workspace.shortcutFormat ? KeyboardShortcut("j", modifiers: [.command, .option]) : nil)
+                    Button("Minify \(format.name)") { if let editor { workspace.reformat(editor, as: format, minify: true) } }
+                }
+                .disabled(textDocument == nil)
             }
-            .disabled(textDocument == nil)
         }
 
         CommandGroup(before: .sidebar) {

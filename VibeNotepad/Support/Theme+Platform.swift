@@ -12,6 +12,24 @@ extension Theme {
     var colorScheme: ColorScheme { isDark ? .dark : .light }
 }
 
+extension DataFormat {
+    /// Symbol for formatting text in this format.
+    var symbol: String {
+        switch self {
+        case .json: "curlybraces.square"
+        case .xml: "chevron.left.forwardslash.chevron.right"
+        }
+    }
+
+    /// Symbol for minifying it.
+    var minifySymbol: String {
+        switch self {
+        case .json: "curlybraces"
+        case .xml: "chevron.left.slash.chevron.right"
+        }
+    }
+}
+
 extension LanguageID {
     enum Icon {
         case symbol(String)

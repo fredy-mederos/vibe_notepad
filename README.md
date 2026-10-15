@@ -66,14 +66,20 @@ any time.
 - **Quick Open (⌘P)**: fuzzy search across open tabs, pinned and recent files, the folders' files, and files
   near the current one. Type `name:42` to jump to a line; ⌥↩ opens the file in a new pane beside the current one.
 - **Command Palette (⇧⌘P)** with editing tools: sort lines, change case, Base64 and URL encode/decode,
-  format or minify JSON (key order is kept), convert indentation, insert a UUID, and more. Minified JSON
-  (lines too long to highlight) shows a banner offering to format it.
+  format or minify JSON and XML, convert indentation, insert a UUID, and more.
+- **Format JSON and XML**: the toolbar's Format button (or ⌥⌘J, which formats the selection when there is one)
+  pretty-prints JSON and XML files, even ones that already look formatted, with the document's indentation;
+  its arrow offers Minify. Formatting only changes whitespace: key and attribute order, comments, CDATA and
+  text inside elements stay as written, and attributes on lines of their own stay that way. Invalid XML names the line
+  ("</c> doesn’t match <b> on line 2"). Minified files (lines too long to highlight) show a banner offering
+  to format them.
 - **Find & Replace** with regex (`$1` groups, `\n`), match case, whole word, a live match counter, and
   highlighted matches.
-- **Code folding**: collapse `{ }` and `[ ]` sections in JSON and brace languages, indentation blocks in
-  YAML and Python, and heading sections in Markdown. Use the gutter chevrons, click the `⋯` pill to expand,
-  or use Fold / Unfold (⌥⌘[ / ⌥⌘]) and Fold All / Unfold All (⇧⌥⌘[ / ⇧⌥⌘]). Fold All on a JSON file leaves
-  its top-level keys visible.
+- **Code folding**: collapse `{ }` and `[ ]` sections in JSON and brace languages, elements, long tags and
+  comments in XML, indentation blocks in YAML and Python, and heading sections in Markdown. Use the gutter
+  chevrons, click the `⋯` pill to expand, or use Fold / Unfold (⌥⌘[ / ⌥⌘]) and Fold All / Unfold All
+  (⇧⌥⌘[ / ⇧⌥⌘]). Fold All on a JSON file leaves its top-level keys visible, and on an XML file the root
+  element's children.
 - **Git changes next to the line numbers**: added lines get a green bar, modified ones a blue bar, and a red
   wedge marks where lines were deleted, compared with the version staged in git and updated as you type.
   Commits, `git add` and checkouts are picked up when you come back to the app. Can be turned off in
@@ -165,7 +171,7 @@ the project), builds the disk image, tags `vX.Y.Z` and publishes the GitHub rele
 | Markdown and SVG: Editor / Split / Preview | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 (toggle: ⇧⌘V) |
 | Fold / Unfold | ⌥⌘[ / ⌥⌘] |
 | Fold All / Unfold All | ⇧⌥⌘[ / ⇧⌥⌘] |
-| Format JSON | ⌥⌘J |
+| Format JSON / XML | ⌥⌘J |
 | Next / Previous Tab | ⌃Tab / ⌃⇧Tab, ⇧⌘] / ⇧⌘[ |
 | Go to Tab 1…9 | ⌘1…⌘9 |
 | Reopen Closed Tab | ⇧⌘T |

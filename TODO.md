@@ -8,6 +8,21 @@ Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
 
+- [x] **XML like JSON** (Fredy's idea): Format XML / Minify XML (Edit → XML, the palette, ⌥⌘J in an XML file,
+  where it still means Format JSON elsewhere). JSON and XML files get a Format button in the toolbar (click to
+  format the whole document, even one that already looks formatted; the arrow offers Minify), and formatting
+  something already formatted says so ("Already formatted"). The XML formatter (`XMLMarkup`, VibeCore, with
+  tests) only rewrites whitespace between tags: attribute order and quotes, comments, CDATA, the prolog and
+  any element holding text (mixed content, `xml:space="preserve"`, a lone space) stay as written; attributes
+  that began a line keep doing so, lined up under the first attribute or a level deeper when the name is
+  alone on its line (Android layouts); one blank line between elements survives; a comment after a tag stays
+  on its line; multi-line comments move as a block. A selection of several elements formats too. Mismatched,
+  stray and unclosed tags are reported by line ("</c> doesn’t match <b> on line 2"), everything else by
+  libxml2 through `XMLParser` (no external entities). Minified XML gets the banner minified JSON gets. A
+  13 MB file formats in about 0.85 s (Release). Folding: elements whose end tag is on a later line, long
+  self-closing tags (`<TextView ⋯ />`), multi-line comments, CDATA and DOCTYPE subsets; Fold All keeps the
+  root open.
+
 - [x] **SVG preview and image backgrounds**: SVG files get Editor / Split / Preview like Markdown (⌥⌘1–3, the toolbar
   switcher), opening in Split. WebKit draws the SVG (as an `<img>`: no scripts, nothing fetched, a page policy
   that loads nothing else) into a PDF, which the image viewer shows as a vector picture, so it's sharp at any zoom

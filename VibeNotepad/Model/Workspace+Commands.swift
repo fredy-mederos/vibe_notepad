@@ -111,8 +111,12 @@ extension Workspace {
                     add("Fold Level \(level)", "Folding", "list.bullet.indent") { editor.foldAll(level: level) }
                 }
             }
-            add("Format JSON", "JSON", "curlybraces.square") { self.runJSON(editor, minify: false) }
-            add("Minify JSON", "JSON", "curlybraces") { self.runJSON(editor, minify: true) }
+            for format in [DataFormat.json, .xml] {
+                add("Format \(format.name)", format.name, format.symbol, format == shortcutFormat ? "⌥⌘J" : nil) {
+                    self.reformat(editor, as: format, minify: false)
+                }
+                add("Minify \(format.name)", format.name, format.minifySymbol) { self.reformat(editor, as: format, minify: true) }
+            }
         }
 
         // Images (and SVG previews)
@@ -198,9 +202,25 @@ extension Workspace {
         return recents.item(for: path)?.pinned == true
     }
 
-    func runJSON(_ editor: EditorController, minify: Bool, wholeDocument: Bool = false) {
+    /// The toolbar's Format button: the whole selected document, then back to typing.
+    func reformatSelectedDocument(minify: Bool) {
+        guard let document = selectedDocument, let format = document.dataFormat else { return }
+        let editor = document.editor
+        reformat(editor, as: format, minify: minify, wholeDocument: true)
+        editor.focus()
+    }
+
+    /// The format ⌥⌘J formats: XML in an XML document, JSON anywhere else (including a selection of
+    /// JSON in another kind of file).
+    var shortcutFormat: DataFormat { selectedDocument?.language == .xml ? .xml : .json }
+
+    /// Formats or minifies the selection (or the whole document) as JSON or XML. Text that already
+    /// looks formatted is reformatted all the same (a different indentation, stray spaces).
+    func reformat(_ editor: EditorController, as format: DataFormat, minify: Bool, wholeDocument: Bool = false) {
         do {
-            try editor.reformatJSON(minify: minify, wholeDocument: wholeDocument)
+            if try !editor.reformat(as: format, minify: minify, wholeDocument: wholeDocument) {
+                toast(minify ? "Already minified" : "Already formatted", symbol: "checkmark.circle")
+            }
         } catch {
             toast(error.localizedDescription, symbol: "exclamationmark.triangle.fill", tint: .orange)
         }
