@@ -240,6 +240,8 @@ enum LaunchRouter {
             }
             let raw = layout.glyphRange(forBoundingRect: editor.textView.visibleRect, in: editor.textContainer)
             NSLog("[debug] visible rect %@ glyphs %@", NSStringFromRect(editor.textView.visibleRect), NSStringFromRange(raw))
+        case "debug-goto":
+            DebugTools.goTo(line: value("line").flatMap(Int.init), report: value("path") ?? "/tmp/vibe-goto.txt")
         case "debug-scroll":
             // Scrolls to a 0…1 fraction of the document and times the redraw.
             guard let editor = Workspace.shared.activeEditor else { break }
