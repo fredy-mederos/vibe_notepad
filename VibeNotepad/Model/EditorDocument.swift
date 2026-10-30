@@ -106,7 +106,8 @@ final class EditorDocument: Identifiable {
 
     var displayName: String {
         if let fileURL { return fileURL.lastPathComponent }
-        return untitledNumber > 1 ? "Untitled \(untitledNumber)" : "Untitled"
+        return untitledNumber > 1 ? String(localized: "Untitled \(String(untitledNumber))", comment: "A new file that was never saved; the number tells several apart")
+            : String(localized: "Untitled", comment: "The name of a new file that was never saved")
     }
 
     var isUntitled: Bool { fileURL == nil }

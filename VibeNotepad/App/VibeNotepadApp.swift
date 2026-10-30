@@ -185,7 +185,7 @@ struct AppCommands: Commands {
                     .keyboardShortcut("]", modifiers: [.command, .option, .shift])
                 Divider()
                 ForEach(1..<4) { level in
-                    Button("Fold Level \(level)") { editor?.foldAll(level: level) }
+                    Button("Fold Level \(String(level))") { editor?.foldAll(level: level) }
                 }
             }
             .disabled(editor?.supportsFolding != true)
@@ -251,7 +251,7 @@ struct AppCommands: Commands {
                 .disabled(!workspace.isSplit)
             Menu("Editor Layout") {
                 ForEach(PaneLayout.Preset.allCases, id: \.self) { preset in
-                    Button(preset.title) { workspace.applyLayout(preset) }
+                    Button(preset.localizedTitle) { workspace.applyLayout(preset) }
                 }
             }
             Menu("Focus Pane") {
@@ -328,13 +328,14 @@ struct AppCommands: Commands {
                 .keyboardShortcut("]", modifiers: [.command, .shift])
             Button("Previous Tab") { workspace.selectNextTab(false) }
                 .keyboardShortcut("[", modifiers: [.command, .shift])
-            Button("Next Tab ") { workspace.selectNextTab(true) }
+            // The same commands with a second shortcut: a trailing space keeps their titles apart.
+            Button(String(localized: "Next Tab") + " ") { workspace.selectNextTab(true) }
                 .keyboardShortcut(.tab, modifiers: .control)
-            Button("Previous Tab ") { workspace.selectNextTab(false) }
+            Button(String(localized: "Previous Tab") + " ") { workspace.selectNextTab(false) }
                 .keyboardShortcut(.tab, modifiers: [.control, .shift])
             Divider()
             ForEach(1..<10) { index in
-                Button("Tab \(index)") { workspace.selectTab(at: index - 1) }
+                Button(String(localized: "Tab \(String(index))", comment: "Menu item: shows the tab at this position in the tab bar")) { workspace.selectTab(at: index - 1) }
                     .keyboardShortcut(KeyEquivalent(Character("\(index)")))
             }
         }

@@ -4,11 +4,46 @@ import Foundation
 
 extension TextTransforms {
     public enum XMLFormatError: Error, LocalizedError, Equatable {
-        case invalid(line: Int, message: String)
+        case invalid(line: Int, problem: XMLProblem)
         public var errorDescription: String? {
-            if case .invalid(let line, let message) = self { return "Invalid XML (line \(line)): \(message)" }
+            if case .invalid(let line, let problem) = self { return "Invalid XML (line \(line)): \(problem.text)" }
             return nil
         }
+    }
+
+    /// What's wrong with some XML: one of the checks made before the parser runs (named, so the app
+    /// can say it in the user's language), or what the parser (libxml2) said.
+    public enum XMLProblem: Equatable, Sendable {
+        /// A comment, CDATA section, processing instruction, declaration or tag runs to the end.
+        case neverEnds(XMLPart)
+        /// A closing tag with no element open.
+        case noStartTag(String)
+        /// A closing tag that isn't the open element's: its name, the open element's, and its line.
+        case mismatch(closing: String, opening: String, openingLine: Int)
+        /// An element still open at the end.
+        case neverClosed(String)
+        /// The parser's own message (nil when it gave none).
+        case parser(String?)
+
+        /// The problem in English.
+        public var text: String {
+            switch self {
+            case .neverEnds(.comment): "the comment never ends (-->)"
+            case .neverEnds(.cdata): "the CDATA section never ends (]]>)"
+            case .neverEnds(.instruction): "the processing instruction never ends (?>)"
+            case .neverEnds(.declaration): "the declaration never ends (>)"
+            case .neverEnds(.tag): "the tag never ends (>)"
+            case .noStartTag(let name): "</\(name)> has no start tag"
+            case .mismatch(let closing, let opening, let openingLine): "</\(closing)> doesn’t match <\(opening)> on line \(openingLine)"
+            case .neverClosed(let name): "<\(name)> is never closed"
+            case .parser(let message): message ?? "the parser stopped"
+            }
+        }
+    }
+
+    /// The kinds of XML markup that can be left unfinished.
+    public enum XMLPart: Equatable, Sendable {
+        case comment, cdata, instruction, declaration, tag
     }
 
     /// Pretty-prints XML, one element per line indented by nesting. Only whitespace between tags
@@ -192,14 +227,14 @@ struct XMLMarkup {
         var topLevelText = false
         for (index, token) in tokens.enumerated() {
             if token.unterminated {
-                let what = switch token.kind {
-                case .comment: "the comment never ends (-->)"
-                case .cdata: "the CDATA section never ends (]]>)"
-                case .instruction: "the processing instruction never ends (?>)"
-                case .declaration: "the declaration never ends (>)"
-                default: "the tag never ends (>)"
+                let part: TextTransforms.XMLPart = switch token.kind {
+                case .comment: .comment
+                case .cdata: .cdata
+                case .instruction: .instruction
+                case .declaration: .declaration
+                default: .tag
                 }
-                throw TextTransforms.XMLFormatError.invalid(line: line(at: token.range.lowerBound), message: what)
+                throw TextTransforms.XMLFormatError.invalid(line: line(at: token.range.lowerBound), problem: .neverEnds(part))
             }
             switch token.kind {
             case .start:
@@ -210,14 +245,13 @@ struct XMLMarkup {
             case .end:
                 let closing = String(decoding: name(of: token), as: UTF8.self)
                 guard let last = open.popLast() else {
-                    throw TextTransforms.XMLFormatError.invalid(line: line(at: token.range.lowerBound),
-                                                                message: "</\(closing)> has no start tag")
+                    throw TextTransforms.XMLFormatError.invalid(line: line(at: token.range.lowerBound), problem: .noStartTag(closing))
                 }
                 let opening = String(decoding: name(of: tokens[last]), as: UTF8.self)
                 if opening != closing {
                     throw TextTransforms.XMLFormatError.invalid(
                         line: line(at: token.range.lowerBound),
-                        message: "</\(closing)> doesn’t match <\(opening)> on line \(line(at: tokens[last].range.lowerBound))")
+                        problem: .mismatch(closing: closing, opening: opening, openingLine: line(at: tokens[last].range.lowerBound)))
                 }
             case .text, .cdata:
                 if open.isEmpty, token.kind == .cdata || !isBlank(token) { topLevelText = true }
@@ -227,7 +261,7 @@ struct XMLMarkup {
         }
         if let last = open.last {
             throw TextTransforms.XMLFormatError.invalid(line: line(at: tokens[last].range.lowerBound),
-                                                        message: "<\(String(decoding: name(of: tokens[last]), as: UTF8.self))> is never closed")
+                                                        problem: .neverClosed(String(decoding: name(of: tokens[last]), as: UTF8.self)))
         }
 
         var data = bytes
@@ -246,8 +280,8 @@ struct XMLMarkup {
         parser.delegate = catcher
         parser.shouldResolveExternalEntities = false
         guard !parser.parse() else { return }
-        let message = catcher.message ?? (parser.parserError as NSError?)?.localizedDescription ?? "the parser stopped"
-        throw TextTransforms.XMLFormatError.invalid(line: max(1, catcher.line ?? parser.lineNumber), message: message)
+        let message = catcher.message ?? (parser.parserError as NSError?)?.localizedDescription
+        throw TextTransforms.XMLFormatError.invalid(line: max(1, catcher.line ?? parser.lineNumber), problem: .parser(message))
     }
 
     // MARK: Rendering

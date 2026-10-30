@@ -111,6 +111,12 @@ any time.
 - **14 themes**: Vibe Night/Day, Mariana (Sublime's default), Monokai, Dracula, One Dark/Light, GitHub
   Light/Dark, Solarized, Nord, Catppuccin. The app follows the system appearance and lets you preview a
   theme live.
+- **Languages**: English, Chinese (Simplified and Traditional), Hindi, Spanish, Arabic, French,
+  Portuguese (Brazil), Russian, Indonesian, German, Japanese, Vietnamese, Turkish, Korean, Italian,
+  Thai, Polish, Ukrainian, Malay and Dutch: the most spoken languages macOS runs in, the same as Vibe
+  GitTree's. Vibe Notepad follows the Mac's language; System Settings › General › Language & Region ›
+  Applications picks another one for it alone. File names, your text, and the names of languages,
+  themes and encodings stay as they are.
 - **Hot exit** like Sublime: quit any time, and tabs and unsaved changes come back on the next launch.
 - **Never loses track of files**: changes made by other apps reload automatically, and you're asked first when you have
   local edits. Saving writes in place, which keeps permissions, symlinks and Docker bind mounts intact.
@@ -155,6 +161,21 @@ and link scheme (`vibenotepad-dev://`), so they never take over links or "Open W
 installed app. They check for updates only when asked; `vibenotepad-dev://debug-updates` checks as
 the installed app does at launch, and `?repository=owner/name` tries another repository's releases
 (one with a newer version shows the update alert).
+
+macOS's own `-AppleLanguages "(de)"` shows the app in another language (`de` for long words):
+`open --env VIBE_SUPPORT_DIR=/tmp/vibe -a "Vibe Notepad Dev" --args -AppleLanguages "(de)"`. Right-to-left
+also needs `-AppleTextDirection YES -NSForceRightToLeftWritingDirection YES` (with `ar`): the window
+mirrors, and the editing area (panes, code, the CSV table) stays left to right, as code editors do.
+
+## Translations
+
+Every string the app shows is in the String Catalog `VibeNotepad/Localizable.xcstrings`, with 20
+translations. `scripts/localization.py` keeps it in step with the code (from a Debug build's extracted
+strings), exports what each language misses with the line of code that shows it, validates and imports
+translations, and checks that nothing is missing or broken; `scripts/localization-glossary.json` keeps
+each language's words for the app's terms, started from Vibe GitTree's. The `localize-vibe-notepad`
+skill (`skills/`) is the workflow, with subagents on a lighter model doing the translating, and
+CLAUDE.md makes it part of every change to the app's text.
 
 ## Releasing
 
@@ -224,6 +245,9 @@ VibeNotepad                macOS app
   Image/                   Image viewer: zoomable scroll view, pictures decoded off the main thread and shown as
                            layer contents (the GPU scales them), animations, checkerboard, panning
   UI/                      SwiftUI: sidebar, tabs, panes, status bar, find bar, palette, welcome, settings
+  Support/                 Theme colors for AppKit and SwiftUI; VibeCore's titles and errors in the user's language
+  Localizable.xcstrings    every string the app shows, with its translations (String Catalog)
+scripts/localization.py    keeps the String Catalog in step with the code and imports translations
 ```
 
 The syntax engine stores the lexer state at the start of every line. After an edit it re-lexes from the

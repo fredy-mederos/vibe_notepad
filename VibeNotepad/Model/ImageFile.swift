@@ -151,21 +151,20 @@ nonisolated struct ImageDetails: Equatable, Sendable {
     var colorSummary: String? {
         var parts: [String] = []
         if let colorModel { parts.append(colorModel) }
-        if let bitsPerComponent { parts.append("\(bitsPerComponent) bits") }
-        if hasAlpha { parts.append("alpha") }
+        if let bitsPerComponent { parts.append(String(localized: "\(bitsPerComponent) bits", comment: "Image info: bits per color component")) }
+        if hasAlpha { parts.append(String(localized: "alpha", comment: "Image info: the picture has transparency (an alpha channel)")) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     /// What EXIF orientation 2…8 does to the stored picture.
     var orientationDescription: String? {
         switch orientation {
-        case 2: "Flipped horizontally"
-        case 3: "Rotated 180°"
-        case 4: "Flipped vertically"
-        case 5: "Rotated 90° and flipped"
-        case 6: "Rotated 90° clockwise"
-        case 7: "Rotated 90° and flipped"
-        case 8: "Rotated 90° counterclockwise"
+        case 2: String(localized: "Flipped horizontally", comment: "Image info: orientation")
+        case 3: String(localized: "Rotated 180°", comment: "Image info: orientation")
+        case 4: String(localized: "Flipped vertically", comment: "Image info: orientation")
+        case 5, 7: String(localized: "Rotated 90° and flipped", comment: "Image info: orientation")
+        case 6: String(localized: "Rotated 90° clockwise", comment: "Image info: orientation")
+        case 8: String(localized: "Rotated 90° counterclockwise", comment: "Image info: orientation")
         default: nil
         }
     }

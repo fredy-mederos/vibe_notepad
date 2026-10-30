@@ -37,10 +37,11 @@ struct StatusBarView: View {
             workspace.showPalette(.goToLine)
         } label: {
             HStack(spacing: 3) {
-                Text("Ln \(cursor.line), Col \(cursor.column)")
+                Text("Ln \(String(cursor.line)), Col \(String(cursor.column))", comment: "Status bar: the caret’s line and column, abbreviated")
                     .contentTransition(.numericText())
                 if cursor.selectionLength > 0 {
-                    Text(cursor.selectedLines > 1 ? "· \(cursor.selectedLines) lines, \(cursor.selectionLength) chars" : "· \(cursor.selectionLength) selected")
+                    Text(cursor.selectedLines > 1 ? "· \(String(localized: "\(cursor.selectedLines) lines")), \(cursor.selectionLength) chars" : "· \(cursor.selectionLength) selected",
+                         comment: "Status bar: what’s selected; “chars” is short for characters")
                         .foregroundStyle(theme.accent.color)
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
@@ -76,7 +77,7 @@ struct StatusBarView: View {
             Button("Convert Indentation to Spaces") { workspace.convertIndentation(document, toTabs: false) }
             Button("Convert Indentation to Tabs") { workspace.convertIndentation(document, toTabs: true) }
         } label: {
-            Text(document.indentation.label)
+            Text(document.indentation.localizedLabel)
         }
         .menuStyle(.button)
         .buttonStyle(StatusButtonStyle())
@@ -91,9 +92,9 @@ struct StatusBarView: View {
                     document.markChangedWithoutUndo()
                 } label: {
                     if ending == document.lineEnding {
-                        Label(ending.description, systemImage: "checkmark")
+                        Label(ending.localizedDescription, systemImage: "checkmark")
                     } else {
-                        Text(ending.description)
+                        Text(ending.localizedDescription)
                     }
                 }
             }
@@ -138,7 +139,7 @@ struct StatusBarView: View {
         } label: {
             HStack(spacing: 5) {
                 FileIcon(language: document.language, size: 13)
-                Text(document.language.displayName)
+                Text(document.language.localizedName)
             }
         }
         .buttonStyle(StatusButtonStyle())

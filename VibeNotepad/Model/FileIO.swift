@@ -15,8 +15,10 @@ nonisolated enum FileIO {
 
         var errorDescription: String? {
             switch self {
-            case .isDirectory: "Folders can't be opened as text."
-            case .tooLarge(let size): "The file is too large to open (\(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)))."
+            case .isDirectory: String(localized: "Folders can’t be opened as text.")
+            case .tooLarge(let size):
+                String(localized: "The file is too large to open (\(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))).",
+                       comment: "The placeholder is a file size, like 2.1 GB")
             }
         }
     }

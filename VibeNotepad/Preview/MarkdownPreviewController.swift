@@ -245,7 +245,7 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
     func exportHTML() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.html]
-        panel.nameFieldStringValue = ((document.fileURL?.deletingPathExtension().lastPathComponent) ?? "Untitled") + ".html"
+        panel.nameFieldStringValue = ((document.fileURL?.deletingPathExtension().lastPathComponent) ?? String(localized: "Untitled", comment: "The name of a new file that was never saved")) + ".html"
         panel.directoryURL = document.fileURL?.deletingLastPathComponent()
         let markdown = document.text
         let document = self.document
@@ -258,7 +258,7 @@ final class MarkdownPreviewController: NSObject, WKNavigationDelegate {
                 let html = PreviewTemplate.page(baseURL: base, theme: settings.theme, fontFamily: settings.previewFont.css, fontSize: settings.previewFontSize, body: body, standalone: true)
                 do {
                     try html.write(to: url, atomically: true, encoding: .utf8)
-                    Workspace.shared.toast("Exported \(url.lastPathComponent)", symbol: "square.and.arrow.up.fill")
+                    Workspace.shared.toast(String(localized: "Exported \(url.lastPathComponent)"), symbol: "square.and.arrow.up.fill")
                 } catch {
                     Workspace.shared.presentError(error, title: "Couldn’t export HTML")
                 }

@@ -69,23 +69,26 @@ struct UpdatesSection: View {
     }
 
     private var title: String {
-        if updater.isChecking { return "Checking for updates…" }
-        if let release = updater.available { return "Vibe Notepad \(release.version) is available" }
-        if updater.failure != nil { return "Couldn’t check for updates" }
-        if updater.lastChecked != nil { return "Vibe Notepad is up to date" }
-        return "Not checked yet"
+        if updater.isChecking { return String(localized: "Checking for updates…") }
+        if let release = updater.available { return String(localized: "Vibe Notepad \(release.version) is available") }
+        if updater.failure != nil { return String(localized: "Couldn’t check for updates") }
+        if updater.lastChecked != nil { return String(localized: "Vibe Notepad is up to date") }
+        return String(localized: "Not checked yet", comment: "Updates: no check has been made")
     }
 
     private var detail: String {
         if let release = updater.available {
-            let released = release.publishedAt.map { " · released \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""
-            return "You have \(BuildInfo.version)\(released)"
+            guard let date = release.publishedAt?.formatted(date: .abbreviated, time: .omitted) else {
+                return String(localized: "You have \(BuildInfo.version)", comment: "Updates: the version installed")
+            }
+            return String(localized: "You have \(BuildInfo.version) · released \(date)", comment: "Updates: the version installed, and when the new one was released")
         }
         if let failure = updater.failure { return failure }
         if let checked = updater.lastChecked {
-            let when = "Checked \(checked.formatted(.relative(presentation: .named)))"
-            return updater.latest == nil ? "\(when) · no releases yet" : when
+            let when = checked.formatted(.relative(presentation: .named))
+            return updater.latest == nil ? String(localized: "Checked \(when) · no releases yet", comment: "Updates; the placeholder is like “5 minutes ago”")
+                : String(localized: "Checked \(when)", comment: "Updates; the placeholder is like “5 minutes ago”")
         }
-        return BuildInfo.isDebug ? "Debug builds check only when you ask." : "Vibe Notepad checks when it opens."
+        return BuildInfo.isDebug ? String(localized: "Debug builds check only when you ask.") : String(localized: "Vibe Notepad checks when it opens.")
     }
 }

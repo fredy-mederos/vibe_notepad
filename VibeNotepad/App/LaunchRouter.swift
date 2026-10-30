@@ -240,6 +240,8 @@ enum LaunchRouter {
             }
             let raw = layout.glyphRange(forBoundingRect: editor.textView.visibleRect, in: editor.textContainer)
             NSLog("[debug] visible rect %@ glyphs %@", NSStringFromRect(editor.textView.visibleRect), NSStringFromRange(raw))
+        case "debug-editor-menu":
+            DebugTools.editorMenu(report: value("path") ?? "/tmp/vibe-editor-menu.txt")
         case "debug-goto":
             DebugTools.goTo(line: value("line").flatMap(Int.init), report: value("path") ?? "/tmp/vibe-goto.txt")
         case "debug-scroll":
@@ -339,7 +341,7 @@ enum LaunchRouter {
             var path = value("path") ?? value("file") ?? value("url")
             if path == nil, !url.path.isEmpty, url.path != "/" { path = url.path }
             guard var raw = path else {
-                workspace.toast("The link didn’t include a file path", symbol: "link.badge.plus", tint: .orange)
+                workspace.toast(String(localized: "The link didn’t include a file path"), symbol: "link.badge.plus", tint: .orange)
                 return
             }
             if raw.hasPrefix("file://"), let fileURL = URL(string: raw) { raw = fileURL.path }
@@ -353,7 +355,7 @@ enum LaunchRouter {
     static func open(_ request: OpenRequest) {
         let workspace = Workspace.shared
         if !FileManager.default.fileExists(atPath: request.url.path) {
-            workspace.toast("“\(request.url.lastPathComponent)” doesn’t exist", symbol: "questionmark.folder", tint: .orange)
+            workspace.toast(String(localized: "“\(request.url.lastPathComponent)” doesn’t exist"), symbol: "questionmark.folder", tint: .orange)
             return
         }
         if request.url.isFolder {

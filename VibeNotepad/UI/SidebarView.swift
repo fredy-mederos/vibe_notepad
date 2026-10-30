@@ -143,7 +143,7 @@ struct SidebarView: View {
                     }
                 case .file(let path):
                     if workspace.recents.isMissing(path) {
-                        workspace.toast("“\((path as NSString).lastPathComponent)” no longer exists", symbol: "exclamationmark.triangle.fill", tint: .orange)
+                        workspace.toast(String(localized: "“\((path as NSString).lastPathComponent)” no longer exists"), symbol: "exclamationmark.triangle.fill", tint: .orange)
                         return
                     }
                     workspace.open(url: URL(fileURLWithPath: path))
@@ -281,7 +281,7 @@ struct RecentFileRow: View {
             Button("Copy Path", systemImage: "doc.on.clipboard") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(item.path, forType: .string)
-                workspace.toast("Copied path", symbol: "doc.on.clipboard.fill")
+                workspace.toast(String(localized: "Copied path"), symbol: "doc.on.clipboard.fill")
             }
             Divider()
             Button("Remove from List", systemImage: "minus.circle", role: .destructive) {

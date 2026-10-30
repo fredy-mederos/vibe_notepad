@@ -8,6 +8,27 @@ Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
 
+- [x] **The app in 20 more languages** (Fredy's idea, ported from Vibe GitTree): Chinese (Simplified and
+  Traditional), Hindi, Spanish, Arabic, French, Portuguese (Brazil), Russian, Indonesian, German, Japanese,
+  Vietnamese, Turkish, Korean, Italian, Thai, Polish, Ukrainian, Malay and Dutch, all in the String Catalog
+  `VibeNotepad/Localizable.xcstrings` (525 strings to translate, with each language's plural forms). The same
+  tooling as GitTree's: `scripts/localization.py` (sync from a Debug build's extracted strings, export, import
+  with checks, glossary, check), the `localize-vibe-notepad` skill with a translator brief for subagents on a
+  lighter model, CLAUDE.md's rules, and a translation check in the release skill. The glossary started from
+  GitTree's (the words both apps share and each language's conventions), so Settings, the sidebar and Show in
+  Finder read the same in both. Text built in code goes through `String(localized:)`: toasts, alerts, panels,
+  the command palette (`add` takes a `String.LocalizationValue`, categories are `PaletteCategory`'s), undo
+  action names, tooltips; counts are plural strings, whole sentences replace English pieces joined together
+  (the CSV bar, About's update line, the discard-changes alert), line and column numbers stay ungrouped.
+  VibeCore stays in English; the app says its pane layouts, CSV delimiters, indentation and line endings, and
+  its errors (JSON, XML, Find, the file codec) in `Support/VibeCoreStrings.swift`. XML's own checks are named
+  cases now (`XMLProblem`), so “</c> doesn’t match <b> on line 2” is translated; libxml2's messages stay as
+  macOS gives them. The editor's context menu used to drop AppKit's rich-text items by their English titles;
+  it finds them by their actions now, so they stay out in every language. `UpdateCheck.swift` stays the same
+  file as the other apps'; `AppUpdater` puts its errors into words. In right-to-left languages the window
+  mirrors, while the editing area stays left to right as code editors do: panes split the way their commands
+  and arrows say, code lines that start with digits stay on the left, and the CSV table runs A → Z.
+
 - [x] **CSV and TSV as a table** (Fredy's idea): CSV, TSV and `.psv` files get Editor / Split / Preview (⌥⌘1–3,
   the toolbar switcher, the palette), and open the way the last one was shown (Split at first). The preview
   (`CSVPreviewController`) is an NSTableView whose rows draw their own cells, so a 200,000-row file scrolls like a

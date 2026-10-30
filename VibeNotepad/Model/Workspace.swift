@@ -315,9 +315,9 @@ final class Workspace {
         } catch {
             if !FileManager.default.fileExists(atPath: url.path) {
                 recents.refreshMissing()
-                toast("“\(url.lastPathComponent)” no longer exists", symbol: "exclamationmark.triangle.fill", tint: .orange)
+                toast(String(localized: "“\(url.lastPathComponent)” no longer exists"), symbol: "exclamationmark.triangle.fill", tint: .orange)
             } else {
-                presentError(error, title: "Couldn’t open “\(url.lastPathComponent)”")
+                presentError(error, title: String(localized: "Couldn’t open “\(url.lastPathComponent)”"))
             }
             return nil
         }
@@ -342,10 +342,10 @@ final class Workspace {
 
     private func confirmOpenBinary(_ url: URL) -> Bool {
         let alert = NSAlert()
-        alert.messageText = "“\(url.lastPathComponent)” looks like a binary file"
-        alert.informativeText = "It can be opened as Latin-1 text, but it will probably look like gibberish. Saving keeps the bytes unchanged."
-        alert.addButton(withTitle: "Open Anyway")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = String(localized: "“\(url.lastPathComponent)” looks like a binary file")
+        alert.informativeText = String(localized: "It can be opened as Latin-1 text, but it will probably look like gibberish. Saving keeps the bytes unchanged.")
+        alert.addButton(withTitle: String(localized: "Open Anyway"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         alert.alertStyle = .warning
         return alert.runModal() == .alertFirstButtonReturn
     }
@@ -357,7 +357,7 @@ final class Workspace {
         panel.allowsMultipleSelection = true
         panel.showsHiddenFiles = true
         panel.treatsFilePackagesAsDirectories = true
-        panel.message = "Open any text file or image, or a folder as a project"
+        panel.message = String(localized: "Open any text file or image, or a folder as a project")
         if let directory = selectedDocument?.fileURL?.deletingLastPathComponent() { panel.directoryURL = directory }
         let handler: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK else { return }
@@ -453,11 +453,11 @@ final class Workspace {
 
     private func confirmSave(_ document: EditorDocument) async -> NSApplication.ModalResponse {
         let alert = NSAlert()
-        alert.messageText = "Do you want to save the changes made to “\(document.displayName)”?"
-        alert.informativeText = "Your changes will be lost if you don’t save them."
-        alert.addButton(withTitle: document.isUntitled ? "Save…" : "Save")
-        alert.addButton(withTitle: "Don’t Save")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = String(localized: "Do you want to save the changes made to “\(document.displayName)”?")
+        alert.informativeText = String(localized: "Your changes will be lost if you don’t save them.")
+        alert.addButton(withTitle: document.isUntitled ? String(localized: "Save…") : String(localized: "Save"))
+        alert.addButton(withTitle: String(localized: "Don’t Save"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         if let window = mainWindow {
             return await alert.beginSheetModal(for: window)
         }
@@ -492,10 +492,10 @@ final class Workspace {
 
     private func confirmOverwrite(_ document: EditorDocument) -> Bool {
         let alert = NSAlert()
-        alert.messageText = "“\(document.displayName)” was changed by another app"
-        alert.informativeText = "Saving replaces those changes with the text in this tab."
-        alert.addButton(withTitle: "Save Anyway")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = String(localized: "“\(document.displayName)” was changed by another app")
+        alert.informativeText = String(localized: "Saving replaces those changes with the text in this tab.")
+        alert.addButton(withTitle: String(localized: "Save Anyway"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         alert.alertStyle = .warning
         return alert.runModal() == .alertFirstButtonReturn
     }
@@ -504,7 +504,7 @@ final class Workspace {
     func saveAs(_ document: EditorDocument) async -> Bool {
         guard !document.isImage else { return false }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = document.fileURL?.lastPathComponent ?? (document.isMarkdown ? "Untitled.md" : "Untitled.txt")
+        panel.nameFieldStringValue = document.fileURL?.lastPathComponent ?? (String(localized: "Untitled", comment: "The name of a new file that was never saved") + (document.isMarkdown ? ".md" : ".txt"))
         panel.showsHiddenFiles = true
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
@@ -550,16 +550,16 @@ final class Workspace {
             return true
         } catch TextFileCodec.CodecError.unencodable(let name) {
             let alert = NSAlert()
-            alert.messageText = "“\(document.displayName)” can’t be saved as \(name)"
-            alert.informativeText = "The text contains characters that \(name) can’t represent. Save it as UTF-8 instead?"
-            alert.addButton(withTitle: "Save as UTF-8")
-            alert.addButton(withTitle: "Cancel")
+            alert.messageText = String(localized: "“\(document.displayName)” can’t be saved as \(name)", comment: "The placeholder is a text encoding, like Western (Mac OS Roman)")
+            alert.informativeText = String(localized: "The text contains characters that \(name) can’t represent. Save it as UTF-8 instead?", comment: "The placeholder is a text encoding")
+            alert.addButton(withTitle: String(localized: "Save as UTF-8"))
+            alert.addButton(withTitle: String(localized: "Cancel"))
             guard alert.runModal() == .alertFirstButtonReturn else { return false }
             document.encoding = .utf8
             document.hasBOM = false
             return write(document, to: url)
         } catch {
-            presentError(error, title: "Couldn’t save “\(document.displayName)”")
+            presentError(error, title: String(localized: "Couldn’t save “\(document.displayName)”"))
             return false
         }
     }
@@ -574,7 +574,7 @@ final class Workspace {
         // A new path (Save As) can be in a repository; an untracked file can have become tracked.
         document.loadedEditor?.refreshGitBase()
         recents.noteOpened(url)
-        toast("Saved \(document.displayName)", symbol: "checkmark.circle.fill", tint: .green)
+        toast(String(localized: "Saved \(document.displayName)"), symbol: "checkmark.circle.fill", tint: .green)
         scheduleSessionSave()
     }
 
@@ -582,25 +582,29 @@ final class Workspace {
 
     func revert(_ document: EditorDocument) {
         guard !document.isImage else { return }
-        guard let url = document.fileURL, confirmDiscardingChanges(document, action: "Revert") else { return }
-        reload(document, from: url, encoding: document.isBinary ? .isoLatin1 : nil, announce: "Reverted to saved")
+        guard let url = document.fileURL,
+              confirmDiscardingChanges(document, action: String(localized: "Revert", comment: "Button: loads the saved file again, discarding changes"),
+                                       explanation: String(localized: "Reverting loads the file from disk again. Your unsaved changes will be lost.")) else { return }
+        reload(document, from: url, encoding: document.isBinary ? .isoLatin1 : nil, announce: String(localized: "Reverted to saved"))
     }
 
     func reopen(_ document: EditorDocument, encoding: String.Encoding) {
         guard !document.isImage else { return }
-        guard let url = document.fileURL, confirmDiscardingChanges(document, action: "Reopen") else { return }
+        guard let url = document.fileURL,
+              confirmDiscardingChanges(document, action: String(localized: "Reopen", comment: "Button: reads the file again with another text encoding"),
+                                       explanation: String(localized: "Reopening loads the file from disk again. Your unsaved changes will be lost.")) else { return }
         document.isBinary = false
-        reload(document, from: url, encoding: encoding, announce: "Reopened as \(TextFileCodec.name(of: encoding))")
+        reload(document, from: url, encoding: encoding, announce: String(localized: "Reopened as \(TextFileCodec.name(of: encoding))", comment: "The placeholder is a text encoding"))
     }
 
     /// Reverting or reopening throws away unsaved edits (and their undo history): ask first.
-    private func confirmDiscardingChanges(_ document: EditorDocument, action: String) -> Bool {
+    private func confirmDiscardingChanges(_ document: EditorDocument, action: String, explanation: String) -> Bool {
         guard document.isDirty else { return true }
         let alert = NSAlert()
-        alert.messageText = "Discard your changes to “\(document.displayName)”?"
-        alert.informativeText = "\(action) loads the file from disk again. Your unsaved changes will be lost."
+        alert.messageText = String(localized: "Discard your changes to “\(document.displayName)”?")
+        alert.informativeText = explanation
         alert.addButton(withTitle: action)
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: String(localized: "Cancel"))
         alert.alertStyle = .warning
         return alert.runModal() == .alertFirstButtonReturn
     }
@@ -624,7 +628,7 @@ final class Workspace {
             document.reloadCount += 1
             if let announce { toast(announce, symbol: "arrow.clockwise.circle.fill") }
         } catch {
-            presentError(error, title: "Couldn’t reload “\(document.displayName)”")
+            presentError(error, title: String(localized: "Couldn’t reload “\(document.displayName)”"))
         }
     }
 
@@ -647,7 +651,7 @@ final class Workspace {
                 reloadImage(document)
                 document.lastAutoReload = Date()
                 if !quiet {
-                    toast("“\(document.displayName)” changed on disk — reloaded", symbol: "arrow.triangle.2.circlepath", tint: .blue)
+                    toast(String(localized: "“\(document.displayName)” changed on disk — reloaded"), symbol: "arrow.triangle.2.circlepath", tint: .blue)
                 }
             } else if !document.isDirty, settings.reloadChangedFiles {
                 // Files that change all the time (logs) reload quietly, and keep following the end.
@@ -655,7 +659,7 @@ final class Workspace {
                 reload(document, from: url, encoding: document.encoding, announce: nil, followTail: true)
                 document.lastAutoReload = Date()
                 if !quiet {
-                    toast("“\(document.displayName)” changed on disk — reloaded", symbol: "arrow.triangle.2.circlepath", tint: .blue)
+                    toast(String(localized: "“\(document.displayName)” changed on disk — reloaded"), symbol: "arrow.triangle.2.circlepath", tint: .blue)
                 }
             } else if document.externalChange == nil {
                 document.externalChange = .modified
@@ -674,7 +678,7 @@ final class Workspace {
             return
         }
         guard let url = document.fileURL else { return }
-        reload(document, from: url, encoding: document.encoding, announce: "Reloaded from disk")
+        reload(document, from: url, encoding: document.encoding, announce: String(localized: "Reloaded from disk"))
     }
 
     // MARK: File actions
@@ -695,7 +699,7 @@ final class Workspace {
         guard let url = (document ?? selectedDocument)?.fileURL else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url.path, forType: .string)
-        toast("Copied path", symbol: "doc.on.clipboard.fill")
+        toast(String(localized: "Copied path"), symbol: "doc.on.clipboard.fill")
     }
 
     func togglePin(_ document: EditorDocument? = nil) {
@@ -704,7 +708,7 @@ final class Workspace {
         if recents.item(for: path) == nil { recents.noteOpened(url) }
         recents.togglePin(path)
         let pinned = recents.item(for: path)?.pinned == true
-        toast(pinned ? "Pinned to sidebar" : "Unpinned", symbol: pinned ? "pin.fill" : "pin.slash")
+        toast(pinned ? String(localized: "Pinned to sidebar") : String(localized: "Unpinned"), symbol: pinned ? "pin.fill" : "pin.slash")
     }
 
     // MARK: Find
@@ -767,7 +771,7 @@ final class Workspace {
             findError = nil
             findMatchCount = try editor.find(findQuery, options: findOptions, reveal: reveal)
         } catch {
-            findError = error.localizedDescription
+            findError = VibeCoreStrings.message(for: error)
             findMatchCount = 0
             editor.endFind()
         }
@@ -808,7 +812,7 @@ final class Workspace {
             findMatchCount = editor.findMatches.count
             findCurrentIndex = editor.currentMatchIndex
         } catch {
-            findError = error.localizedDescription
+            findError = VibeCoreStrings.message(for: error)
         }
     }
 
@@ -818,9 +822,9 @@ final class Workspace {
             let count = try editor.replaceAll(query: findQuery, template: replaceQuery, options: findOptions)
             findMatchCount = editor.findMatches.count
             findCurrentIndex = editor.currentMatchIndex
-            toast(count == 0 ? "Nothing to replace" : "Replaced \(count) occurrence\(count == 1 ? "" : "s")", symbol: "arrow.left.arrow.right.circle.fill")
+            toast(count == 0 ? String(localized: "Nothing to replace") : String(localized: "Replaced \(count) occurrences"), symbol: "arrow.left.arrow.right.circle.fill")
         } catch {
-            findError = error.localizedDescription
+            findError = VibeCoreStrings.message(for: error)
         }
     }
 
@@ -874,7 +878,7 @@ final class Workspace {
     func presentError(_ error: Error, title: String) {
         let alert = NSAlert()
         alert.messageText = title
-        alert.informativeText = error.localizedDescription
+        alert.informativeText = VibeCoreStrings.message(for: error)
         alert.alertStyle = .warning
         if let window = mainWindow {
             alert.beginSheetModal(for: window)

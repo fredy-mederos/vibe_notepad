@@ -45,7 +45,7 @@ private struct GeneralSettings: View {
             Section("Sidebar") {
                 Picker("Recent files shown", selection: $settings.recentFilesShown) {
                     ForEach(AppSettings.recentFileCounts, id: \.self) { count in
-                        Text("\(count)").tag(count)
+                        Text(verbatim: String(count)).tag(count)
                     }
                 }
                 Text("Also the length of File → Open Recent. Filtering the sidebar searches the last 100 files.")
@@ -125,7 +125,7 @@ private struct EditorSettings: View {
             }
             Section("Indentation") {
                 Picker("Tab width", selection: $settings.tabWidth) {
-                    ForEach([2, 3, 4, 8], id: \.self) { Text("\($0)").tag($0) }
+                    ForEach([2, 3, 4, 8], id: \.self) { Text(verbatim: String($0)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 Toggle("Insert spaces when pressing Tab", isOn: $settings.insertSpaces)
@@ -169,7 +169,7 @@ private struct ThemeSettings: View {
 
 private struct ThemeGrid: View {
     @Environment(AppSettings.self) private var settings
-    let title: String
+    let title: LocalizedStringKey
     let themes: [Theme]
     let selectedID: String
     @Namespace private var namespace

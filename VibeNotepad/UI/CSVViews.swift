@@ -76,7 +76,7 @@ private struct CSVBar: View {
                         .fill(theme.foreground.color.opacity(0.12))
                         .frame(width: 1, height: 14)
                     // Room for a few characters at least, or the bar holds less.
-                    Text(value.isEmpty ? "Empty" : CSVPreviewController.flattened(String(value.prefix(2_000))))
+                    Text(value.isEmpty ? String(localized: "Empty", comment: "CSV bar: the selected cell has no value") : CSVPreviewController.flattened(String(value.prefix(2_000))))
                         .foregroundStyle(value.isEmpty ? theme.mutedForeground.color : theme.foreground.color)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -108,7 +108,8 @@ private struct CSVBar: View {
                 }
                 .buttonStyle(StatusButtonStyle())
                 .fixedSize()
-                .help("Sorted by \(sort.title), \(sort.ascending ? "ascending" : "descending"). Click to show the rows in the file’s order")
+                .help(sort.ascending ? "Sorted by \(sort.title), ascending. Click to show the rows in the file’s order"
+                      : "Sorted by \(sort.title), descending. Click to show the rows in the file’s order")
             }
             if let table = preview.table {
                 if detail == .full {
@@ -138,24 +139,26 @@ private struct CSVBar: View {
             Picker("Separator", selection: Binding(get: { preview.chosenDelimiter }, set: { preview.choose($0) })) {
                 Text("Detect Automatically").tag(CSVTable.Delimiter?.none)
                 ForEach(CSVTable.Delimiter.allCases, id: \.self) { delimiter in
-                    Text("\(delimiter.name)   \(delimiter.symbol)").tag(Optional(delimiter))
+                    Text(verbatim: "\(delimiter.localizedName)   \(delimiter.symbol)").tag(Optional(delimiter))
                 }
             }
             .pickerStyle(.inline)
         } label: {
-            Text(delimiter.name)
+            Text(delimiter.localizedName)
         }
         .menuStyle(.button)
         .buttonStyle(StatusButtonStyle())
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Columns are separated by \(delimiter.name.lowercased())s (\(delimiter.symbol))\(preview.chosenDelimiter == nil ? ", detected from the text" : "")")
+        .help(preview.chosenDelimiter == nil ? "Separator: \(delimiter.localizedName) (\(delimiter.symbol)), detected from the text"
+                                              : "Separator: \(delimiter.localizedName) (\(delimiter.symbol))")
     }
 
     private func size(rows: Int, columns: Int, shown: Int) -> String {
-        let rowText = rows == 1 ? "1 row" : "\(rows.formatted()) rows"
-        let columnText = shown < columns ? "\(shown.formatted()) of \(columns.formatted()) columns" : (columns == 1 ? "1 column" : "\(columns.formatted()) columns")
-        return "\(rowText) × \(columnText)"
+        let rowText = String(localized: "\(rows) rows", comment: "CSV bar: how many rows the table has")
+        let total = String(localized: "\(columns) columns", comment: "CSV bar: how many columns the table has")
+        let columnText = shown < columns ? String(localized: "\(shown) of \(total)", comment: "CSV bar: the columns shown out of many, like “500 of 2,000 columns”") : total
+        return String(localized: "\(rowText) × \(columnText)", comment: "CSV bar: the table's size, like “1,234 rows × 12 columns”")
     }
 }
 

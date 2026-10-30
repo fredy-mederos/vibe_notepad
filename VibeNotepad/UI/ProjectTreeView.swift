@@ -173,7 +173,7 @@ struct ProjectRootMenu: View {
         Button("Copy Path", systemImage: "doc.on.clipboard") {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(project.root.path, forType: .string)
-            workspace.toast("Copied path", symbol: "doc.on.clipboard.fill")
+            workspace.toast(String(localized: "Copied path"), symbol: "doc.on.clipboard.fill")
         }
         Divider()
         Button("Open Enclosing Folder…", systemImage: "folder.badge.plus") { workspace.showOpenFolderPanel(replacing: project) }
@@ -376,9 +376,9 @@ private struct ProjectItemMenu: View {
         Button("Reveal in Finder", systemImage: "folder") {
             NSWorkspace.shared.activateFileViewerSelecting([url])
         }
-        Button("Copy Path", systemImage: "doc.on.clipboard") { copy(url.path, toast: "Copied path") }
+        Button("Copy Path", systemImage: "doc.on.clipboard") { copy(url.path, toast: String(localized: "Copied path")) }
         if let relative = project.relativePath(of: url.path) {
-            Button("Copy Relative Path", systemImage: "doc.on.clipboard") { copy(relative, toast: "Copied relative path") }
+            Button("Copy Relative Path", systemImage: "doc.on.clipboard") { copy(relative, toast: String(localized: "Copied relative path")) }
         }
     }
 

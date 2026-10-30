@@ -85,6 +85,9 @@ final class CSVPreviewController: NSObject {
         scroll.drawsBackground = true
         scroll.automaticallyAdjustsContentInsets = false
         scroll.documentView = table
+        // Columns run left to right, in the order of the text beside them, in every language.
+        scroll.userInterfaceLayoutDirection = .leftToRight
+        table.userInterfaceLayoutDirection = .leftToRight
         tableView = table
         scrollView = scroll
         super.init()
@@ -224,7 +227,7 @@ final class CSVPreviewController: NSObject {
             line.title = ""
             line.sortDescriptorPrototype = NSSortDescriptor(key: "line", ascending: true)
             line.resizingMask = []
-            line.headerToolTip = "Line in the file · Click to show the rows in the file’s order"
+            line.headerToolTip = String(localized: "Line in the file · Click to show the rows in the file’s order")
             tableView.addTableColumn(line)
         }
         let count = shownColumnCount
@@ -252,7 +255,8 @@ final class CSVPreviewController: NSObject {
             } else {
                 tableView.tableColumns[index + 1].title = title.isEmpty ? name : title
             }
-            tableView.tableColumns[index + 1].headerToolTip = title.isEmpty ? "Column \(name)" : "Column \(name): \(title)"
+            tableView.tableColumns[index + 1].headerToolTip = title.isEmpty ? String(localized: "Column \(name)", comment: "Tooltip: a CSV column’s letters, like B")
+                : String(localized: "Column \(name): \(title)", comment: "Tooltip: a CSV column’s letters and its title")
         }
         let lastLine = table.rowCount > 0 ? table.line(ofRow: table.rowCount - 1) + 1 : 1
         tableView.tableColumns[0].width = ceil(textWidth(String(lastLine), font: style.font)) + style.padding * 2 + 4
@@ -508,7 +512,7 @@ final class CSVPreviewController: NSObject {
             (0..<shownColumnCount).map { CSVTable.field(table.value(row: record, column: $0), delimiter: .tab) }.joined(separator: "\t")
         }
         copy(lines.joined(separator: "\n"))
-        Workspace.shared.toast(lines.count == 1 ? "Copied the row" : "Copied \(lines.count) rows", symbol: "doc.on.doc")
+        Workspace.shared.toast(String(localized: "Copied \(lines.count) rows", comment: "Toast after copying rows of a CSV table"), symbol: "doc.on.doc")
     }
 
     private func copyColumn(_ column: Int) {
@@ -516,7 +520,9 @@ final class CSVPreviewController: NSObject {
         let values = (firstRecord..<table.rowCount).map { record(atShownRow: $0 - firstRecord) ?? $0 }.map { table.value(row: $0, column: column) }
         copy(values.joined(separator: "\n"))
         let title = title(ofColumn: column)
-        Workspace.shared.toast("Copied \(title.isEmpty ? "column \(CSVTable.columnName(column))" : "“\(title)”")", symbol: "doc.on.doc")
+        let message = title.isEmpty ? String(localized: "Copied column \(CSVTable.columnName(column))", comment: "Toast; the placeholder is a column’s letters, like B")
+            : String(localized: "Copied “\(title)”", comment: "Toast after copying a CSV column; the placeholder is its title")
+        Workspace.shared.toast(message, symbol: "doc.on.doc")
     }
 
     private func copy(_ text: String) {
@@ -613,7 +619,7 @@ final class CSVPreviewController: NSObject {
             var textRect = NSRect(x: rect.minX + style.padding, y: textY, width: max(0, rect.width - style.padding * 2), height: lineHeight)
             if let ascending = sortDirection(ofColumn: index) {
                 let size: CGFloat = 9
-                let symbol = NSImage(systemSymbolName: ascending ? "chevron.up" : "chevron.down", accessibilityDescription: ascending ? "Ascending" : "Descending")?
+                let symbol = NSImage(systemSymbolName: ascending ? "chevron.up" : "chevron.down", accessibilityDescription: ascending ? String(localized: "Ascending") : String(localized: "Descending"))?
                     .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .bold).applying(.init(paletteColors: [style.accent])))
                 if let symbol {
                     let imageRect = NSRect(x: rect.maxX - style.padding - symbol.size.width, y: ((height - symbol.size.height) / 2).rounded(), width: symbol.size.width, height: symbol.size.height)
@@ -700,7 +706,7 @@ extension CSVPreviewController: NSMenuDelegate {
                 })
             }
             let selection = tableView.selectedRowIndexes.contains(row) ? tableView.selectedRowIndexes : IndexSet(integer: row)
-            menu.addItem(actionItem(selection.count > 1 ? "Copy \(selection.count) Rows" : "Copy Row") { [weak self] in self?.copyRows(selection) })
+            menu.addItem(actionItem("Copy \(selection.count) Rows") { [weak self] in self?.copyRows(selection) })
             if column > 0 {
                 menu.addItem(actionItem("Copy Column") { [weak self] in self?.copyColumn(cell.column) })
             }
@@ -724,9 +730,9 @@ extension CSVPreviewController: NSMenuDelegate {
 }
 
 /// A menu item that runs a closure (the item keeps its target alive).
-private func actionItem(_ title: String, handler: @escaping () -> Void) -> NSMenuItem {
+private func actionItem(_ title: String.LocalizationValue, handler: @escaping () -> Void) -> NSMenuItem {
     let action = MenuAction(handler)
-    let item = NSMenuItem(title: title, action: #selector(MenuAction.run), keyEquivalent: "")
+    let item = NSMenuItem(title: String(localized: title), action: #selector(MenuAction.run), keyEquivalent: "")
     item.target = action
     item.representedObject = action
     return item

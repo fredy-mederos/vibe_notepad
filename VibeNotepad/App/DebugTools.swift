@@ -152,6 +152,27 @@ enum DebugTools {
         }
     }
 
+    /// Writes the editor's context menu, as a right-click in the middle of the text shows it, to `path`:
+    /// each item's title, action and submenu (what's left after AppKit's rich-text items are taken out).
+    static func editorMenu(report path: String) {
+        guard let editor = Workspace.shared.activeEditor, let window = editor.textView.window else {
+            try? "no editor in a window\n".write(toFile: path, atomically: true, encoding: .utf8)
+            return
+        }
+        let view = editor.textView
+        let point = view.convert(NSPoint(x: view.visibleRect.midX, y: view.visibleRect.minY + 20), to: nil)
+        guard let event = NSEvent.mouseEvent(with: .rightMouseDown, location: point, modifierFlags: [], timestamp: 0,
+                                             windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
+              let menu = view.menu(for: event) else { return }
+        let lines = menu.items.map { item -> String in
+            if item.isSeparatorItem { return "—" }
+            let action = item.action.map(NSStringFromSelector) ?? "-"
+            let submenu = item.submenu.map { " › " + $0.items.prefix(4).map(\.title).joined(separator: ", ") } ?? ""
+            return "\(item.title) [\(action)]\(submenu)"
+        }
+        try? ("language \(Bundle.main.preferredLocalizations.first ?? "-")\n" + lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+    }
+
     /// Drives the panes, then writes how they're laid out to `path`. Ops: split (value h or v, of pane
     /// index `pane`), layout (a preset name), focus (left, right, up, down, next), close (pane index),
     /// click (value "x,y" as fractions of the window, through the click monitor), drop (value

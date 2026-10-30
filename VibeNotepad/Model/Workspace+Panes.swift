@@ -123,7 +123,7 @@ extension Workspace {
         let target = pane ?? focusedPaneID
         guard paneLayout.contains(target) else { return }
         guard paneCount < Self.maxPanes else {
-            toast("Up to \(Self.maxPanes) panes", symbol: "rectangle.split.2x2", tint: .orange)
+            toast(String(localized: "Up to \(Self.maxPanes) panes"), symbol: "rectangle.split.2x2", tint: .orange)
             return
         }
         let newPane = UUID()

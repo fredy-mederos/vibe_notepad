@@ -129,9 +129,9 @@ struct PaletteView: View {
 
             Divider().opacity(0.5)
             HStack(spacing: 14) {
-                Label("navigate", systemImage: "arrow.up.arrow.down")
-                Label("open", systemImage: "return")
-                Label("dismiss", systemImage: "escape")
+                Label(String(localized: "navigate", comment: "Palette hint: the arrow keys move through the list"), systemImage: "arrow.up.arrow.down")
+                Label(String(localized: "open", comment: "Palette hint: Return opens the selected item (a verb)"), systemImage: "return")
+                Label(String(localized: "dismiss", comment: "Palette hint: Escape closes the palette"), systemImage: "escape")
                 Spacer()
                 Text(footerHint)
             }
@@ -166,12 +166,12 @@ struct PaletteView: View {
 
     private var placeholder: String {
         switch mode {
-        case .files: "Open a file — type a name, “name:42” to jump to a line"
-        case .commands: "Run a command…"
-        case .goToLine: "Line number (and :column)"
-        case .symbols: "Go to symbol…"
-        case .language: "Syntax highlighting for this file…"
-        case .theme: "Choose a theme…"
+        case .files: String(localized: "Open a file — type a name, “name:42” to jump to a line", comment: "Quick Open's placeholder; “name:42” is typed as is")
+        case .commands: String(localized: "Run a command…", comment: "Command Palette's placeholder")
+        case .goToLine: String(localized: "Line number (and :column)", comment: "Go to Line's placeholder; “:column” is typed after the line number")
+        case .symbols: String(localized: "Go to symbol…", comment: "Go to Symbol's placeholder")
+        case .language: String(localized: "Syntax highlighting for this file…", comment: "Placeholder of the list of languages")
+        case .theme: String(localized: "Choose a theme…", comment: "Placeholder of the list of themes")
         }
     }
 
@@ -188,23 +188,23 @@ struct PaletteView: View {
 
     private var footerHint: String {
         switch mode {
-        case .files: "> commands  ·  : line  ·  @ symbol"
-        case .commands: "\(workspace.commands.count) commands"
-        case .goToLine: "\(workspace.selectedDocument?.cursor.lineCount ?? 0) lines"
-        case .symbols: "\(symbols.count) symbols"
-        case .language: "\(LanguageRegistry.all.count) languages"
-        case .theme: "Live preview"
+        case .files: String(localized: "> commands  ·  : line  ·  @ symbol", comment: "Quick Open's hint: typing >, : or @ first switches to commands, a line or a symbol; keep those characters")
+        case .commands: String(localized: "\(workspace.commands.count) commands")
+        case .goToLine: String(localized: "\(workspace.selectedDocument?.cursor.lineCount ?? 0) lines")
+        case .symbols: String(localized: "\(symbols.count) symbols")
+        case .language: String(localized: "\(LanguageRegistry.all.count) languages")
+        case .theme: String(localized: "Live preview", comment: "Theme list: themes apply while you move through the list")
         }
     }
 
     private var emptyHint: String? {
         switch mode {
         case .goToLine:
-            return "Type a line number between 1 and \(workspace.selectedDocument?.cursor.lineCount ?? 1)"
+            return String(localized: "Type a line number between 1 and \(String(workspace.selectedDocument?.cursor.lineCount ?? 1))")
         case .symbols where symbols.isEmpty:
-            return "No symbols found in this file"
+            return String(localized: "No symbols found in this file")
         default:
-            return query.isEmpty ? nil : "No matches"
+            return query.isEmpty ? nil : String(localized: "No matches")
         }
     }
 
@@ -246,13 +246,13 @@ struct PaletteView: View {
             let key = document.path ?? document.id.uuidString
             guard seen.insert(key).inserted else { continue }
             let (project, relative) = located(document.path)
-            candidates.append(FileCandidate(url: document.fileURL, document: document, badge: document.id == workspace.selectedID ? "current" : "open",
+            candidates.append(FileCandidate(url: document.fileURL, document: document, badge: document.id == workspace.selectedID ? String(localized: "current", comment: "Quick Open badge: the file shown now") : String(localized: "badge.open", defaultValue: "open", comment: "Quick Open badge: the file is open in a tab (an adjective)"),
                                             project: project, relativePath: relative, name: document.displayName))
         }
         for item in workspace.recents.all where !workspace.recents.isMissing(item.path) {
             guard seen.insert(item.path).inserted else { continue }
             let (project, relative) = located(item.path)
-            candidates.append(FileCandidate(url: item.url, badge: item.pinned ? "pinned" : nil, date: item.lastOpened,
+            candidates.append(FileCandidate(url: item.url, badge: item.pinned ? String(localized: "pinned", comment: "Quick Open badge: the file is pinned in the sidebar") : nil, date: item.lastOpened,
                                             project: project, relativePath: relative, name: item.name))
         }
         for project in workspace.projects {
@@ -299,7 +299,7 @@ struct PaletteView: View {
             let folder = (relative as NSString).deletingLastPathComponent
             subtitle = folder.isEmpty ? project.name : "\(project.name)/\(folder)"
         } else {
-            subtitle = candidate.url?.abbreviatedParentPath ?? "Unsaved"
+            subtitle = candidate.url?.abbreviatedParentPath ?? String(localized: "Unsaved", comment: "Quick Open: a new file that was never saved, in place of its folder")
         }
         let language = candidate.document?.language ?? LanguageRegistry.detect(path: candidate.url?.path ?? candidate.name)
         let document = candidate.document
@@ -381,8 +381,9 @@ struct PaletteView: View {
         let column = parts.count > 1 ? parts[1] : nil
         let total = document.cursor.lineCount
         let clamped = min(max(1, line), max(1, total))
-        let title = column.map { "Go to line \(clamped), column \($0)" } ?? "Go to line \(clamped)"
-        return [PaletteItem(id: "line", title: title, subtitle: "of \(total)", icon: .symbol("arrow.right.to.line")) {
+        let title = column.map { String(localized: "Go to line \(String(clamped)), column \(String($0))") } ?? String(localized: "Go to line \(String(clamped))")
+        let subtitle = String(localized: "of \(String(total))", comment: "Go to Line: the line asked for is out of this many lines")
+        return [PaletteItem(id: "line", title: title, subtitle: subtitle, icon: .symbol("arrow.right.to.line")) {
             document.navigate(toLine: clamped, column: column)
         }]
     }
@@ -427,13 +428,13 @@ struct PaletteView: View {
     private var languageItems: [PaletteItem] {
         guard let document = workspace.selectedDocument else { return [] }
         let needle = query.trimmingCharacters(in: .whitespaces)
-        let all = LanguageRegistry.all.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let all = LanguageRegistry.all.sorted { $0.localizedName.localizedCaseInsensitiveCompare($1.localizedName) == .orderedAscending }
         var scored: [(PaletteItem, Int)] = []
         for info in all {
             var matches: [Int] = []
             var score = info.id == document.language ? 10_000 : 0
             if !needle.isEmpty {
-                if let match = FuzzyMatcher.match(needle, in: info.name) {
+                if let match = FuzzyMatcher.match(needle, in: info.localizedName) {
                     matches = match.positions
                     score = match.score + 10
                 } else if info.aliases.contains(needle.lowercased()) || info.extensions.contains(needle.lowercased()) {
@@ -443,7 +444,7 @@ struct PaletteView: View {
                 }
             }
             let extensions = info.extensions.prefix(4).map { ".\($0)" }.joined(separator: " ")
-            scored.append((PaletteItem(id: info.id.rawValue, title: info.name, subtitle: extensions.isEmpty ? nil : extensions,
+            scored.append((PaletteItem(id: info.id.rawValue, title: info.localizedName, subtitle: extensions.isEmpty ? nil : extensions,
                                        icon: .language(info.id), matches: matches, isCurrent: info.id == document.language) {
                 document.language = info.id
                 document.languageIsManual = true
@@ -465,7 +466,7 @@ struct PaletteView: View {
                 guard let match = FuzzyMatcher.match(needle, in: theme.name) else { continue }
                 matches = match.positions
             }
-            result.append(PaletteItem(id: theme.id, title: theme.name, subtitle: theme.isDark ? "Dark" : "Light", icon: .theme(theme),
+            result.append(PaletteItem(id: theme.id, title: theme.name, subtitle: theme.isDark ? String(localized: "Dark", comment: "Appearance") : String(localized: "Light", comment: "Appearance"), icon: .theme(theme),
                                       matches: matches, isCurrent: theme.id == current,
                                       action: { settings.previewThemeID = nil; settings.select(theme: theme) },
                                       preview: { withAnimation(.easeInOut(duration: 0.2)) { settings.previewThemeID = theme.id } }))

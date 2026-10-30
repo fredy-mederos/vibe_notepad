@@ -222,7 +222,7 @@ struct PaneHeader: View {
         .onTapGesture { workspace.focusPane(paneID, focusEditor: true) }
         .modifier(PaneHeaderDrag(document: document))
         .contextMenu { PaneMenu(paneID: paneID) }
-        .help(document?.fileURL?.abbreviatedPath ?? document?.displayName ?? "Empty pane")
+        .help(document?.fileURL?.abbreviatedPath ?? document?.displayName ?? String(localized: "Empty pane"))
     }
 }
 
@@ -251,7 +251,7 @@ private struct PaneHeaderButton: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.isEnabled) private var isEnabled
     let symbol: String
-    let help: String
+    let help: LocalizedStringKey
     let action: () -> Void
     @State private var isHovering = false
 

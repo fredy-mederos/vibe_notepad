@@ -13,10 +13,10 @@ nonisolated enum ImageBackground: String, CaseIterable, Codable, Sendable {
 
     var title: String {
         switch self {
-        case .checkerboard: "Checkerboard"
-        case .white: "White"
-        case .black: "Black"
-        case .none: "None"
+        case .checkerboard: String(localized: "Checkerboard", comment: "Image background: a checkerboard behind transparent parts")
+        case .white: String(localized: "White", comment: "Image background")
+        case .black: String(localized: "Black", comment: "Image background")
+        case .none: String(localized: "None", comment: "Image background: the editor's background color")
         }
     }
 
@@ -38,9 +38,9 @@ nonisolated enum MarkdownMode: String, CaseIterable, Codable, Sendable {
 
     var title: String {
         switch self {
-        case .editor: "Editor"
-        case .split: "Split"
-        case .preview: "Preview"
+        case .editor: String(localized: "Editor", comment: "View mode: only the editor shows")
+        case .split: String(localized: "Split", comment: "View mode: the editor and the preview side by side")
+        case .preview: String(localized: "Preview", comment: "View mode: only the preview shows")
         }
     }
 
@@ -61,7 +61,13 @@ final class AppSettings {
     enum Appearance: String, CaseIterable, Identifiable {
         case system, light, dark
         var id: String { rawValue }
-        var title: String { rawValue.capitalized }
+        var title: String {
+            switch self {
+            case .system: String(localized: "System", comment: "Appearance: follows macOS's light or dark mode")
+            case .light: String(localized: "Light", comment: "Appearance")
+            case .dark: String(localized: "Dark", comment: "Appearance")
+            }
+        }
     }
 
     enum PreviewFont: String, CaseIterable, Identifiable {

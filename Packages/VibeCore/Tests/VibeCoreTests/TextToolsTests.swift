@@ -294,15 +294,19 @@ private func apply(_ edit: TextEdit, to text: String) -> String {
                 return error as? TextTransforms.XMLFormatError
             }
         }
-        #expect(error("<a>\n<b></c>\n</a>") == .invalid(line: 2, message: "</c> doesn’t match <b> on line 2"))
-        #expect(error("<a>\n<b>\n</a>") == .invalid(line: 3, message: "</a> doesn’t match <b> on line 2"))
-        #expect(error("<a/>\n</b>") == .invalid(line: 2, message: "</b> has no start tag"))
-        #expect(error("<a>\n  <b>") == .invalid(line: 2, message: "<b> is never closed"))
-        #expect(error("<a>\n<!-- never") == .invalid(line: 2, message: "the comment never ends (-->)"))
+        #expect(error("<a>\n<b></c>\n</a>") == .invalid(line: 2, problem: .mismatch(closing: "c", opening: "b", openingLine: 2)))
+        #expect(error("<a>\n<b>\n</a>") == .invalid(line: 3, problem: .mismatch(closing: "a", opening: "b", openingLine: 2)))
+        #expect(error("<a/>\n</b>") == .invalid(line: 2, problem: .noStartTag("b")))
+        #expect(error("<a>\n  <b>") == .invalid(line: 2, problem: .neverClosed("b")))
+        #expect(error("<a>\n<!-- never") == .invalid(line: 2, problem: .neverEnds(.comment)))
         // Everything else comes from the system parser (libxml2), also in fragments.
-        #expect(error("<a>\n  <b x='1' x='2'/>\n</a>") == .invalid(line: 2, message: "Attribute x redefined"))
-        #expect(error("<a/>\n<b>&nbsp;</b>") == .invalid(line: 2, message: "Entity 'nbsp' not defined"))
-        #expect(TextTransforms.XMLFormatError.invalid(line: 4, message: "Oops").localizedDescription == "Invalid XML (line 4): Oops")
+        #expect(error("<a>\n  <b x='1' x='2'/>\n</a>") == .invalid(line: 2, problem: .parser("Attribute x redefined")))
+        #expect(error("<a/>\n<b>&nbsp;</b>") == .invalid(line: 2, problem: .parser("Entity 'nbsp' not defined")))
+        // In English, VibeCore says what's wrong (the app says it in the user's language).
+        #expect(error("<a>\n<b></c>\n</a>")?.localizedDescription == "Invalid XML (line 2): </c> doesn’t match <b> on line 2")
+        #expect(error("<a>\n<!-- never")?.localizedDescription == "Invalid XML (line 2): the comment never ends (-->)")
+        #expect(TextTransforms.XMLFormatError.invalid(line: 4, problem: .parser("Oops")).localizedDescription == "Invalid XML (line 4): Oops")
+        #expect(TextTransforms.XMLProblem.parser(nil).text == "the parser stopped")
     }
 
     @Test func caseTransformOnWord() throws {

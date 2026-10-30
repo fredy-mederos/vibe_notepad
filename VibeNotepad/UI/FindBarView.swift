@@ -59,7 +59,7 @@ struct FindBarView: View {
                         .onSubmit { workspace.replaceCurrent() }
                         Button("Replace") { workspace.replaceCurrent() }
                             .disabled(workspace.findMatchCount == 0)
-                        Button("All") { workspace.replaceAll() }
+                        Button(String(localized: "All", comment: "Find bar button: replaces every match")) { workspace.replaceAll() }
                             // Zero-length regex matches (`^`, `$`) aren't counted but can still be replaced.
                             .disabled(workspace.findMatchCount == 0 && !(workspace.findOptions.isRegex && !workspace.findQuery.isEmpty))
                             .help("Replace All")
@@ -92,19 +92,21 @@ struct FindBarView: View {
     }
 
     private var counterLabel: String {
-        if workspace.findError != nil { return "Invalid regex" }
+        if workspace.findError != nil { return String(localized: "Invalid regex", comment: "Find bar: the regular expression is invalid") }
         if workspace.findQuery.isEmpty { return "" }
-        if workspace.findMatchCount == 0 { return "No results" }
-        if workspace.findsInPreview { return "In preview" }
-        if let index = workspace.findCurrentIndex { return "\(index + 1) of \(workspace.findMatchCount)" }
-        return "\(workspace.findMatchCount) found"
+        if workspace.findMatchCount == 0 { return String(localized: "No results", comment: "Find bar") }
+        if workspace.findsInPreview { return String(localized: "In preview", comment: "Find bar: searching the Markdown preview") }
+        if let index = workspace.findCurrentIndex {
+            return String(localized: "\(String(index + 1)) of \(workspace.findMatchCount)", comment: "Find bar: which match is selected, out of how many")
+        }
+        return String(localized: "\(workspace.findMatchCount) found", comment: "Find bar: how many matches")
     }
 }
 
 /// A rounded text field with an icon and trailing accessory views.
 private struct SearchField<Accessory: View>: View {
     @Binding var text: String
-    let placeholder: String
+    let placeholder: LocalizedStringKey
     let symbol: String
     var isError = false
     @ViewBuilder var accessory: () -> Accessory
@@ -136,7 +138,7 @@ private struct SearchField<Accessory: View>: View {
 /// Small toggle chip ("Aa", ".*", "ab").
 private struct OptionToggle: View {
     let label: String
-    let help: String
+    let help: LocalizedStringKey
     var underline = false
     @Binding var isOn: Bool
 
@@ -144,7 +146,7 @@ private struct OptionToggle: View {
         Button {
             withAnimation(.snappy(duration: 0.15)) { isOn.toggle() }
         } label: {
-            Text(label)
+            Text(verbatim: label)
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .underline(underline)
                 .frame(width: 24, height: 20)
@@ -162,7 +164,7 @@ private struct OptionToggle: View {
 
 struct IconButton: View {
     let symbol: String
-    let help: String
+    let help: LocalizedStringKey
     let action: () -> Void
     @State private var isHovering = false
 

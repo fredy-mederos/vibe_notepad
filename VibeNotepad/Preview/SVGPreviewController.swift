@@ -100,13 +100,13 @@ final class SVGPreviewController: NSObject, WKNavigationDelegate {
                         picture.size = info.size
                         viewer.showVector(picture, details: info.details)
                     } else {
-                        viewer.showRenderError("The SVG couldn’t be drawn.")
+                        viewer.showRenderError(String(localized: "The SVG couldn’t be drawn."))
                     }
                 } catch {
                     viewer.showRenderError(error.localizedDescription)
                 }
             } else {
-                viewer.showRenderError("WebKit can’t draw this SVG.")
+                viewer.showRenderError(String(localized: "WebKit can’t draw this SVG."))
             }
             finishRender()
         }
@@ -148,7 +148,7 @@ nonisolated enum SVGSource {
     static let namespace = "http://www.w3.org/2000/svg"
 
     static func inspect(_ text: String) -> Result<Info, Problem> {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .failure(Problem(message: "The SVG is empty.")) }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .failure(Problem(message: String(localized: "The SVG is empty."))) }
         let xml: XMLDocument
         do {
             // External DTDs (the SVG 1.1 doctype) are never fetched.
@@ -159,7 +159,7 @@ nonisolated enum SVGSource {
             return .failure(Problem(message: message))
         }
         guard let root = xml.rootElement(), root.localName == "svg" else {
-            return .failure(Problem(message: "The root element isn’t <svg>."))
+            return .failure(Problem(message: String(localized: "The root element isn’t <svg>.")))
         }
 
         // Browsers ignore an SVG without its namespace (and an xlink: prefix nobody declared).

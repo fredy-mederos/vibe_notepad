@@ -1,0 +1,4 @@
+interface:
+  display_name: "Localize Vibe Notepad"
+  short_description: "Translate new or changed strings into Vibe Notepad's 20 languages"
+  default_prompt: "Sync Vibe Notepad's String Catalog with the code, have subagents on a lighter model translate what each of the 20 languages misses, import and check their work, and build."

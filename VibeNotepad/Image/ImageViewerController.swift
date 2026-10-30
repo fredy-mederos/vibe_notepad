@@ -216,7 +216,7 @@ final class ImageViewerController {
         guard let image else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([image])
-        Workspace.shared.toast("Copied image", symbol: "photo.on.rectangle")
+        Workspace.shared.toast(String(localized: "Copied image"), symbol: "photo.on.rectangle")
     }
 
     func tearDown() {

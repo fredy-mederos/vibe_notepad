@@ -83,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
-        let newItem = NSMenuItem(title: "New File", action: #selector(newFileFromDock(_:)), keyEquivalent: "")
+        let newItem = NSMenuItem(title: String(localized: "New File"), action: #selector(newFileFromDock(_:)), keyEquivalent: "")
         newItem.target = self
         menu.addItem(newItem)
         let recents = Workspace.shared.recents.all.filter { !Workspace.shared.recents.isMissing($0.path) }.prefix(12)

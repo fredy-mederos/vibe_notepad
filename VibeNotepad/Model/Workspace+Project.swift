@@ -20,7 +20,7 @@ extension Workspace {
     func openProject(_ url: URL, expandedFolders: [String] = [], collapsed: Bool = false, revealSidebar: Bool = true) {
         let root = url.canonicalFileURL
         guard root.isFolder else {
-            toast("“\(root.lastPathComponent)” isn’t a folder", symbol: "questionmark.folder", tint: .orange)
+            toast(String(localized: "“\(root.lastPathComponent)” isn’t a folder"), symbol: "questionmark.folder", tint: .orange)
             return
         }
         if let project = project(root: root.path) {
@@ -118,14 +118,14 @@ extension Workspace {
         panel.allowsMultipleSelection = item == nil && replaced == nil
         panel.showsHiddenFiles = true
         panel.treatsFilePackagesAsDirectories = true
-        panel.prompt = "Open Folder"
-        panel.message = "Choose folders to open as projects"
+        panel.prompt = String(localized: "Open Folder", comment: "Button of the panel that opens folders")
+        panel.message = String(localized: "Choose folders to open as projects")
         if let start = item ?? replaced?.root {
             // The nearest folder that still exists (a recent file's folder may be gone).
             var directory = start.canonicalFileURL.deletingLastPathComponent()
             while !directory.isFolder, directory.path != "/" { directory.deleteLastPathComponent() }
             panel.directoryURL = directory
-            panel.message = "Choose a folder to open as a project. With nothing selected, “\(directory.lastPathComponent)” opens."
+            panel.message = String(localized: "Choose a folder to open as a project. With nothing selected, “\(directory.lastPathComponent)” opens.")
         } else if let directory = selectedDocument?.fileURL?.deletingLastPathComponent() ?? projects.last?.root {
             panel.directoryURL = directory
         }

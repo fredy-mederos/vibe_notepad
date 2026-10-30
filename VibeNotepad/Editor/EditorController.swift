@@ -272,6 +272,9 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         let height = max(natural, round(natural * CGFloat(settings.lineHeight)))
         let spaceWidth = (" " as NSString).size(withAttributes: [.font: font]).width
         let paragraph = NSMutableParagraphStyle()
+        // Code reads left to right in every language (a line of only digits and commas would
+        // otherwise follow a right-to-left interface).
+        paragraph.baseWritingDirection = .leftToRight
         paragraph.tabStops = []
         paragraph.defaultTabInterval = spaceWidth * CGFloat(document.indentation.width)
         paragraph.minimumLineHeight = height
@@ -572,10 +575,29 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     }
 
     func textView(_ textView: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
-        // Trim AppKit's rich-text items that make no sense in a code editor.
-        let unwanted: Set<String> = ["Font", "Spelling and Grammar", "Substitutions", "Transformations", "Speech", "Layout Orientation", "Share", "Services"]
-        for item in menu.items where unwanted.contains(item.title) { menu.removeItem(item) }
+        // Trim AppKit's rich-text items that make no sense in a code editor: Font, Spelling and Grammar,
+        // Substitutions, Transformations, Speech, Layout Orientation, Share and Services. They're found
+        // by what they do, since their titles are in the user's language.
+        for item in menu.items where Self.isRichTextItem(item) { menu.removeItem(item) }
+        // And the separators that were between them.
+        var afterSeparator = true
+        for item in menu.items {
+            if item.isSeparatorItem, afterSeparator { menu.removeItem(item) } else { afterSeparator = item.isSeparatorItem }
+        }
+        if let last = menu.items.last, last.isSeparatorItem { menu.removeItem(last) }
         return menu
+    }
+
+    private static let richTextActions: Set<String> = [
+        "orderFrontFontPanel:", "showGuessPanel:", "checkSpelling:", "toggleContinuousSpellChecking:", "orderFrontSubstitutionsPanel:",
+        "toggleSmartInsertDelete:", "uppercaseWord:", "lowercaseWord:", "capitalizeWord:", "startSpeaking:", "changeLayoutOrientation:",
+    ]
+
+    private static func isRichTextItem(_ item: NSMenuItem) -> Bool {
+        let actions = ([item] + (item.submenu?.items ?? [])).compactMap(\.action).map(NSStringFromSelector)
+        if actions.contains(where: richTextActions.contains) { return true }
+        let identifier = item.identifier?.rawValue.lowercased() ?? ""
+        return identifier.contains("share") || identifier.contains("services") || (item.submenu != nil && item.submenu === NSApp.servicesMenu)
     }
 
     // MARK: Dirty tracking (mirrors NSDocument's change counting)
@@ -681,7 +703,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
     }
 
     /// Applies an edit through the text view so it is undoable.
-    func apply(_ edit: TextEdit, actionName: String? = nil, scroll: Bool = true) {
+    func apply(_ edit: TextEdit, actionName: String.LocalizationValue? = nil, scroll: Bool = true) {
         let range = clamp(edit.range)
         guard textView.shouldChangeText(in: range, replacementString: edit.replacement) else { return }
         textStorage.replaceCharacters(in: range, with: edit.replacement)
@@ -689,12 +711,12 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         let selection = clamp(edit.selection)
         textView.setSelectedRange(selection)
         if scroll { textView.scrollRangeToVisible(selection) }
-        if let actionName { undoManager.setActionName(actionName) }
+        if let actionName { undoManager.setActionName(String(localized: actionName)) }
     }
 
     /// Applies several replacements (in the original text's coordinates) as one undo step.
     @discardableResult
-    func applyReplacements(_ edits: [(NSRange, String)], actionName: String) -> Bool {
+    func applyReplacements(_ edits: [(NSRange, String)], actionName: String.LocalizationValue) -> Bool {
         guard !edits.isEmpty else { return false }
         let ranges = edits.map { NSValue(range: $0.0) }
         guard textView.shouldChangeText(inRanges: ranges, replacementStrings: edits.map(\.1)) else { return false }
@@ -702,7 +724,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         for (range, replacement) in edits.reversed() { textStorage.replaceCharacters(in: range, with: replacement) }
         textStorage.endEditing()
         textView.didChangeText()
-        undoManager.setActionName(actionName)
+        undoManager.setActionName(String(localized: actionName))
         return true
     }
 
@@ -756,7 +778,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         }
     }
 
-    func transformSelection(_ name: String, _ transform: (String) -> String) {
+    func transformSelection(_ name: String.LocalizationValue, _ transform: (String) -> String) {
         if let edit = TextTransforms.transform(nsText, selection: textView.selectedRange(), transform) {
             apply(edit, actionName: name)
         }
@@ -800,7 +822,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         guard replacement != source else { return false }
         apply(TextEdit(range: target, replacement: replacement,
                        selection: selection.length > 0 ? NSRange(location: target.location, length: (replacement as NSString).length) : NSRange(location: 0, length: 0)),
-              actionName: "\(minify ? "Minify" : "Format") \(format.name)")
+              actionName: minify ? "Minify \(format.name)" : "Format \(format.name)")
         return true
     }
 

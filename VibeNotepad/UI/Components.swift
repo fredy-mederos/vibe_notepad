@@ -30,7 +30,7 @@ struct FileIcon: View {
         }
         .frame(width: size, height: size)
         .shadow(color: tint.opacity(0.3), radius: 1.5, y: 0.5)
-        .accessibilityLabel(isImage ? "Image" : language.displayName)
+        .accessibilityLabel(isImage ? String(localized: "Image") : language.localizedName)
     }
 }
 

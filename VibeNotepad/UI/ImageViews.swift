@@ -169,19 +169,20 @@ struct ImageInfoPanel: View {
 
     @ViewBuilder
     private func imageRows(_ details: ImageDetails) -> some View {
-        InfoRow(label: "Dimensions", value: "\(details.dimensions) pixels")
+        InfoRow(label: "Dimensions", value: String(localized: "\(details.dimensions) pixels", comment: "Image info; the placeholder is like 1920 × 1080"))
         if let size = viewer.image?.size, Int(size.width.rounded()) != details.pixelWidth || Int(size.height.rounded()) != details.pixelHeight {
-            InfoRow(label: "At 100%", value: "\(Int(size.width.rounded())) × \(Int(size.height.rounded())) points")
+            InfoRow(label: "At 100%", value: String(localized: "\(String(Int(size.width.rounded()))) × \(String(Int(size.height.rounded()))) points",
+                                                     comment: "Image info: the size at 100%, in points"))
         }
         if let dpi = details.dpi {
-            InfoRow(label: "Resolution", value: "\(dpi.formatted(.number.precision(.fractionLength(0...1)))) dpi")
+            InfoRow(label: "Resolution", value: String(localized: "\(dpi.formatted(.number.precision(.fractionLength(0...1)))) dpi", comment: "Image info: dots per inch"))
         }
         if let color = details.colorSummary { InfoRow(label: "Color", value: color) }
         if let profile = details.colorProfile { InfoRow(label: "Profile", value: profile) }
         if details.isAnimated {
-            InfoRow(label: "Frames", value: "\(details.frameCount) (animated)")
+            InfoRow(label: "Frames", value: String(localized: "\(details.frameCount) (animated)", comment: "Image info: how many frames an animation has"))
         } else if details.frameCount > 1 {
-            InfoRow(label: "Images", value: "\(details.frameCount) (sizes or pages)")
+            InfoRow(label: "Images", value: String(localized: "\(details.frameCount) (sizes or pages)", comment: "Image info: how many images a file holds (an icon’s sizes, a TIFF’s pages)"))
         }
         if let orientation = details.orientationDescription { InfoRow(label: "Orientation", value: orientation) }
     }
@@ -197,16 +198,18 @@ struct ImageInfoPanel: View {
     @ViewBuilder
     private func fileRows(_ details: ImageDetails) -> some View {
         if let size = details.fileSize {
-            InfoRow(label: "Size", value: "\(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)) (\(size.formatted()) bytes)")
+            InfoRow(label: "Size", value: String(localized: "\(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)) (\(size) bytes)",
+                                                   comment: "Image info: the file’s size, like “2.4 MB (2,412,345 bytes)”"))
         }
         if let created = details.created { InfoRow(label: "Created", value: created.formatted(date: .abbreviated, time: .shortened)) }
         if let modified = details.modified { InfoRow(label: "Modified", value: modified.formatted(date: .abbreviated, time: .shortened)) }
         if let url = document.fileURL { InfoRow(label: "Where", value: url.abbreviatedParentPath) }
     }
 
-    private func section(_ title: String, theme: Theme, @ViewBuilder rows: () -> some View) -> some View {
+    private func section(_ title: LocalizedStringKey, theme: Theme, @ViewBuilder rows: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
+            Text(title)
+                .textCase(.uppercase)
                 .font(.system(size: 10, weight: .semibold))
                 .tracking(0.6)
                 .foregroundStyle(theme.mutedForeground.color.opacity(0.8))
@@ -216,15 +219,16 @@ struct ImageInfoPanel: View {
 
     /// "Open in Preview", or whichever app opens the file.
     private var openTitle: String {
-        guard let url = document.fileURL, let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return "Open in Default App" }
-        return "Open in \(FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: ""))"
+        guard let url = document.fileURL, let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return String(localized: "Open in Default App") }
+        let name = FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: "")
+        return String(localized: "Open in \(name)", comment: "Button; the placeholder is an app’s name, like Preview")
     }
 }
 
 /// A label and a value that can be selected and copied.
 private struct InfoRow: View {
     @Environment(AppSettings.self) private var settings
-    let label: String
+    let label: LocalizedStringKey
     let value: String
 
     var body: some View {
@@ -292,10 +296,10 @@ struct ImageZoomControls: View {
                 Button("Actual Size") { viewer.actualSize() }
                 Divider()
                 ForEach([0.25, 0.5, 1, 2, 4, 8] as [CGFloat], id: \.self) { zoom in
-                    Button("\(Int(zoom * 100))%") { viewer.setZoom(zoom) }
+                    Button(Double(zoom).formatted(.percent.precision(.fractionLength(0)))) { viewer.setZoom(zoom) }
                 }
             } label: {
-                Text("\(Int((viewer.zoom * 100).rounded()))%")
+                Text(verbatim: Double(viewer.zoom).formatted(.percent.precision(.fractionLength(0))))
                     .contentTransition(.numericText())
                     .frame(minWidth: 38)
             }

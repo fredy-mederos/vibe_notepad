@@ -222,7 +222,7 @@ extension Workspace {
                              to: folder.appendingPathComponent("\(stamp)-\(file)"))
         }
         NSLog("Vibe Notepad: moved %d unsaved buffer(s) from an unreadable session to %@", unclaimed.count, folder.path)
-        toast("Unsaved text from the last session was kept in Recovered", symbol: "lifepreserver", tint: .orange)
+        toast(String(localized: "Unsaved text from the last session was kept in the “\(folder.lastPathComponent)” folder", comment: "The placeholder is a folder’s name, in the app’s data folder"), symbol: "lifepreserver", tint: .orange)
     }
 
     /// Splits the editor area as it was. Panes whose file is gone show another document, or close.

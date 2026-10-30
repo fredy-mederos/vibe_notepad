@@ -27,17 +27,17 @@ enum CommandLineTool {
         for directory in candidateDirectories {
             let path = directory.appendingPathComponent(name).path
             if FileManager.default.fileExists(atPath: path) {
-                return Status(isInstalled: true, description: "Installed at \(path)")
+                return Status(isInstalled: true, description: String(localized: "Installed at \(path)", comment: "The vibeNotePad command; the placeholder is a path"))
             }
         }
-        return Status(isInstalled: false, description: "Not installed")
+        return Status(isInstalled: false, description: String(localized: "Not installed", comment: "The vibeNotePad command"))
     }
 
     /// Copies the script to the first writable bin directory (preferring ones on the default PATH).
     @discardableResult
     static func install() -> Status {
         guard let source = bundledScript else {
-            return Status(isInstalled: false, description: "The script is missing from the app bundle.")
+            return Status(isInstalled: false, description: String(localized: "The script is missing from the app bundle."))
         }
         let fm = FileManager.default
         for directory in candidateDirectories {
@@ -52,13 +52,14 @@ enum CommandLineTool {
                 if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
                 try fm.copyItem(at: source, to: destination)
                 try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: destination.path)
-                var message = "Installed at \(destination.path)"
-                if isHomeDirectory { message += " — make sure \(directory.path) is in your PATH" }
+                let message = isHomeDirectory
+                    ? String(localized: "Installed at \(destination.path) — make sure \(directory.path) is in your PATH", comment: "The vibeNotePad command; the placeholders are paths")
+                    : String(localized: "Installed at \(destination.path)", comment: "The vibeNotePad command; the placeholder is a path")
                 return Status(isInstalled: true, description: message)
             } catch {
                 continue
             }
         }
-        return Status(isInstalled: false, description: "No writable bin folder found. Copy the script manually from the app bundle.")
+        return Status(isInstalled: false, description: String(localized: "No writable bin folder found. Copy the script manually from the app bundle."))
     }
 }

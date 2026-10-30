@@ -73,7 +73,7 @@ struct MainView: View {
     private var subtitle: String {
         guard let document = workspace.selectedDocument else { return "" }
         if let url = document.fileURL { return url.abbreviatedParentPath }
-        return document.isDirty ? "Unsaved" : ""
+        return document.isDirty ? String(localized: "Unsaved", comment: "Window subtitle: a new file with changes that were never saved") : ""
     }
 }
 
@@ -104,7 +104,11 @@ struct DetailView: View {
             if !workspace.documents.isEmpty {
                 Color.clear.frame(height: showsBars ? TabBarView.height : 0)
             }
+            // The editing area stays left to right in right-to-left languages, as code editors do:
+            // panes split right and focus moves the way the arrows point, and an editor sits left of
+            // its preview, as in its text.
             PaneNodeView(node: workspace.paneLayout)
+                .environment(\.layoutDirection, .leftToRight)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             if workspace.selectedDocument != nil {
                 Color.clear.frame(height: showsBars ? StatusBarView.height : 0)
@@ -226,7 +230,7 @@ struct MainToolbar: ToolbarContent {
                     .disabled(workspace.paneCount >= Workspace.maxPanes)
                 Divider()
                 ForEach(PaneLayout.Preset.allCases, id: \.self) { preset in
-                    Button(preset.title, systemImage: preset.symbol) { workspace.applyLayout(preset) }
+                    Button(preset.localizedTitle, systemImage: preset.symbol) { workspace.applyLayout(preset) }
                 }
                 Divider()
                 Button("Close Pane", systemImage: "xmark.square") { workspace.closePane() }

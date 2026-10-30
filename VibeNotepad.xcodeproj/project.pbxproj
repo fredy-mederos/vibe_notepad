@@ -11,6 +11,7 @@
 		010608423089749DA7554CEA /* LineNumberGutterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B859B2C831FC90D6FCA4FDE /* LineNumberGutterView.swift */; };
 		11F8E8EDA478FCCDD0D536B6 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A2C7479EF093C880F202F6 /* TabBarView.swift */; };
 		16AC359F69CF401026583074 /* CommandLineTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB73AE1B425B91A4147AF23E /* CommandLineTool.swift */; };
+		19FAD276652F0951BF5472BF /* VibeCoreStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA1D52625C1A194FFBA266F /* VibeCoreStrings.swift */; };
 		1B68AC63B41406A1B37E0AC1 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B959EBB09363B3F03D0DC3 /* Components.swift */; };
 		2432E1A8B5505C7E9367E8D0 /* PaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0822F49B79B98ED7ED06F59 /* PaletteView.swift */; };
 		30C7022EDC7851B9D773E2E6 /* CodeTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95BFD0DDDA786B80337FF4B /* CodeTextView.swift */; };
@@ -53,6 +54,7 @@
 		D2BFC4A23F64CA02029EE148 /* RecentFilesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5249F5600A8D6EB71687E65E /* RecentFilesStore.swift */; };
 		DC004B3DF1C86AC4BC675FED /* SVGPreviewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4587251CB92CA3C37814BC6F /* SVGPreviewController.swift */; };
 		DCA49109D890187E0D7C5507 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49C246D10B1001B9FE4551B9 /* AppDelegate.swift */; };
+		E0EA929DAFE0D11D8715E7E2 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 16E97D0A74AFA55BDFA0A7FE /* Localizable.xcstrings */; };
 		E4AC2D980FC8016452AA0198 /* AboutSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 256C5573A6566610CF09BD2B /* AboutSettings.swift */; };
 		E5771C7171C22806E5498AF2 /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77AB9D216A146ABA19863AF5 /* Workspace.swift */; };
 		E8B9E171B56E6569ABFDA36A /* CSVViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61FEC782A72AB26ECF5E469C /* CSVViews.swift */; };
@@ -66,10 +68,12 @@
 		0360476E5AF6FE644E387F21 /* ImageViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerController.swift; sourceTree = "<group>"; };
 		03B959EBB09363B3F03D0DC3 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		0572373A51A8ED3ECA75D44F /* DirectoryWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryWatcher.swift; sourceTree = "<group>"; };
+		0FA1D52625C1A194FFBA266F /* VibeCoreStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VibeCoreStrings.swift; sourceTree = "<group>"; };
 		1098FC1582FA5739C7A6D39D /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		120D3CD4FBE388BB09FC92F8 /* VibeNotepad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VibeNotepad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1274C80A39803AF46085264D /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		1679F72AA63922F7F827FB15 /* MinimapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinimapView.swift; sourceTree = "<group>"; };
+		16E97D0A74AFA55BDFA0A7FE /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		18FE08E2FF4CF8F716FCC749 /* ImageFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageFile.swift; sourceTree = "<group>"; };
 		2192BE867A9A981ED4D0A4D5 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		22EC3CC11EDF6BE35EE79187 /* EditorLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorLayoutManager.swift; sourceTree = "<group>"; };
@@ -162,6 +166,7 @@
 			isa = PBXGroup;
 			children = (
 				8E7615BC5FEF8411284934ED /* Theme+Platform.swift */,
+				0FA1D52625C1A194FFBA266F /* VibeCoreStrings.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -185,6 +190,7 @@
 				8881CD0334B17B252CBB593B /* Resources */,
 				9085AE46BD0722E7B9E9EB8F /* Support */,
 				BBD8EF4367C97D05C52AB3C4 /* UI */,
+				16E97D0A74AFA55BDFA0A7FE /* Localizable.xcstrings */,
 			);
 			path = VibeNotepad;
 			sourceTree = "<group>";
@@ -325,7 +331,27 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				ar,
+				de,
 				en,
+				es,
+				fr,
+				hi,
+				id,
+				it,
+				ja,
+				ko,
+				ms,
+				nl,
+				pl,
+				"pt-BR",
+				ru,
+				th,
+				tr,
+				uk,
+				vi,
+				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = E91E3EC218BBCDA6FF6520F0;
 			minimizedProjectReferenceProxies = 1;
@@ -348,6 +374,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7AC6EE699217F2971245601F /* Assets.xcassets in Resources */,
+				E0EA929DAFE0D11D8715E7E2 /* Localizable.xcstrings in Resources */,
 				6DC6E58CDE5309E23D912005 /* vibeNotePad.sh in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -424,6 +451,7 @@
 				4E0E827E71248AEBB28089E1 /* TabReveal.swift in Sources */,
 				808F958B88D9D9A787275D7C /* Theme+Platform.swift in Sources */,
 				B9A02C1C885E7AB87D73B2E1 /* UpdateCheck.swift in Sources */,
+				19FAD276652F0951BF5472BF /* VibeCoreStrings.swift in Sources */,
 				A593863D7C92058D663249AD /* VibeNotepadApp.swift in Sources */,
 				C9993F7D9358DD9641769723 /* WelcomeView.swift in Sources */,
 				F0496EA028D3D326F70BE334 /* Workspace+Commands.swift in Sources */,
@@ -453,12 +481,14 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = VibeNotepad/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.fredymederos.vibenotepad.dev;
 				PRODUCT_MODULE_NAME = VibeNotepad;
 				PRODUCT_NAME = "Vibe Notepad Dev";
 				SDKROOT = macosx;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				VIBE_DISPLAY_NAME = "Vibe Notepad Dev";
 				VIBE_URL_SCHEME = "vibenotepad-dev";
@@ -547,12 +577,14 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = VibeNotepad/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.fredymederos.vibenotepad;
 				PRODUCT_MODULE_NAME = VibeNotepad;
 				PRODUCT_NAME = "Vibe Notepad";
 				SDKROOT = macosx;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				VIBE_DISPLAY_NAME = "Vibe Notepad";
 				VIBE_URL_SCHEME = vibenotepad;

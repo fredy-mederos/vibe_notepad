@@ -2,6 +2,7 @@
 build/
 DerivedData/
 .build/
+__pycache__/
 Packages/VibeCore/.build/
 .swiftpm/
 
