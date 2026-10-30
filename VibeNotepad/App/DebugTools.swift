@@ -288,6 +288,102 @@ enum DebugTools {
         }
     }
 
+    /// Drives the selected CSV's table and writes what it shows to `path`: `click` a cell ("row,column":
+    /// a row as shown and a table column, 0 being the line numbers), `doubleclick` one, press a `key`
+    /// (left, right, up, down, tab, backtab, return, cmd-up, cmd-down), `sort` by a table column
+    /// ("2" or "2,desc"; "none" for the file's order), turn the `header` on or off, pick a `delimiter`
+    /// (comma, semicolon, tab, pipe or auto), `copy`, `focus` the table, `resize` a column ("1,300"), or list the
+    /// `menu` a right-click on a cell shows.
+    static func csv(_ op: String, value: String?, report path: String) {
+        let workspace = Workspace.shared
+        guard let document = workspace.selectedDocument, document.isCSV else {
+            try? "no CSV selected (\(workspace.selectedDocument?.displayName ?? "-"))\n".write(toFile: path, atomically: true, encoding: .utf8)
+            return
+        }
+        let preview = document.csvPreview
+        let table = preview.tableView
+        let numbers = (value ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        var copied: String?
+        switch op {
+        case "click", "doubleclick":
+            if numbers.count == 2, let row = Int(numbers[0]), let column = Int(numbers[1]), let record = preview.record(atShownRow: row) {
+                preview.activate(.init(row: record, column: column > 0 ? column - 1 : (preview.activeCell?.column ?? 0)), scroll: false, moveCaret: true)
+                if op == "doubleclick" { preview.showActiveCellInEditor() }
+            }
+        case "key":
+            let keys: [String: (Int, NSEvent.ModifierFlags)] = [
+                "left": (NSLeftArrowFunctionKey, []), "right": (NSRightArrowFunctionKey, []), "up": (NSUpArrowFunctionKey, []),
+                "down": (NSDownArrowFunctionKey, []), "tab": (0x09, []), "backtab": (0x19, [.shift]), "return": (0x0D, []),
+                "cmd-up": (NSUpArrowFunctionKey, [.command]), "cmd-down": (NSDownArrowFunctionKey, [.command]),
+            ]
+            if let (code, modifiers) = keys[value ?? ""], let scalar = UnicodeScalar(code) {
+                let characters = String(Character(scalar))
+                if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: ProcessInfo.processInfo.systemUptime,
+                                                windowNumber: table.window?.windowNumber ?? 0, context: nil, characters: characters,
+                                                charactersIgnoringModifiers: characters, isARepeat: false, keyCode: 0) {
+                    table.keyDown(with: event)
+                }
+            }
+        case "sort":
+            if value == "none" {
+                preview.clearSort()
+            } else if let index = numbers.first.flatMap(Int.init) {
+                table.sortDescriptors = [NSSortDescriptor(key: index == 0 ? "line" : String(index - 1), ascending: numbers.count < 2 || numbers[1] != "desc")]
+            }
+        case "header": preview.setUsesHeader(value != "off")
+        case "delimiter": preview.choose(CSVTable.Delimiter.allCases.first { $0.name.lowercased() == value })
+        case "copy":
+            // What was copied goes in the report; the clipboard gets back what it held.
+            let pasteboard = NSPasteboard.general
+            let saved = pasteboard.pasteboardItems?.map { item in item.types.compactMap { type in item.data(forType: type).map { (type, $0) } } } ?? []
+            preview.copySelection()
+            copied = pasteboard.string(forType: .string)
+            pasteboard.clearContents()
+            pasteboard.writeObjects(saved.map { entries in
+                let item = NSPasteboardItem()
+                for (type, data) in entries { item.setData(data, forType: type) }
+                return item
+            })
+        case "focus": preview.focus()
+        case "menu":
+            // Builds the context menu for a right-click on a cell ("row,column" as for `click`).
+            if numbers.count == 2, let row = Int(numbers[0]), let column = Int(numbers[1]), let menu = table.menu, let window = table.window {
+                let point = NSPoint(x: table.rect(ofColumn: column).midX, y: table.rect(ofRow: row).midY)
+                if let event = NSEvent.mouseEvent(with: .rightMouseDown, location: table.convert(point, to: nil), modifierFlags: [], timestamp: 0,
+                                                  windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                    _ = table.menu(for: event)
+                    menu.delegate?.menuNeedsUpdate?(menu)
+                    copied = menu.items.map { $0.isSeparatorItem ? "—" : "\($0.title)\($0.state == .on ? " ✓" : "")" }.joined(separator: " | ")
+                }
+            }
+        case "resize":
+            if numbers.count == 2, let index = Int(numbers[0]), let width = Double(numbers[1]), index < table.numberOfColumns {
+                table.tableColumns[index].width = width
+            }
+        default: break
+        }
+        let copiedText = copied
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            let editor = document.loadedEditor
+            let visible = table.rows(in: table.visibleRect)
+            var lines = [
+                "document \(document.displayName), language \(document.language), mode \(document.markdownMode.rawValue), loading \(preview.isLoading)",
+                "table \(preview.table.map { "\($0.rowCount) records × \($0.columnCount) columns, delimiter \($0.delimiter.name)" } ?? "-"), chosen \(preview.chosenDelimiter?.name ?? "auto"), header \(preview.usesHeader), shown rows \(preview.shownRowCount), table rows \(table.numberOfRows), columns \(table.numberOfColumns)",
+                "active \(preview.activeCell.map { "\($0.row),\($0.column)" } ?? "-") \(preview.activeReference ?? "-") = \(preview.activeValue.map { "“\($0)”" } ?? "-")",
+                "selected rows \(Array(table.selectedRowIndexes.prefix(20))), visible rows \(visible.location)..<\(NSMaxRange(visible)), sort \(preview.sort), summary \(preview.sortSummary.map { "\($0.title) \($0.ascending)" } ?? "-")",
+                "first rows \((0..<min(5, preview.shownRowCount)).compactMap { preview.record(atShownRow: $0) })",
+                "columns \(table.tableColumns.prefix(12).map { "\($0.title.isEmpty ? "#" : $0.title):\(Int($0.width))" }.joined(separator: " "))",
+                "row height \(table.rowHeight), header \(table.headerView.map { NSStringFromRect($0.frame) } ?? "-"), scroll \(NSStringFromRect(preview.scrollView.contentView.bounds)), in window \(table.window != nil)",
+                "editor \(editor == nil ? "not loaded" : "loaded, in window \(editor?.textView.window != nil)"), selection \(editor.map { NSStringFromRange($0.textView.selectedRange()) } ?? "pending \(document.selectionLocation)"), caret Ln \(document.cursor.line) Col \(document.cursor.column)",
+                "first responder \(table.window?.firstResponder.map { String(describing: type(of: $0)) } ?? "-"), find \(workspace.findBarVisible) matches \(workspace.findMatchCount)",
+                "copied \(copiedText.map { "“\(String($0.prefix(300)))”" } ?? "-")",
+                "toasts \(workspace.toasts.map(\.message))",
+            ]
+            if document.characterCount < 2_000 { lines += ["----", document.text] }
+            try? (lines.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
     /// Renders the main window into a PNG without activating the app.
     static func snapshot(to path: String, windowTitle: String? = nil) {
         let titled = windowTitle.flatMap { title in NSApp.windows.first { $0.title.localizedCaseInsensitiveContains(title) } }

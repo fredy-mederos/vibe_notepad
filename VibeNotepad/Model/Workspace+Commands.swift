@@ -139,10 +139,20 @@ extension Workspace {
         // View
         if let document, !document.isImage {
             if document.hasPreview {
-                let category = document.isSVG ? "SVG" : "Markdown"
+                let category = document.isSVG ? "SVG" : (document.isCSV ? document.language.displayName : "Markdown")
                 add("Show Editor Only", category, MarkdownMode.editor.symbol, "⌥⌘1") { self.setMarkdownMode(.editor) }
                 add("Show Editor & Preview", category, MarkdownMode.split.symbol, "⌥⌘2") { self.setMarkdownMode(.split) }
                 add("Show Preview Only", category, MarkdownMode.preview.symbol, "⌥⌘3") { self.setMarkdownMode(.preview) }
+            }
+            if document.isCSV, let table = document.loadedCSVPreview, table.table != nil {
+                let category = document.language.displayName
+                add(table.usesHeader ? "Don’t Use First Row as Header" : "Use First Row as Header", category, "tablecells") { table.setUsesHeader(!table.usesHeader) }
+                for delimiter in CSVTable.Delimiter.allCases where delimiter != table.table?.delimiter {
+                    add("Separate Columns by \(delimiter.name) (\(delimiter.symbol))", category, "tablecells") { table.choose(delimiter) }
+                }
+                if table.sortSummary != nil {
+                    add("Show Rows in File Order", category, "arrow.up.arrow.down") { table.clearSort() }
+                }
             }
             if document.isMarkdown {
                 add("Export Preview as HTML…", "Markdown", "square.and.arrow.up") { document.preview.exportHTML() }
@@ -270,14 +280,15 @@ extension Workspace {
         }
     }
 
-    /// Editor, editor and preview, or preview, for Markdown and SVG. Markdown files open the way the
-    /// last one was shown.
+    /// Editor, editor and preview, or preview, for Markdown, SVG and CSV. Markdown and CSV files open
+    /// the way the last one was shown.
     func setMarkdownMode(_ mode: MarkdownMode) {
         guard let document = selectedDocument, document.hasPreview else { return }
         withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
             document.markdownMode = mode
         }
         if document.isMarkdown { settings.markdownMode = mode }
+        if document.isCSV { settings.csvMode = mode }
         scheduleSessionSave()
     }
 

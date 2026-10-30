@@ -30,6 +30,9 @@ final class EditorDocument: Identifiable {
             loadedEditor?.setLanguage(language)
             updateMinifiedNotice()
             if language == .markdown, oldValue != .markdown { markdownMode = AppSettings.shared.markdownMode }
+            let wasCSV = oldValue == .csv || oldValue == .tsv
+            if isCSV, !wasCSV { markdownMode = AppSettings.shared.csvMode }
+            if isCSV, wasCSV { loadedCSVPreview?.languageDidChange() }
             Workspace.shared.scheduleSessionSave()
         }
     }
@@ -47,7 +50,7 @@ final class EditorDocument: Identifiable {
     var fileModificationDate: Date?
     /// Opened as a binary file: decoded byte for byte, which reloads must do too.
     var isBinary = false
-    /// How a document with a preview (Markdown, SVG) is shown.
+    /// How a document with a preview (Markdown, SVG, CSV) is shown.
     var markdownMode: MarkdownMode
     /// Per-document override of the word-wrap setting.
     var wrapLines: Bool? {
@@ -75,6 +78,7 @@ final class EditorDocument: Identifiable {
     @ObservationIgnored private var previewStorage: MarkdownPreviewController?
     @ObservationIgnored private var imageViewerStorage: ImageViewerController?
     @ObservationIgnored private var svgPreviewStorage: SVGPreviewController?
+    @ObservationIgnored private var csvPreviewStorage: CSVPreviewController?
     @ObservationIgnored private var initialText: String
     @ObservationIgnored var pendingSelection: Int?
     @ObservationIgnored var pendingDirty = false
@@ -89,7 +93,7 @@ final class EditorDocument: Identifiable {
         self.isImage = isImage
         self.initialText = text
         self.language = language
-        self.markdownMode = AppSettings.shared.markdownMode
+        self.markdownMode = language == .csv || language == .tsv ? AppSettings.shared.csvMode : AppSettings.shared.markdownMode
         self.indentation = Indentation(usesTabs: !AppSettings.shared.insertSpaces, width: AppSettings.shared.tabWidth)
         self.characterCount = (text as NSString).length
         if AppSettings.shared.detectIndentation, let detected = TextFileCodec.detectIndentation(in: text) {
@@ -114,8 +118,24 @@ final class EditorDocument: Identifiable {
         guard !isImage, !["jsonl", "ndjson"].contains(fileURL?.pathExtension.lowercased() ?? "") else { return nil }
         return DataFormat(language: language)
     }
-    /// Markdown and SVG can show a preview beside (or instead of) the text.
-    var hasPreview: Bool { isMarkdown || isSVG }
+    /// CSV and TSV: shown as a table too.
+    var isCSV: Bool { !isImage && (language == .csv || language == .tsv) }
+    /// The delimiter assumed when a CSV's text doesn't tell: tabs for TSV, pipes for `.psv` files.
+    var csvPreferredDelimiter: CSVTable.Delimiter {
+        if language == .tsv { return .tab }
+        return fileURL?.pathExtension.lowercased() == "psv" ? .pipe : .comma
+    }
+    /// The delimiter between a CSV's columns: the one its table uses, else the one picked for the file,
+    /// else the one its first lines seem to use.
+    var csvDelimiter: CSVTable.Delimiter {
+        if let table = csvPreviewStorage?.table { return table.delimiter }
+        if let path, let code = Workspace.shared.recents.item(for: path)?.csvDelimiter, let delimiter = CSVTable.Delimiter(rawValue: code) {
+            return delimiter
+        }
+        return CSVTable.detectDelimiter(text, preferred: csvPreferredDelimiter)
+    }
+    /// Markdown, SVG and CSV can show a preview beside (or instead of) the text.
+    var hasPreview: Bool { isMarkdown || isSVG || isCSV }
     var path: String? { fileURL?.canonicalPath }
 
     /// Whether this is an empty, unmodified untitled buffer that can be replaced by an opened file.
@@ -204,10 +224,34 @@ final class EditorDocument: Identifiable {
 
     var loadedSVGPreview: SVGPreviewController? { svgPreviewStorage }
 
+    /// The table of a CSV or TSV document, created on first use.
+    var csvPreview: CSVPreviewController {
+        if let csvPreviewStorage { return csvPreviewStorage }
+        let preview = CSVPreviewController(document: self)
+        csvPreviewStorage = preview
+        return preview
+    }
+
+    var loadedCSVPreview: CSVPreviewController? { csvPreviewStorage }
+
     var text: String { editorStorage?.text ?? initialText }
 
     var selectionLocation: Int {
         editorStorage?.textView.selectedRange().location ?? pendingSelection ?? 0
+    }
+
+    /// Selects `range` in the editor, scrolling to it now or once the editor is on screen.
+    func select(_ range: NSRange) {
+        guard let editor = editorStorage else {
+            pendingSelection = range.location
+            return
+        }
+        if editor.textView.window != nil {
+            editor.reveal(range: range, indicator: false)
+        } else {
+            editor.textView.setSelectedRange(editor.clamp(range))
+            needsInitialScroll = true
+        }
     }
 
     /// Marks a change that isn't in the text (line endings, encoding) so the document needs saving.
@@ -231,6 +275,7 @@ final class EditorDocument: Identifiable {
         }
         loadedPreview?.textDidChange()
         loadedSVGPreview?.textDidChange()
+        loadedCSVPreview?.textDidChange()
         Workspace.shared.scheduleSessionSave()
     }
 
@@ -255,6 +300,7 @@ final class EditorDocument: Identifiable {
         previewStorage?.tearDown()
         imageViewerStorage?.tearDown()
         svgPreviewStorage?.tearDown()
+        csvPreviewStorage?.tearDown()
         editorStorage?.endFind()
         editorStorage?.rootView.removeFromSuperview()
     }

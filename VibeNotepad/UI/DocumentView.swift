@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 import VibeCore
 
-/// The editor and/or Markdown preview for one document (or the image viewer, for a picture).
+/// The editor and/or preview (Markdown, SVG or a CSV's table) for one document (or the image viewer,
+/// for a picture).
 struct DocumentView: View {
     @Environment(Workspace.self) private var workspace
     @Bindable var document: EditorDocument
@@ -47,6 +48,8 @@ struct DocumentView: View {
                     Group {
                         if document.isSVG {
                             SVGPreviewView(document: document, isInFocusedPane: isInFocusedPane)
+                        } else if document.isCSV {
+                            CSVPreviewView(document: document, isInFocusedPane: isInFocusedPane)
                         } else {
                             PreviewHost(document: document, isInFocusedPane: isInFocusedPane)
                         }

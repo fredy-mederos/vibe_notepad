@@ -159,6 +159,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         center.addObserver(self, selector: #selector(didRedo(_:)), name: .NSUndoManagerDidRedoChange, object: undoManager)
 
         applySettings(AppSettings.shared, theme: AppSettings.shared.theme)
+        if document.isCSV { engine.csvDelimiter = document.csvDelimiter.rawValue }
         load(text: text)
         refreshGitBase()
     }
@@ -228,12 +229,22 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         gutter.showsFoldMarkers = FoldingAnalyzer.supportsFolding(language)
         gutter.updateThickness(force: true)
         scheduleFoldAnalysis(immediate: true)
+        engine.csvDelimiter = document.isCSV ? document.csvDelimiter.rawValue : nil
         engine.setLanguage(language, text: nsText)
         minimap.invalidateAll()
         styler.resetAttributes()
         restyleAfterReset()
         updateSpellChecking()
         contentDidChange()
+    }
+
+    /// Colors CSV columns split at `delimiter` (the one the document's table uses).
+    func setCSVDelimiter(_ delimiter: UInt16) {
+        guard engine.csvDelimiter != delimiter else { return }
+        engine.setCSVDelimiter(delimiter, text: nsText)
+        minimap.invalidateAll()
+        styler.resetAttributes()
+        restyleAfterReset()
     }
 
     func markSaved() {
@@ -547,6 +558,7 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
         updateStatus()
         gutter.needsDisplay = true
         updateBracketHighlight()
+        document.loadedCSVPreview?.caretDidMove()
     }
 
     func undoManager(for view: NSTextView) -> UndoManager? { undoManager }

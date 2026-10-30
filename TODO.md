@@ -8,6 +8,25 @@ Nothing queued right now; see "Not now" for parked ideas.
 
 ## Done
 
+- [x] **CSV and TSV as a table** (Fredy's idea): CSV, TSV and `.psv` files get Editor / Split / Preview (⌥⌘1–3,
+  the toolbar switcher, the palette), and open the way the last one was shown (Split at first). The preview
+  (`CSVPreviewController`) is an NSTableView whose rows draw their own cells, so a 200,000-row file scrolls like a
+  small one: the first record as the column titles when nothing in it is a number (the bar's Header Row switch,
+  the palette and the right-click menu change that, and the file remembers it), each record's line down the side
+  (a quoted field can span lines), numbers right-aligned, titles in the editor's column colors. `CSVTable`
+  (VibeCore, with tests) reads RFC 4180 loosely (quotes, `""`, line breaks inside quotes, LF/CRLF/CR, records of any
+  length) and keeps fields as UTF-16 ranges of the text, so the table maps straight onto the editor: the caret's
+  field is outlined (its name, `C7`, and whole value show in the bar), clicking a cell selects its field,
+  double-click or Return goes there in the editor (from Preview, it switches to Split), and arrows, Tab and ⌘
+  arrows move around. The delimiter is the one that splits the first 40 records most consistently (comma,
+  semicolon, tab or pipe), or the one picked in the bar (remembered); the editor's rainbow columns follow it now,
+  so semicolon files get colored columns too. Clicking a column title sorts the rows (numbers by value, then text
+  in natural order ignoring case and accents, empty values last) without touching the file; the line column, or
+  the sort chip in the bar, goes back to the file's order. ⌘C copies the outlined cell, or the selected rows
+  tab-separated; with only the table showing, Find searches the text and the outline follows the matches.
+  Release: a 12.8 MB, 200,000-row file is read in 13 ms and sorted by a text column in 105 ms (both off the main
+  thread for large files; opening such a file in the editor takes about 1.2 s on its own).
+
 - [x] **How many recent files** (Fredy's idea): 10, 20 (the default), 50 or 100, from the sidebar's Recent
   header menu (⋯ → Show) or Settings → General → Sidebar. The sidebar's Recent section and File → Open Recent
   show that many; the store keeps 100 (it kept 80), so a larger number brings older files back, and the
@@ -128,6 +147,8 @@ Nothing queued right now; see "Not now" for parked ideas.
   image into a Markdown note (saved next to it, linked). SVG: images it links to (`<image href>`) and web fonts
   don't show in the preview (it loads nothing).
 
+- CSV table, later: edit cells in place (through the editor's undo), keep the line numbers and the first column
+  in view when scrolling sideways, filter rows, sum and average of the selected numbers in the bar.
 - Pinned groups: pin a set of files laid out in panes and reopen them in the same arrangement (Fredy's idea, too
   much for now).
 - The same file in two panes (a document has a single editor view for now).

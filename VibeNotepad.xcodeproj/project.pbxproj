@@ -37,6 +37,7 @@
 		98A9AECA7C4AEDA12C8B27FC /* FileIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3943FBE0941E67073A4CC290 /* FileIO.swift */; };
 		9CCCF0F1F9F8278DBFABBEFA /* ImageViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7205087E79A8FE5C37E43D5 /* ImageViews.swift */; };
 		A593863D7C92058D663249AD /* VibeNotepadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B892A2F3C410D8EF0F10AD6 /* VibeNotepadApp.swift */; };
+		AA28BBE69DB944F5135ACC3A /* CSVPreviewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62DFFAC50E52F4B830E2A284 /* CSVPreviewController.swift */; };
 		B35A6FEC0926017C4C6D1417 /* EditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952088C1F91D0CB14F229D68 /* EditorController.swift */; };
 		B57D85C22437E865229CB7E5 /* PreviewTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3CDCF37D036DCD2BD1A401 /* PreviewTemplate.swift */; };
 		B75639BF98CBF51FC9AD2AB8 /* ImageViewerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0360476E5AF6FE644E387F21 /* ImageViewerController.swift */; };
@@ -54,6 +55,7 @@
 		DCA49109D890187E0D7C5507 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49C246D10B1001B9FE4551B9 /* AppDelegate.swift */; };
 		E4AC2D980FC8016452AA0198 /* AboutSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 256C5573A6566610CF09BD2B /* AboutSettings.swift */; };
 		E5771C7171C22806E5498AF2 /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77AB9D216A146ABA19863AF5 /* Workspace.swift */; };
+		E8B9E171B56E6569ABFDA36A /* CSVViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61FEC782A72AB26ECF5E469C /* CSVViews.swift */; };
 		EA5694C1520FD942EF732F8E /* Workspace+Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 597B0444E092DAED89BE7F2D /* Workspace+Project.swift */; };
 		F0496EA028D3D326F70BE334 /* Workspace+Commands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F89EDC5800105A0F4F42F54 /* Workspace+Commands.swift */; };
 		F4A36AFD41DA488FCBA20DE7 /* EditorDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 551E32447631A2330B94EEE5 /* EditorDocument.swift */; };
@@ -87,6 +89,8 @@
 		52D8412D67D67F6FC419C0BC /* LaunchRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchRouter.swift; sourceTree = "<group>"; };
 		551E32447631A2330B94EEE5 /* EditorDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorDocument.swift; sourceTree = "<group>"; };
 		597B0444E092DAED89BE7F2D /* Workspace+Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+Project.swift"; sourceTree = "<group>"; };
+		61FEC782A72AB26ECF5E469C /* CSVViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVViews.swift; sourceTree = "<group>"; };
+		62DFFAC50E52F4B830E2A284 /* CSVPreviewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVPreviewController.swift; sourceTree = "<group>"; };
 		661B30F5CA831B5EC5805B25 /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
 		6F6D03111D57AB332B006F62 /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
 		734633EB42BD68A0587B470B /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
@@ -239,6 +243,7 @@
 			children = (
 				256C5573A6566610CF09BD2B /* AboutSettings.swift */,
 				03B959EBB09363B3F03D0DC3 /* Components.swift */,
+				61FEC782A72AB26ECF5E469C /* CSVViews.swift */,
 				7C89D612A76303F2D47A5327 /* DocumentView.swift */,
 				89917660F5E7B5297607C59D /* FindBarView.swift */,
 				C7205087E79A8FE5C37E43D5 /* ImageViews.swift */,
@@ -259,6 +264,7 @@
 		C5B45E397EB4BB822EF0EEC0 /* Preview */ = {
 			isa = PBXGroup;
 			children = (
+				62DFFAC50E52F4B830E2A284 /* CSVPreviewController.swift */,
 				520DFDCBCB4757E50BFD53C3 /* MarkdownPreviewController.swift */,
 				7A3CDCF37D036DCD2BD1A401 /* PreviewTemplate.swift */,
 				4587251CB92CA3C37814BC6F /* SVGPreviewController.swift */,
@@ -315,7 +321,6 @@
 				};
 			};
 			buildConfigurationList = 3CB0C875F636F8DDEEC3921D /* Build configuration list for PBXProject "VibeNotepad" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -328,6 +333,7 @@
 				874D9DE5867FA3E6D000C0F9 /* XCLocalSwiftPackageReference "Packages/VibeCore" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 41E2F865CE6845B6057566FA /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -381,6 +387,8 @@
 				CD241ADD944ED5ECB3B8DB95 /* AppSettings.swift in Sources */,
 				90A13ED7D728AC05316B87CF /* AppUpdater.swift in Sources */,
 				8D80BE40617C71B5D6E19408 /* BuildInfo.swift in Sources */,
+				AA28BBE69DB944F5135ACC3A /* CSVPreviewController.swift in Sources */,
+				E8B9E171B56E6569ABFDA36A /* CSVViews.swift in Sources */,
 				30C7022EDC7851B9D773E2E6 /* CodeTextView.swift in Sources */,
 				16AC359F69CF401026583074 /* CommandLineTool.swift in Sources */,
 				1B68AC63B41406A1B37E0AC1 /* Components.swift in Sources */,

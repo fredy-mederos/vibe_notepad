@@ -13,6 +13,9 @@ import Foundation
 public final class SyntaxEngine {
     public private(set) var language: LanguageID
     private var lexer: any SyntaxLexer
+    /// The delimiter CSV and TSV columns are split at (nil: their language's own). It takes effect when
+    /// the text is next read (`reset`, `setLanguage`); `setCSVDelimiter` reads it again right away.
+    public var csvDelimiter: UInt16?
 
     /// UTF-16 offset of the first character of each line. Never empty; `lineStarts[0] == 0`.
     public private(set) var lineStarts: [Int] = [0]
@@ -106,7 +109,7 @@ public final class SyntaxEngine {
     public func reset(text: NSString, language: LanguageID? = nil) {
         if let language {
             self.language = language
-            self.lexer = language.lexer
+            self.lexer = lexer(for: language)
         }
         textLength = text.length
         isHighlightingEnabled = textLength <= highlightLimit && self.language != .plainText
@@ -129,6 +132,18 @@ public final class SyntaxEngine {
     /// Changes the language and re-lexes.
     public func setLanguage(_ language: LanguageID, text: NSString) {
         reset(text: text, language: language)
+    }
+
+    /// Splits CSV and TSV columns at `delimiter` from now on, re-lexing the text if that changes them.
+    public func setCSVDelimiter(_ delimiter: UInt16?, text: NSString) {
+        guard delimiter != csvDelimiter else { return }
+        csvDelimiter = delimiter
+        if language == .csv || language == .tsv { reset(text: text, language: language) }
+    }
+
+    private func lexer(for language: LanguageID) -> any SyntaxLexer {
+        if let csvDelimiter, language == .csv || language == .tsv { return CSVLexer(delimiter: csvDelimiter) }
+        return language.lexer
     }
 
     /// Updates bookkeeping after an edit and re-lexes until line states converge.

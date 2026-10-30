@@ -13,6 +13,10 @@ nonisolated struct RecentFile: Codable, Hashable, Identifiable, Sendable {
     /// Language picked manually from the status bar (overrides detection).
     var language: LanguageID?
     var markdownMode: MarkdownMode?
+    /// A CSV's header row turned on or off by hand.
+    var csvHeader: Bool?
+    /// A CSV's delimiter picked by hand (its character code).
+    var csvDelimiter: UInt16?
 
     var id: String { path }
     var url: URL { URL(fileURLWithPath: path) }
@@ -28,6 +32,8 @@ nonisolated extension RecentFile {
         selection = (try? c.decodeIfPresent(Int.self, forKey: .selection)) ?? nil
         language = (try? c.decodeIfPresent(LanguageID.self, forKey: .language)) ?? nil
         markdownMode = (try? c.decodeIfPresent(MarkdownMode.self, forKey: .markdownMode)) ?? nil
+        csvHeader = (try? c.decodeIfPresent(Bool.self, forKey: .csvHeader)) ?? nil
+        csvDelimiter = (try? c.decodeIfPresent(UInt16.self, forKey: .csvDelimiter)) ?? nil
     }
 }
 

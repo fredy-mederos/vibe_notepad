@@ -179,6 +179,7 @@ final class Workspace {
             document.loadedPreview?.applyTheme()
             document.loadedImageViewer?.applyTheme()
             document.loadedSVGPreview?.viewer.applyTheme()
+            document.loadedCSVPreview?.applyTheme()
         }
     }
 
@@ -713,6 +714,9 @@ final class Workspace {
             NSSound.beep()
             return
         }
+        // With only its table showing, a CSV is searched in its (hidden) editor: the table follows the
+        // matches the caret moves to.
+        if let document = selectedDocument, document.isCSV { _ = document.editor }
         if let editor = activeEditor {
             let selection = editor.textView.selectedRange()
             if selection.length > 0, selection.length < 300 {
@@ -829,8 +833,10 @@ final class Workspace {
 
     /// Gives the keyboard to the selected tab's editor, or its picture.
     func focusSelectedDocument() {
-        if let editor = activeEditor {
+        if let editor = activeEditor, editor.textView.window != nil {
             editor.focus()
+        } else if let document = selectedDocument, document.isCSV, document.markdownMode == .preview {
+            document.loadedCSVPreview?.focus()
         } else {
             selectedDocument?.loadedImageViewer?.focus()
         }

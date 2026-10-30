@@ -42,6 +42,17 @@ any time.
   any zoom, and follows your typing; a mistake in the XML shows its line over the last good picture. The preview
   zooms and pans like an image, with its size, zoom and background in a bar in its corner. SVGs are drawn as
   pictures, so their scripts never run and they can't load anything.
+- **CSV and TSV as a table**: CSV, TSV and `.psv` files get Editor / Split / Preview like Markdown, and the
+  preview is a spreadsheet-like grid: the first row as the column titles (when it reads as titles; the bar's Header
+  Row switch changes it), each row's line number down the side, numbers right-aligned, and titles in the colors the
+  editor gives their columns. The separator (comma, semicolon, tab or pipe) is detected, or picked from the bar, and
+  quoted fields with separators, quotes or line breaks read right; the editor colors the columns by the same
+  separator, so semicolon files from Excel get colored columns too. The cell under the caret is outlined, with its
+  whole value in the bar above the table; clicking a cell selects its field in the text, double-click (or Return)
+  goes there in the editor, and the arrow keys, Tab and ⌘ arrows move around. Click a column title to sort by it
+  (numbers by value, text in natural order; the file stays as it is), ⌘C copies the cell or the selected rows
+  (tab-separated, ready to paste into a spreadsheet), and right-click for more. Large files are read in the
+  background.
 - **Recent and pinned files in the sidebar**, with fuzzy filtering, relative times, and missing-file detection.
   Choose how many recent files show (10, 20, 50 or 100) from the Recent header's ⋯ menu or Settings → General;
   File → Open Recent follows it, and the filter searches the last 100.
@@ -174,7 +185,8 @@ the project), builds the disk image, tags `vX.Y.Z` and publishes the GitHub rele
 | Move Line Up / Down | ⌃⌘↑ / ⌃⌘↓ |
 | Duplicate / Delete Line | ⇧⌘D / ⌃⇧K |
 | Join Lines / Select Line | ⌘J / ⌘L |
-| Markdown and SVG: Editor / Split / Preview | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 (toggle: ⇧⌘V) |
+| Markdown, SVG and CSV: Editor / Split / Preview | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 (toggle: ⇧⌘V) |
+| CSV table: move between cells / go to the cell in the editor | Arrows, Tab, ⌘ arrows / Return or double-click |
 | Fold / Unfold | ⌥⌘[ / ⌥⌘] |
 | Fold All / Unfold All | ⇧⌥⌘[ / ⇧⌥⌘] |
 | Format JSON / XML | ⌥⌘J |
@@ -198,7 +210,7 @@ Packages/VibeCore          Platform-neutral core (builds for macOS and iOS)
   Markdown/                GitHub-flavored Markdown → HTML renderer
   Theme/                   Color schemes
   Text/                    File codec (encodings, BOMs, line endings), editing transforms,
-                           find engine, fuzzy matcher, symbol extraction, line diff (git gutter)
+                           find engine, fuzzy matcher, symbol extraction, line diff (git gutter), CSV tables
   Layout/                  The split editor's pane layout (splitting, closing, frames, neighbors, presets)
 VibeNotepad                macOS app
   App/                     App entry, menus, AppDelegate (Finder/CLI/deep links), CLI installer, version info,
@@ -207,7 +219,8 @@ VibeNotepad                macOS app
                            index, FSEvents watcher), documents, settings, file I/O
   Editor/                  TextKit 1 editor: NSTextView subclass, gutter, minimap, syntax styling, line height
   Preview/                 WKWebView Markdown preview (page scripts disabled, app talks via an isolated world);
-                           SVG preview (WebKit draws the SVG as an image into a PDF the image viewer shows)
+                           SVG preview (WebKit draws the SVG as an image into a PDF the image viewer shows);
+                           CSV table (an NSTableView whose rows draw their own cells)
   Image/                   Image viewer: zoomable scroll view, pictures decoded off the main thread and shown as
                            layer contents (the GPU scales them), animations, checkerboard, panning
   UI/                      SwiftUI: sidebar, tabs, panes, status bar, find bar, palette, welcome, settings

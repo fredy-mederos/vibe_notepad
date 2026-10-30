@@ -30,7 +30,7 @@ nonisolated enum ImageBackground: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// How a document with a preview (Markdown, SVG) is shown.
+/// How a document with a preview (Markdown, SVG, CSV) is shown.
 nonisolated enum MarkdownMode: String, CaseIterable, Codable, Sendable {
     case editor
     case split
@@ -117,6 +117,10 @@ final class AppSettings {
     var previewFontSize: Double { didSet { save(previewFontSize, "previewFontSize") } }
     var syncScroll: Bool { didSet { save(syncScroll, "syncScroll") } }
 
+    // MARK: CSV
+    /// How CSV and TSV files open: the way the last one was shown.
+    var csvMode: MarkdownMode { didSet { save(csvMode.rawValue, "csvMode") } }
+
     // MARK: Session
     var restoreSession: Bool { didSet { save(restoreSession, "restoreSession") } }
     var hotExit: Bool { didSet { save(hotExit, "hotExit") } }
@@ -161,6 +165,7 @@ final class AppSettings {
         previewFont = PreviewFont(rawValue: value("previewFont", "system")) ?? .system
         previewFontSize = value("previewFontSize", 15.0)
         syncScroll = value("syncScroll", true)
+        csvMode = MarkdownMode(rawValue: value("csvMode", "split")) ?? .split
         restoreSession = value("restoreSession", true)
         hotExit = value("hotExit", true)
         reloadChangedFiles = value("reloadChangedFiles", true)
