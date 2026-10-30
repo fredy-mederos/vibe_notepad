@@ -114,6 +114,44 @@ enum DebugTools {
         }
     }
 
+    /// Goes to `line` in the selected editor (as Go to Line does; without a line, stays put) and writes to
+    /// `path` where the caret's line sits in the viewport right after the jump and once the window has
+    /// drawn: 0 is the top, 0.5 the middle, past 1 below what shows.
+    static func goTo(line: Int?, report path: String) {
+        guard let editor = Workspace.shared.activeEditor else {
+            try? "no editor\n".write(toFile: path, atomically: true, encoding: .utf8)
+            return
+        }
+        func placement(_ label: String) -> String {
+            // The middle of the caret's whole line (all its wrapped rows), which is what jumps center.
+            let caret = editor.textView.selectedRange().location
+            let line = editor.engine.lineIndex(containing: caret)
+            let layout = editor.layoutManager
+            let last = max(0, editor.textStorage.length - 1)
+            let first = layout.glyphIndexForCharacter(at: min(editor.engine.lineStart(line), last))
+            let end = layout.glyphIndexForCharacter(at: min(max(editor.engine.lineStart(line), editor.engine.lineContentEnd(line) - 1), last))
+            let rect = layout.lineFragmentRect(forGlyphAt: first, effectiveRange: nil, withoutAdditionalLayout: true)
+                .union(layout.lineFragmentRect(forGlyphAt: end, effectiveRange: nil, withoutAdditionalLayout: true))
+                .offsetBy(dx: 0, dy: editor.textView.textContainerOrigin.y)
+            let clip = editor.scrollView.contentView.bounds
+            let visible = editor.visibleLines()
+            return String(format: "%@: caret line %d, placement %.2f (line y %.0f…%.0f, view y %.0f…%.0f), lines %d…%d shown",
+                          label, line + 1, (rect.midY - clip.minY) / max(clip.height, 1), rect.minY, rect.maxY,
+                          clip.minY, clip.maxY, visible.lowerBound + 1, visible.upperBound)
+        }
+        let start = Date()
+        if let line { editor.goTo(line: line) }
+        let elapsed = Date().timeIntervalSince(start) * 1000
+        let right = placement(String(format: "after the jump (%.0f ms)", elapsed))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            editor.textView.window?.displayIfNeeded()
+            let later = placement("after drawing")
+            let workspace = Workspace.shared
+            let find = "find “\(workspace.findQuery)”, bar \(workspace.findBarVisible), matches \(workspace.findMatchCount), current \(workspace.findCurrentIndex.map(String.init) ?? "-")"
+            try? (right + "\n" + later + "\n" + find + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
     /// Drives the panes, then writes how they're laid out to `path`. Ops: split (value h or v, of pane
     /// index `pane`), layout (a preset name), focus (left, right, up, down, next), close (pane index),
     /// click (value "x,y" as fractions of the window, through the click monitor), drop (value

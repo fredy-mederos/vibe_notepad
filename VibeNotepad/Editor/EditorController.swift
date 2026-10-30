@@ -817,19 +817,33 @@ final class EditorController: NSObject, NSTextViewDelegate, NSTextStorageDelegat
 
     /// Scrolls so that `range` sits in the middle of the viewport (when it isn't already visible).
     func scrollToCenter(_ range: NSRange) {
-        // Non-contiguous layout positions the target without laying out everything above it.
+        let clip = scrollView.contentView
+        // Non-contiguous layout positions the target without laying out everything above it: the
+        // height of the text above is an estimate until it's laid out, which happens once it scrolls
+        // into view and can move the target (wrapped lines are often taller than estimated). So lay
+        // out what came into view and correct, until the target stays put (usually one more pass).
+        for pass in 0..<4 {
+            let rect = centeringRect(range)
+            if pass == 0, clip.documentVisibleRect.insetBy(dx: 0, dy: lineHeight * 2).contains(NSPoint(x: clip.documentVisibleRect.midX, y: rect.midY)) { return }
+            let maxY = max(0, textView.frame.height - clip.bounds.height)
+            let y = min(max(0, rect.midY - clip.bounds.height / 2), maxY)
+            if abs(y - clip.bounds.origin.y) < 1 { return }
+            clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
+            scrollView.reflectScrolledClipView(clip)
+            let origin = textView.textContainerOrigin
+            layoutManager.ensureLayout(forBoundingRect: clip.documentVisibleRect.offsetBy(dx: -origin.x, dy: -origin.y), in: textContainer)
+        }
+    }
+
+    /// Where `range` is in the text view, laying it out first.
+    private func centeringRect(_ range: NSRange) -> NSRect {
         let location = min(range.location, textStorage.length)
         layoutManager.ensureLayout(forCharacterRange: NSRange(location: location, length: min(textStorage.length - location, max(range.length, 1))))
         let glyphs = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
         var rect = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
         if range.length == 0, rect.height == 0 { rect.size.height = lineHeight }
         rect.origin.y += textView.textContainerOrigin.y
-        let clip = scrollView.contentView
-        if clip.documentVisibleRect.insetBy(dx: 0, dy: lineHeight * 2).contains(NSPoint(x: clip.documentVisibleRect.midX, y: rect.midY)) { return }
-        let maxY = max(0, textView.frame.height - clip.bounds.height)
-        let y = min(max(0, rect.midY - clip.bounds.height / 2), maxY)
-        clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
-        scrollView.reflectScrolledClipView(clip)
+        return rect
     }
 
     // MARK: Find
